@@ -6,7 +6,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * Extend this list as real product routes land in later milestones
  * (e.g. /explore, /experiences, /messages, /profile, /booking).
  */
-const PROTECTED_PREFIXES = ["/home"];
+const PROTECTED_PREFIXES = ["/home", "/onboarding"];
 
 /**
  * Named `proxy` (not `middleware`) per the Next.js 16 rename — this runs on
