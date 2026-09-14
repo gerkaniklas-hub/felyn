@@ -1,10 +1,14 @@
+import { Logo } from "@/components/ui/logo";
+
 export default function Home() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-2 bg-white text-center">
-      <p className="text-2xl font-semibold text-slate-900">Felyn.</p>
-      <p className="text-sm text-slate-500">Make more of the time together.</p>
-      <p className="mt-6 text-xs text-slate-400">
-        Project setup complete — design system comes next.
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+      <Logo size="lg" />
+      <p className="max-w-xs text-base text-navy-700">
+        Make more of the time together.
+      </p>
+      <p className="mt-8 text-xs text-navy-300">
+        Design system ready — product screens come next.
       </p>
     </div>
   );

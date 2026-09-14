@@ -1,26 +1,62 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Felyn design tokens — warm ivory/cloud backgrounds, deep navy text,
+   a clear sky blue accent, and a golden-hour gold used sparingly.
+   These generate Tailwind utilities directly (bg-ivory-100, text-navy-900,
+   text-sky-600, text-gold-500, ...). This file is the single source of
+   truth for the palette — components should reference these scales
+   rather than one-off hex values. */
+@theme {
+  /* Ivory / cloud — warm neutral backgrounds (the dominant surface, ~55-60%) */
+  --color-ivory-50: #fdfbf6;
+  --color-ivory-100: #faf5ec;
+  --color-ivory-200: #f4eee1;
+  --color-ivory-300: #ece3d2;
+  --color-ivory-400: #ddd0b8;
+  --color-ivory-500: #c9b896;
+
+  /* Navy — primary text and UI surfaces (~25-30%) */
+  --color-navy-50: #eef1f5;
+  --color-navy-100: #e3e7ed;
+  --color-navy-300: #9aa5b8;
+  --color-navy-500: #5c6b87;
+  --color-navy-700: #33415c;
+  --color-navy-900: #16233d;
+  --color-navy-950: #0d1626;
+
+  /* Sky — secondary accent for interactive/informational elements (~10-15%) */
+  --color-sky-50: #f1f8fd;
+  --color-sky-100: #dceefa;
+  --color-sky-200: #bfe1f5;
+  --color-sky-300: #93cdec;
+  --color-sky-400: #63b3e0;
+  --color-sky-500: #3b9ad9;
+  --color-sky-600: #1e7fbe;
+  --color-sky-700: #17638f;
+  --color-sky-900: #0e3a56;
+
+  /* Gold — golden-hour accent, used sparingly for small highlights (~3-5%) */
+  --color-gold-50: #fbf3e3;
+  --color-gold-100: #f8ecd3;
+  --color-gold-200: #f0dbae;
+  --color-gold-300: #e9c687;
+  --color-gold-400: #dfb466;
+  --color-gold-500: #d9a441;
+  --color-gold-600: #b8813a;
+  --color-gold-700: #96652f;
 }
 
+/* Fonts are loaded via next/font/google in layout.tsx, which sets these as
+   CSS variables at runtime. "inline" keeps them as var() references rather
+   than baking in a value, since the actual font-family string is injected
+   by next/font, not known statically here. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-display: var(--font-fraunces);
+  --font-sans: var(--font-jakarta);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-ivory-100);
+  color: var(--color-navy-900);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
