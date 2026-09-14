@@ -3,14 +3,10 @@
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export type ActionState = { error?: string };
-
-function friendlyLoginError(message: string): string {
-  if (message.toLowerCase().includes("email not confirmed")) {
-    return "Please confirm your email address first — check your inbox for the link we sent when you signed up.";
-  }
-  return "Incorrect email or password.";
-}
+export type ActionState = {
+  error?: string;
+  unconfirmedEmail?: string;
+};
 
 export async function login(
   _prevState: ActionState,
@@ -27,7 +23,13 @@ export async function login(
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    return { error: friendlyLoginError(error.message) };
+    if (error.code === "email_not_confirmed") {
+      return {
+        error: "Please confirm your email address before logging in.",
+        unconfirmedEmail: email,
+      };
+    }
+    return { error: "Incorrect email or password." };
   }
 
   redirect("/home");
