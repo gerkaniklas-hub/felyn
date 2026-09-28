@@ -61,6 +61,19 @@ body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Phase 5 (trip planner date navigation): hides the scrollbar on an
+   otherwise-native horizontally scrolling strip, so left/right arrow
+   buttons are the visible way to navigate it rather than a drag-track —
+   touch/trackpad scrolling and smooth scrollIntoView still work exactly as
+   before, this only hides the bar itself. */
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* older Edge/IE */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/newer Edge */
+}
+
 /* P1.4: the carousel's focused-card crossfade — restrained on purpose, no slide/bounce. */
 @keyframes fadeIn {
   from {

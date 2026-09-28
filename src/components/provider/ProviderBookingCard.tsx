@@ -8,7 +8,7 @@ import {
   getItemStatusLabel,
   getItemStatusTone,
 } from "@/lib/matching/booking-status";
-import { getPlannedMomentLabel } from "@/lib/matching/plan";
+import { getBookingTimeLabel } from "@/lib/matching/plan";
 import { formatDayLabel } from "@/lib/matching/timeline";
 import type { ProviderRequestItem } from "@/lib/provider/dashboard";
 
@@ -99,18 +99,15 @@ export function ProviderBookingCard({
 
         <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-navy-700">
           <span>
-            {formatDayLabel(item.plannedDate)} · {getPlannedMomentLabel(item.plannedMoment)}
+            {formatDayLabel(item.plannedDate)} · {getBookingTimeLabel(item.plannedMoment, item.preferredTime)}
           </span>
           <span>
             {item.guestCount} guest{item.guestCount === 1 ? "" : "s"} for this experience
           </span>
         </div>
 
-        {item.preferredTime ? (
-          <p className="text-sm text-navy-500">
-            Guest prefers <span className="font-medium text-navy-700">{item.preferredTime}</span>
-            {item.status !== "CONFIRMED" ? " — a preference, not yet confirmed" : ""}
-          </p>
+        {item.preferredTime && item.status === "REQUESTED" ? (
+          <p className="text-sm text-navy-500">A preference, not yet confirmed.</p>
         ) : null}
 
         <p className="text-sm text-navy-600">
@@ -152,7 +149,8 @@ export function ProviderBookingCard({
         ) : null}
 
         <p className="mt-auto text-sm font-medium text-navy-800">
-          {formatCurrency(estimatedTotal, item.currency)} estimated
+          {formatCurrency(estimatedTotal, item.currency)}
+          {item.status === "CONFIRMED" ? " confirmed" : item.status === "REQUESTED" ? " requested" : ""}
         </p>
       </div>
     </div>

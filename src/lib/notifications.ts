@@ -53,3 +53,28 @@ export async function getUnreadNotificationCount(supabase: SupabaseClient): Prom
     .is("read_at", null);
   return count ?? 0;
 }
+
+/**
+ * Phase 7 of the consolidated improvements: where clicking a notification
+ * should go. NotificationBell only ever renders on guest pages (never
+ * provider ones), so every type reaching this is guest-facing — booking
+ * decisions route to the guest's own booking detail page (RLS-scoped,
+ * 0005), a new message routes to the inbox with the same `?item=` auto-open
+ * param ConversationList already supports. Returns null for any type this
+ * app doesn't (yet) know how to route, or with no bookingRequestItemId at
+ * all — callers must treat null as "nothing to navigate to", never invent
+ * a destination.
+ */
+export function getNotificationHref(type: string, bookingRequestItemId: string | null): string | null {
+  if (!bookingRequestItemId) return null;
+  switch (type) {
+    case "booking_item_confirmed":
+    case "booking_item_declined":
+    case "booking_item_cancelled":
+      return `/experiences/${bookingRequestItemId}`;
+    case "new_message":
+      return `/messages?item=${bookingRequestItemId}`;
+    default:
+      return null;
+  }
+}

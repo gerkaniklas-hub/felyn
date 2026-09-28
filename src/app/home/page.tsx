@@ -117,6 +117,13 @@ export default async function HomePage() {
         </Link>
       </div>
 
+      <Link
+        href="/experiences"
+        className="mx-auto text-sm font-medium text-sky-600 hover:text-sky-700"
+      >
+        View all your experiences and bookings →
+      </Link>
+
       <div className="flex flex-col gap-3">
         <p className="text-center text-xs font-medium tracking-wide text-navy-300 uppercase">
           Your stays

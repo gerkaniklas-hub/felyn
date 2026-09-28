@@ -47,6 +47,19 @@ export function getPlannedMomentLabel(moment: PlannedMoment): string {
 }
 
 /**
+ * The single headline time label used everywhere a booking's date/time is
+ * shown (host request cards, guest booking history, confirmations): the
+ * guest's exact requested/confirmed time when one was given (e.g. "19:30"),
+ * or the daypart alone otherwise (a pre-0012 legacy row and a row where the
+ * guest simply chose no preference are indistinguishable — preferred_time
+ * is null either way — so both correctly fall back to the plain moment
+ * label rather than ever inventing a time; see ExperienceConfigModal).
+ */
+export function getBookingTimeLabel(moment: PlannedMoment, preferredTime: string | null): string {
+  return preferredTime ?? `${getPlannedMomentLabel(moment)} · Time not specified`;
+}
+
+/**
  * Stay dates a plan item can be moved to — every day except departure (the
  * guest is leaving, not settling in for an experience that day). Mirrors
  * the same exclusion timeline.ts's assignment already uses.

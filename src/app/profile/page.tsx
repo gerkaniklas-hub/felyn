@@ -26,6 +26,12 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  * rather than an explicit user_id filter. On a query error, the real count
  * is unknown, so the UI says so explicitly rather than falling back to "0"
  * — a load failure must never be presented as "zero completed".
+ *
+ * Phase 9 of the consolidated improvements: this count now lives in the
+ * profile header, right beside the avatar/name, rather than in its own
+ * card near the bottom of the page — same query, same source of truth,
+ * just moved. A simple checkmark + count, deliberately not a badge/level/
+ * streak system.
  */
 export default async function GuestProfilePage() {
   const supabase = await createSupabaseServerClient();
@@ -57,8 +63,23 @@ export default async function GuestProfilePage() {
           </Heading>
         </div>
 
-        <Card>
+        <Card className="flex flex-col gap-3">
           <AvatarEditor userId={user.id} initialSignedUrl={signedAvatarUrl} />
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ivory-300 pt-3">
+            <p className="font-display text-lg text-navy-950">
+              {[firstName, lastName].filter(Boolean).join(" ") || "Your profile"}
+            </p>
+            {completedCountError ? (
+              <p className="text-sm text-navy-500">Completed experiences: unavailable right now.</p>
+            ) : (
+              <p className="flex items-center gap-1.5 text-sm font-medium text-navy-700">
+                <span aria-hidden="true" className="text-sky-600">
+                  ✓
+                </span>
+                {completedCount ?? 0} experience{completedCount === 1 ? "" : "s"} completed
+              </p>
+            )}
+          </div>
         </Card>
 
         <Card className="flex flex-col gap-4">
@@ -74,20 +95,6 @@ export default async function GuestProfilePage() {
         <Card className="flex flex-col gap-4">
           <Heading level={3}>Password</Heading>
           <PasswordChangeForm />
-        </Card>
-
-        <Card className="flex flex-col gap-1">
-          <Heading level={3}>Completed experiences</Heading>
-          {completedCountError ? (
-            <p className="text-navy-600">
-              We couldn&apos;t load this right now. Please refresh the page to try again.
-            </p>
-          ) : (
-            <p className="text-navy-600">
-              {completedCount ?? 0} so far. This counts automatically once an experience&apos;s date has
-              passed and Felyn confirms it took place — never something you need to mark yourself.
-            </p>
-          )}
         </Card>
       </div>
     </div>

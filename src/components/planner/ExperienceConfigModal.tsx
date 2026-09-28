@@ -185,6 +185,18 @@ export function ExperienceConfigModal({
                 );
               })}
             </div>
+            {/* A disabled button + hover title alone isn't clear on touch devices
+                (no hover) — this makes the same fact visible unconditionally. */}
+            {PLANNED_MOMENTS.some((moment) => !isAvailableAt(experience, config.date, moment.value)) ? (
+              <p className="mt-1.5 text-xs text-navy-500">
+                Not available for{" "}
+                {PLANNED_MOMENTS.filter((moment) => !isAvailableAt(experience, config.date, moment.value))
+                  .map((moment) => moment.label.toLowerCase())
+                  .join(" or ")}{" "}
+                on this date
+                {bookableDates.length > 1 ? " — try a different date above." : "."}
+              </p>
+            ) : null}
           </div>
 
           <div>

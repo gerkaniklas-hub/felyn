@@ -42,7 +42,8 @@ export function DayCalendar({ events }: { events: CalendarEvent[] }) {
             <p className="truncate font-display text-base text-navy-950">{event.title}</p>
             <p className="text-sm text-navy-600">
               {event.stayName} · {event.guestCount} guest{event.guestCount === 1 ? "" : "s"} ·{" "}
-              {formatCurrency(event.pricePerPerson * event.guestCount, event.currency)} estimated
+              {formatCurrency(event.pricePerPerson * event.guestCount, event.currency)}
+              {event.status === "CONFIRMED" ? " confirmed" : event.status === "REQUESTED" ? " requested" : ""}
             </p>
           </div>
           <Badge tone={getItemStatusTone(event.status)} className="shrink-0">

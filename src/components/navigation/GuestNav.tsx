@@ -10,16 +10,23 @@ import { Logo } from "@/components/ui/logo";
  * Task 1: a persistent guest nav bar — none existed before (every guest
  * page rendered its own ad hoc "← Home" link).
  *
- * Milestone 1: "Experiences" now points at its own dedicated overview
- * (/experiences — every requested experience across every stay, grouped by
- * status) rather than doubling up with /home, which is the stays dashboard.
+ * Phase 3 of the consolidated improvements: "My Trips" is now the first,
+ * primary destination — the existing /home stays dashboard (stay overview,
+ * dates, planned/requested/confirmed experiences via the existing
+ * StayPlanner) rather than a new page. /experiences (the flat cross-stay
+ * booking-history list) is no longer a top-level nav item — it's still a
+ * real route, reached as a secondary destination from within My Trips (see
+ * home/page.tsx), not removed.
  */
 const LINKS = [
+  { href: "/home", label: "My Trips" },
   { href: "/explore", label: "Explore" },
-  { href: "/experiences", label: "Experiences" },
   { href: "/messages", label: "Messages" },
   { href: "/profile", label: "Profile" },
 ];
+
+/** "My Trips" also covers the routes reached FROM it (a stay's own overview, its planner) — a guest is still conceptually inside My Trips there, not somewhere new. */
+const MY_TRIPS_PREFIXES = ["/home", "/stays", "/recommendations"];
 
 /**
  * `notifications` is passed in by each page (a Server Component) rather
@@ -36,7 +43,10 @@ export function GuestNav({ notifications }: { notifications?: ReactNode }) {
         <Logo size="sm" />
         <div className="flex flex-wrap gap-x-5 gap-y-1">
           {LINKS.map((link) => {
-            const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+            const active =
+              link.href === "/home"
+                ? MY_TRIPS_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+                : pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (
               <Link
                 key={link.href}

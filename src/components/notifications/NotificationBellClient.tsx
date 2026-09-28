@@ -3,7 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { markAllNotificationsRead, markNotificationRead } from "@/app/notifications/actions";
-import type { Notification } from "@/lib/notifications";
+import { getNotificationHref, type Notification } from "@/lib/notifications";
+
+type MarkAllState = { status: "idle" } | { status: "pending" } | { status: "error"; message: string };
 
 /**
  * P1.1: a lightweight notification popover, not a notification centre —
@@ -11,6 +13,13 @@ import type { Notification } from "@/lib/notifications";
  * underlying `notifications` table (0009) is deliberately shaped so a
  * later milestone can add mobile push without changing this data model:
  * the same rows just also fan out to a push provider.
+ *
+ * Phase 7 of the consolidated improvements: clicking a notification now
+ * actually navigates somewhere (getNotificationHref — booking decisions to
+ * the guest's own booking detail page, messages to the inbox's existing
+ * `?item=` auto-open) instead of only toggling its read state. "Mark all
+ * as read" now surfaces a real pending/error state instead of silently
+ * assuming the server update succeeded.
  */
 export function NotificationBellClient({
   notifications,
@@ -21,15 +30,30 @@ export function NotificationBellClient({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [markAllState, setMarkAllState] = useState<MarkAllState>({ status: "idle" });
 
   async function handleMarkAll() {
-    await markAllNotificationsRead();
+    setMarkAllState({ status: "pending" });
+    const result = await markAllNotificationsRead();
+    if (!result.ok) {
+      setMarkAllState({ status: "error", message: result.error });
+      return;
+    }
+    setMarkAllState({ status: "idle" });
     router.refresh();
   }
 
-  async function handleMarkOne(id: string) {
-    await markNotificationRead(id);
-    router.refresh();
+  async function handleNotificationClick(notification: Notification) {
+    if (!notification.readAt) {
+      await markNotificationRead(notification.id);
+    }
+    const href = getNotificationHref(notification.type, notification.bookingRequestItemId);
+    setOpen(false);
+    if (href) {
+      router.push(href);
+    } else {
+      router.refresh();
+    }
   }
 
   return (
@@ -62,13 +86,17 @@ export function NotificationBellClient({
               {unreadCount > 0 ? (
                 <button
                   type="button"
+                  disabled={markAllState.status === "pending"}
                   onClick={handleMarkAll}
-                  className="text-xs font-medium text-sky-600 hover:text-sky-700"
+                  className="text-xs font-medium text-sky-600 hover:text-sky-700 disabled:opacity-40"
                 >
-                  Mark all as read
+                  {markAllState.status === "pending" ? "Marking…" : "Mark all as read"}
                 </button>
               ) : null}
             </div>
+            {markAllState.status === "error" ? (
+              <p className="px-1 pb-2 text-xs text-red-600">{markAllState.message}</p>
+            ) : null}
             {notifications.length === 0 ? (
               <p className="px-1 py-3 text-sm text-navy-500">No notifications yet</p>
             ) : (
@@ -77,7 +105,7 @@ export function NotificationBellClient({
                   <button
                     key={notification.id}
                     type="button"
-                    onClick={() => !notification.readAt && handleMarkOne(notification.id)}
+                    onClick={() => handleNotificationClick(notification)}
                     className={`rounded-xl px-3 py-2 text-left transition-colors ${
                       notification.readAt ? "bg-transparent" : "bg-sky-50 hover:bg-sky-100"
                     }`}

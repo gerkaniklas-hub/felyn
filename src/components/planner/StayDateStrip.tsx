@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatDateRange } from "@/lib/format";
 import { formatDayLabel, formatWeekdayShort } from "@/lib/matching/timeline";
 
@@ -66,7 +66,32 @@ export function StayDateStrip({
   onSelect: (date: string) => void;
 }) {
   const chipRefs = useRef(new Map<string, HTMLButtonElement>());
+  const scrollRef = useRef<HTMLDivElement>(null);
   const firstRun = useRef(true);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  function updateScrollButtons() {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 1);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1);
+  }
+
+  // Keep the button-enabled state accurate on mount, resize, and every scroll
+  // (including the smooth scrollIntoView below and native touch/trackpad scroll).
+  useEffect(() => {
+    updateScrollButtons();
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => updateScrollButtons();
+    el.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [dates.length]);
 
   // Keep the selected chip visible on long stays — but never scroll the page itself on first paint.
   useEffect(() => {
@@ -77,23 +102,53 @@ export function StayDateStrip({
     chipRefs.current.get(selectedDate)?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   }, [selectedDate]);
 
+  /** One chip-and-a-half per press — enough to feel like real progress without jumping past neighbouring chips. */
+  function scrollByPage(direction: 1 | -1) {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction * el.clientWidth * 0.7, behavior: "smooth" });
+  }
+
   const lastDate = dates[dates.length - 1];
 
   return (
     <div>
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-        <p className="text-xs font-medium tracking-wide text-navy-300">YOUR STAY</p>
-        <p className="text-sm text-navy-700">
-          <span className="font-medium text-navy-900">{stay.location_text}</span> ·{" "}
-          {formatDateRange(stay.check_in, stay.check_out)} · {stay.guest_count} guest
-          {stay.guest_count === 1 ? "" : "s"}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+          <p className="text-xs font-medium tracking-wide text-navy-300">YOUR STAY</p>
+          <p className="text-sm text-navy-700">
+            <span className="font-medium text-navy-900">{stay.location_text}</span> ·{" "}
+            {formatDateRange(stay.check_in, stay.check_out)} · {stay.guest_count} guest
+            {stay.guest_count === 1 ? "" : "s"}
+          </p>
+        </div>
+        <div className="flex shrink-0 gap-1.5">
+          <button
+            type="button"
+            onClick={() => scrollByPage(-1)}
+            disabled={!canScrollLeft}
+            aria-label="Earlier dates"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-ivory-300 text-navy-700 hover:bg-ivory-200 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            onClick={() => scrollByPage(1)}
+            disabled={!canScrollRight}
+            aria-label="Later dates"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-ivory-300 text-navy-700 hover:bg-ivory-200 disabled:cursor-not-allowed disabled:opacity-30"
+          >
+            ›
+          </button>
+        </div>
       </div>
 
       <div
+        ref={scrollRef}
         role="group"
         aria-label="Stay dates"
-        className="-mx-4 mt-3 flex snap-x gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0"
+        className="no-scrollbar -mx-4 mt-3 flex snap-x gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0"
       >
         {dates.map((date) => {
           const isDeparture = date === lastDate && dates.length > 1;

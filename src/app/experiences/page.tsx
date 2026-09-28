@@ -1,19 +1,20 @@
 import Link from "next/link";
 import { GuestNav } from "@/components/navigation/GuestNav";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { ExperienceStatusGroups } from "@/components/experiences/ExperienceStatusGroups";
+import { GuestExperienceTabs } from "@/components/experiences/GuestExperienceTabs";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
 import { getGuestExperiences } from "@/lib/matching/guest-experiences";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
- * Milestone 1: every experience the guest has ever requested, across every
- * stay, grouped by its own status — distinct from /explore (discovering
- * NEW experiences) and from a single stay's planner (building a NEW plan).
+ * Every experience the guest has ever requested, across every stay,
+ * organised into Upcoming / Past / Cancelled & Declined tabs (see
+ * GuestExperienceTabs) — distinct from /explore (discovering NEW
+ * experiences) and from a single stay's planner (building a NEW plan).
  * Built entirely from getGuestExperiences (existing booking-request data;
- * no parallel system). "Completed" is intentionally not a bucket yet — see
- * that function's own comment.
+ * no parallel system). This is now a secondary destination reached from My
+ * Trips (/home), not a top-level nav item — see GuestNav.
  */
 export default async function GuestExperiencesPage() {
   const supabase = await createSupabaseServerClient();
@@ -40,7 +41,7 @@ export default async function GuestExperiencesPage() {
           </Card>
         ) : (
           <div className="mt-8">
-            <ExperienceStatusGroups items={experiences} />
+            <GuestExperienceTabs items={experiences} />
           </div>
         )}
       </div>

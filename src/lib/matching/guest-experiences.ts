@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BookingItemStatus, CancelledBy, CancelReason, DeclineReason } from "./booking-status";
 import type { PlannedMoment } from "./plan";
+import { normalizeTime } from "./slot-availability";
 
 export type GuestExperienceItem = {
   id: string;
@@ -8,9 +9,12 @@ export type GuestExperienceItem = {
   stayPropertyName: string;
   experienceId: string;
   experienceTitle: string;
+  experienceImageUrl: string | null;
   providerDisplayName: string;
   plannedDate: string;
   plannedMoment: PlannedMoment;
+  /** 'HH:MM' — the guest's exact requested/confirmed time, or null (see getBookingTimeLabel, plan.ts, for the display fallback). */
+  preferredTime: string | null;
   guestCount: number;
   pricePerPerson: number;
   currency: string;
@@ -67,7 +71,7 @@ export async function getGuestExperiences(
     supabase
       .from("booking_request_items")
       .select(
-        "id, booking_request_id, experience_id, planned_date, planned_moment, guest_count, price_per_person, status, decline_reason, created_at, cancelled_by, cancellation_reason, cancellation_note",
+        "id, booking_request_id, experience_id, planned_date, planned_moment, preferred_time, guest_count, price_per_person, status, decline_reason, created_at, cancelled_by, cancellation_reason, cancellation_note",
       )
       .in("booking_request_id", requestIds)
       .order("planned_date", { ascending: false }),
@@ -80,6 +84,7 @@ export async function getGuestExperiences(
     experience_id: string;
     planned_date: string;
     planned_moment: PlannedMoment;
+    preferred_time: string | null;
     guest_count: number;
     price_per_person: number;
     status: BookingItemStatus;
@@ -106,13 +111,28 @@ export async function getGuestExperiences(
   const experienceById = new Map(experiences.map((e) => [e.id, e]));
 
   const providerIds = [...new Set(experiences.map((e) => e.provider_id))];
-  const { data: providerRows } =
+  const [providerRes, galleryRes] = await Promise.all([
     providerIds.length > 0
-      ? await supabase.from("provider_public_profiles").select("id, display_name").in("id", providerIds)
-      : { data: [] as { id: string; display_name: string }[] };
+      ? supabase.from("provider_public_profiles").select("id, display_name").in("id", providerIds)
+      : Promise.resolve({ data: [] as { id: string; display_name: string }[] }),
+    experienceIds.length > 0
+      ? supabase
+          .from("experience_gallery")
+          .select("experience_id, image_url, sort_order")
+          .in("experience_id", experienceIds)
+          .order("sort_order", { ascending: true })
+      : Promise.resolve({ data: [] as { experience_id: string; image_url: string; sort_order: number }[] }),
+  ]);
   const providerNameById = new Map(
-    ((providerRows as { id: string; display_name: string }[] | null) ?? []).map((p) => [p.id, p.display_name]),
+    ((providerRes.data as { id: string; display_name: string }[] | null) ?? []).map((p) => [p.id, p.display_name]),
   );
+  // Rows arrive ordered by sort_order, so the first one seen per experience is its primary image (same convention as explore.ts/hard-filter.ts).
+  const primaryImageByExperience = new Map<string, string>();
+  for (const row of (galleryRes.data as { experience_id: string; image_url: string }[] | null) ?? []) {
+    if (!primaryImageByExperience.has(row.experience_id)) {
+      primaryImageByExperience.set(row.experience_id, row.image_url);
+    }
+  }
 
   // A since-unpublished experience falls outside "Guests read published
   // experiences" (0002) and won't resolve here — the item still gets a
@@ -127,9 +147,11 @@ export async function getGuestExperiences(
       stayPropertyName: stayNameById.get(stayId) ?? "Your stay",
       experienceId: item.experience_id,
       experienceTitle: experience?.title ?? "Experience no longer available",
+      experienceImageUrl: primaryImageByExperience.get(item.experience_id) ?? null,
       providerDisplayName: experience ? (providerNameById.get(experience.provider_id) ?? "Felyn host") : "Felyn host",
       plannedDate: item.planned_date,
       plannedMoment: item.planned_moment,
+      preferredTime: normalizeTime(item.preferred_time),
       guestCount: item.guest_count,
       pricePerPerson: item.price_per_person,
       currency: experience?.currency ?? "EUR",
@@ -141,4 +163,153 @@ export async function getGuestExperiences(
       cancellationNote: item.cancellation_note,
     };
   });
+}
+
+export type GuestExperienceDetail = GuestExperienceItem & {
+  hostNote: string | null;
+  /**
+   * The catalogue experience's own richer details — description, category,
+   * duration, the full photo gallery — when they're still readable. This
+   * is null (not an error) once an experience has since been unpublished:
+   * "Guests read published experiences" (0002) then excludes it, exactly
+   * the same "since-unpublished" case getGuestExperiences already handles
+   * for the title/image above. The booking's own snapshot fields (title,
+   * image, price, date/time/guests/status) are unaffected either way —
+   * they come from booking_request_items, which the guest owns regardless
+   * of the experience's current publish state.
+   */
+  experience: {
+    shortDescription: string | null;
+    description: string | null;
+    category: string;
+    cuisine: string | null;
+    durationMinutes: number;
+    gallery: { image_url: string; caption: string | null }[];
+  } | null;
+};
+
+/**
+ * One booking, in full, for the guest's own booking-detail page
+ * (/experiences/[itemId]). Ownership is enforced by RLS alone here (no
+ * explicit user_id filter is possible before the row is even fetched) —
+ * "Users manage their own booking request items" (0005) means a guest can
+ * only ever receive their OWN item; an itemId for someone else's booking
+ * simply resolves to null, exactly like getProviderRequestItems already
+ * relies on RLS for the equivalent provider-side lookup.
+ */
+export async function getGuestExperienceDetail(
+  supabase: SupabaseClient,
+  itemId: string,
+): Promise<GuestExperienceDetail | null> {
+  const { data: itemRow } = await supabase
+    .from("booking_request_items")
+    .select(
+      "id, booking_request_id, experience_id, planned_date, planned_moment, preferred_time, guest_count, price_per_person, status, decline_reason, host_note, created_at, cancelled_by, cancellation_reason, cancellation_note",
+    )
+    .eq("id", itemId)
+    .maybeSingle();
+
+  type ItemRow = {
+    id: string;
+    booking_request_id: string;
+    experience_id: string;
+    planned_date: string;
+    planned_moment: PlannedMoment;
+    preferred_time: string | null;
+    guest_count: number;
+    price_per_person: number;
+    status: BookingItemStatus;
+    decline_reason: DeclineReason | null;
+    host_note: string | null;
+    created_at: string;
+    cancelled_by: CancelledBy | null;
+    cancellation_reason: CancelReason | null;
+    cancellation_note: string | null;
+  };
+  const item = itemRow as ItemRow | null;
+  if (!item) return null;
+
+  const { data: requestRow } = await supabase
+    .from("booking_requests")
+    .select("stay_id")
+    .eq("id", item.booking_request_id)
+    .maybeSingle();
+  const stayId = (requestRow as { stay_id: string } | null)?.stay_id;
+  if (!stayId) return null; // shouldn't happen — the parent request must exist for this item to
+
+  const [stayRes, experienceRes] = await Promise.all([
+    supabase.from("stays").select("property_name").eq("id", stayId).maybeSingle(),
+    supabase
+      .from("experiences")
+      .select("title, short_description, description, category, cuisine, duration_minutes, provider_id, currency")
+      .eq("id", item.experience_id)
+      .maybeSingle(),
+  ]);
+
+  const stayPropertyName = (stayRes.data as { property_name: string } | null)?.property_name ?? "Your stay";
+  type ExperienceRow = {
+    title: string;
+    short_description: string | null;
+    description: string | null;
+    category: string;
+    cuisine: string | null;
+    duration_minutes: number;
+    provider_id: string;
+    currency: string;
+  };
+  const experience = experienceRes.data as ExperienceRow | null;
+
+  let providerDisplayName = "Felyn host";
+  let galleryRows: { image_url: string; caption: string | null }[] = [];
+  let experienceImageUrl: string | null = null;
+
+  if (experience) {
+    const [providerRes, galleryRes] = await Promise.all([
+      supabase.from("provider_public_profiles").select("display_name").eq("id", experience.provider_id).maybeSingle(),
+      supabase
+        .from("experience_gallery")
+        .select("image_url, caption, sort_order")
+        .eq("experience_id", item.experience_id)
+        .order("sort_order", { ascending: true }),
+    ]);
+    providerDisplayName = (providerRes.data as { display_name: string } | null)?.display_name ?? "Felyn host";
+    galleryRows = ((galleryRes.data as { image_url: string; caption: string | null }[] | null) ?? []).map((row) => ({
+      image_url: row.image_url,
+      caption: row.caption,
+    }));
+    experienceImageUrl = galleryRows[0]?.image_url ?? null;
+  }
+
+  return {
+    id: item.id,
+    stayId,
+    stayPropertyName,
+    experienceId: item.experience_id,
+    experienceTitle: experience?.title ?? "Experience no longer available",
+    experienceImageUrl,
+    providerDisplayName,
+    plannedDate: item.planned_date,
+    plannedMoment: item.planned_moment,
+    preferredTime: normalizeTime(item.preferred_time),
+    guestCount: item.guest_count,
+    pricePerPerson: item.price_per_person,
+    currency: experience?.currency ?? "EUR",
+    status: item.status,
+    declineReason: item.decline_reason,
+    createdAt: item.created_at,
+    cancelledBy: item.cancelled_by,
+    cancellationReason: item.cancellation_reason,
+    cancellationNote: item.cancellation_note,
+    hostNote: item.host_note,
+    experience: experience
+      ? {
+          shortDescription: experience.short_description,
+          description: experience.description,
+          category: experience.category,
+          cuisine: experience.cuisine,
+          durationMinutes: experience.duration_minutes,
+          gallery: galleryRows,
+        }
+      : null,
+  };
 }
