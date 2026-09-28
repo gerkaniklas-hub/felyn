@@ -54,7 +54,8 @@ export default async function EditProviderExperiencePage({
     );
   }
 
-  const canPublish = experience.gallery.length > 0 && experience.availability.length > 0;
+  const needsPhoto = !experience.published && experience.gallery.length === 0;
+  const needsAvailability = !experience.published && experience.availability.length === 0;
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8">
@@ -73,13 +74,23 @@ export default async function EditProviderExperiencePage({
 
       {created ? (
         <p className="rounded-xl bg-sky-100 px-4 py-3 text-sm font-medium text-sky-700">
-          Draft created. Add at least one photo and one availability window before publishing.
+          Draft created. Add at least one photo and set your availability whenever you&apos;re ready — both are
+          required before you can publish.
         </p>
       ) : null}
 
-      {!experience.published && !canPublish ? (
+      {/* Each reminder is independent and hides the instant its own requirement is met — never shown once published. */}
+      {needsPhoto ? (
         <p className="rounded-xl bg-gold-100 px-4 py-3 text-sm font-medium text-gold-700">
-          Add at least one photo and one availability window before publishing this experience.
+          Upload at least one photo to publish your experience.
+        </p>
+      ) : null}
+      {needsAvailability ? (
+        <p className="rounded-xl bg-gold-100 px-4 py-3 text-sm font-medium text-gold-700">
+          Add at least one availability window to publish your experience.{" "}
+          <a href="#availability-section" className="underline hover:no-underline">
+            Go to availability →
+          </a>
         </p>
       ) : null}
 
@@ -120,7 +131,7 @@ export default async function EditProviderExperiencePage({
         </div>
       </Card>
 
-      <Card>
+      <Card id="availability-section">
         <Heading level={3}>Availability</Heading>
         <div className="mt-4">
           <ExperienceAvailabilityManager experienceId={experience.id} windows={experience.availability} />

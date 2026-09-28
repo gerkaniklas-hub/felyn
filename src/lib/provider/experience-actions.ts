@@ -131,17 +131,54 @@ export async function updateExperience(
   return { ok: true };
 }
 
+export type PublishResult =
+  | { ok: true }
+  | { ok: false; error: string; reason?: "no_photos" | "no_availability" };
+
 /**
  * Publishing/unpublishing is deliberately separate from the edit form — an
  * instant, single-purpose toggle. Flipping `published` is all this does;
  * guests' getPublishedExperiences/hard-filter queries already filter on
  * this exact column, so the effect is immediate with no other change
  * needed anywhere guest-facing.
+ *
+ * Publishing (not unpublishing) is server-side gated on having at least
+ * one gallery photo AND at least one availability window — this is the
+ * actual enforcement point; the edit page's own reminder banners are only
+ * a UI convenience mirroring the same two rules, never the real boundary
+ * (same "UI convenience, DB/server authoritative" pattern already used for
+ * the messaging window, see booking-status.ts). `reason` lets the UI point
+ * the host at exactly which requirement is unmet. Unpublishing has no
+ * requirements at all and never touches any booking data — it only ever
+ * flips this one column.
  */
-export async function setExperiencePublished(experienceId: string, published: boolean): Promise<ActionResult> {
+export async function setExperiencePublished(experienceId: string, published: boolean): Promise<PublishResult> {
   const supabase = await createSupabaseServerClient();
   const providerId = await resolveOwnProviderId(supabase);
   if (!providerId) return { ok: false, error: "This account isn't linked to a Felyn provider profile yet." };
+  if (!(await ownsExperience(supabase, providerId, experienceId))) {
+    return { ok: false, error: NOT_YOUR_EXPERIENCE_ERROR };
+  }
+
+  if (published) {
+    const [galleryCount, availabilityCount] = await Promise.all([
+      supabase.from("experience_gallery").select("id", { count: "exact", head: true }).eq("experience_id", experienceId),
+      supabase
+        .from("experience_availability")
+        .select("id", { count: "exact", head: true })
+        .eq("experience_id", experienceId),
+    ]);
+    if ((galleryCount.count ?? 0) === 0) {
+      return { ok: false, error: "Add at least one photo before publishing.", reason: "no_photos" };
+    }
+    if ((availabilityCount.count ?? 0) === 0) {
+      return {
+        ok: false,
+        error: "Add at least one availability window before publishing.",
+        reason: "no_availability",
+      };
+    }
+  }
 
   const { data, error } = await supabase
     .from("experiences")
@@ -426,6 +463,45 @@ export async function removeExperienceGalleryImage(
   if (path) {
     await supabase.storage.from(EXPERIENCE_IMAGES_BUCKET).remove([path]);
   }
+  return { ok: true };
+}
+
+/**
+ * Makes one gallery image the primary (cover) image — moves it to the
+ * front of the order. Primary-image selection is purely a sort_order
+ * convention (the lowest sort_order = the primary, consistently in
+ * hard-filter.ts/explore.ts/experiences.ts) — no dedicated "is primary"
+ * column exists or is needed. Rewrites every row's sort_order to its new
+ * position 0..n-1 in one batch, rather than only swapping two rows, so
+ * this works correctly regardless of the image's current position.
+ */
+export async function setExperienceGalleryPrimary(experienceId: string, imageId: string): Promise<ActionResult> {
+  const supabase = await createSupabaseServerClient();
+  const providerId = await resolveOwnProviderId(supabase);
+  if (!providerId) return { ok: false, error: "This account isn't linked to a Felyn provider profile yet." };
+  if (!(await ownsExperience(supabase, providerId, experienceId))) {
+    return { ok: false, error: NOT_YOUR_EXPERIENCE_ERROR };
+  }
+
+  const { data: rows } = await supabase
+    .from("experience_gallery")
+    .select("id, sort_order")
+    .eq("experience_id", experienceId)
+    .order("sort_order", { ascending: true });
+
+  const list = (rows as { id: string; sort_order: number }[] | null) ?? [];
+  const target = list.find((row) => row.id === imageId);
+  if (!target) return { ok: false, error: GENERIC_ERROR };
+
+  const reordered = [target, ...list.filter((row) => row.id !== imageId)];
+  const results = await Promise.all(
+    reordered.map((row, index) =>
+      row.sort_order === index
+        ? Promise.resolve({ error: null })
+        : supabase.from("experience_gallery").update({ sort_order: index }).eq("id", row.id),
+    ),
+  );
+  if (results.some((r) => r.error)) return { ok: false, error: GENERIC_ERROR };
   return { ok: true };
 }
 

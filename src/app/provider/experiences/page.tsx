@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FallbackImage } from "@/components/planner/FallbackImage";
+import { ServiceLocationCard } from "@/components/provider/ServiceLocationCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { Heading } from "@/components/ui/heading";
 import { formatPrice } from "@/lib/format";
 import { getProviderIdentity } from "@/lib/provider/dashboard";
 import { getProviderExperienceList } from "@/lib/provider/experiences";
+import { getProviderServiceLocation } from "@/lib/provider/service-location";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
@@ -35,6 +37,7 @@ export default async function ProviderExperiencesPage() {
   const experiences = await getProviderExperienceList(supabase, identity.id);
   const published = experiences.filter((e) => e.published);
   const drafts = experiences.filter((e) => !e.published);
+  const serviceLocation = await getProviderServiceLocation(supabase, identity.id);
 
   return (
     <div className="flex flex-col gap-8">
@@ -49,6 +52,8 @@ export default async function ProviderExperiencesPage() {
           <Button type="button">New experience</Button>
         </Link>
       </div>
+
+      <ServiceLocationCard currentLocationText={serviceLocation?.locationText ?? null} />
 
       {experiences.length === 0 ? (
         <Card className="text-center">

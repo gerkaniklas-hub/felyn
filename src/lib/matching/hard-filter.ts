@@ -38,6 +38,11 @@ export type MatchedAvailability = {
   max_bookings: number | null;
 };
 
+export type MatchedGalleryImage = {
+  image_url: string;
+  caption: string | null;
+};
+
 export type MatchedExperience = {
   id: string;
   provider_id: string;
@@ -51,8 +56,10 @@ export type MatchedExperience = {
   min_guests: number;
   max_guests: number;
   duration_minutes: number;
-  /** The experience's own primary gallery image (lowest sort_order), if any — distinct from the provider's personal gallery. */
+  /** The experience's own primary gallery image (lowest sort_order), if any — distinct from the provider's personal gallery. Always `gallery[0]?.image_url ?? null`. */
   image_url: string | null;
+  /** Every gallery image for this experience, in display order (lowest sort_order first) — the full set the guest-facing detail gallery renders. */
+  gallery: MatchedGalleryImage[];
   attributes: ExperienceAttribute[];
   provider: MatchedProvider;
   service_location: MatchedServiceLocation;
@@ -140,7 +147,7 @@ export async function getHardFilteredExperiences(
         .in("experience_id", experienceIds),
       supabase
         .from("experience_gallery")
-        .select("experience_id, image_url, sort_order")
+        .select("experience_id, image_url, caption, sort_order")
         .in("experience_id", experienceIds)
         .order("sort_order", { ascending: true }),
       supabase
@@ -182,7 +189,7 @@ export async function getHardFilteredExperiences(
     is_current: boolean;
   };
 
-  type GalleryRow = { experience_id: string; image_url: string; sort_order: number };
+  type GalleryRow = { experience_id: string; image_url: string; caption: string | null; sort_order: number };
 
   const attributesByExperience = groupBy(
     (attributesRes.data as AttributeRow[] | null) ?? [],
@@ -193,13 +200,12 @@ export async function getHardFilteredExperiences(
     (row) => row.experience_id,
   );
   // Rows arrive ordered by sort_order, so the first one seen per experience
-  // is its primary image.
-  const primaryImageByExperience = new Map<string, string>();
-  for (const row of (galleryRes.data as GalleryRow[] | null) ?? []) {
-    if (!primaryImageByExperience.has(row.experience_id)) {
-      primaryImageByExperience.set(row.experience_id, row.image_url);
-    }
-  }
+  // is its primary image — galleryByExperience preserves that same order
+  // for the full gallery.
+  const galleryByExperience = groupBy(
+    (galleryRes.data as GalleryRow[] | null) ?? [],
+    (row) => row.experience_id,
+  );
   const providerById = new Map(
     ((providersRes.data as ProviderRow[] | null) ?? []).map((row) => [row.id, row]),
   );
@@ -237,6 +243,11 @@ export async function getHardFilteredExperiences(
     const provider = providerById.get(exp.provider_id);
     if (!provider) continue; // no public profile visible -> can't safely surface this experience
 
+    const gallery = (galleryByExperience.get(exp.id) ?? []).map((row) => ({
+      image_url: row.image_url,
+      caption: row.caption,
+    }));
+
     results.push({
       id: exp.id,
       provider_id: exp.provider_id,
@@ -250,7 +261,8 @@ export async function getHardFilteredExperiences(
       min_guests: exp.min_guests,
       max_guests: exp.max_guests,
       duration_minutes: exp.duration_minutes,
-      image_url: primaryImageByExperience.get(exp.id) ?? null,
+      image_url: gallery[0]?.image_url ?? null,
+      gallery,
       attributes: attributes.map((attr) => ({
         attribute_type: attr.attribute_type,
         attribute_value: attr.attribute_value,

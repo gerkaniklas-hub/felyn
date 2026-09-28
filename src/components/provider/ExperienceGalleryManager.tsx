@@ -3,10 +3,12 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { FallbackImage } from "@/components/planner/FallbackImage";
+import { Badge } from "@/components/ui/badge";
 import {
   addExperienceGalleryImage,
   removeExperienceGalleryImage,
   reorderExperienceGalleryImage,
+  setExperienceGalleryPrimary,
 } from "@/lib/provider/experience-actions";
 import type { ProviderExperienceGalleryImage } from "@/lib/provider/experiences";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -103,50 +105,80 @@ export function ExperienceGalleryManager({
     router.refresh();
   }
 
+  async function handleSetPrimary(imageId: string) {
+    setState({ status: "busy" });
+    const result = await setExperienceGalleryPrimary(experienceId, imageId);
+    if (!result.ok) {
+      setState({ status: "error", message: result.error });
+      return;
+    }
+    setState({ status: "idle" });
+    router.refresh();
+  }
+
   const busy = state.status === "uploading" || state.status === "busy";
 
   return (
     <div className="flex flex-col gap-3">
       {images.length > 0 ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {images.map((image, index) => (
-            <div key={image.id} className="flex flex-col gap-1.5">
-              <FallbackImage
-                src={image.imageUrl}
-                alt={image.caption ?? "Experience photo"}
-                className="aspect-square w-full rounded-xl"
-              />
-              <div className="flex items-center justify-between gap-1 text-xs">
-                <div className="flex gap-2">
+          {images.map((image, index) => {
+            const isPrimary = index === 0;
+            return (
+              <div key={image.id} className="flex flex-col gap-1.5">
+                <div className={`relative overflow-hidden rounded-xl ${isPrimary ? "ring-2 ring-sky-500" : ""}`}>
+                  <FallbackImage
+                    src={image.imageUrl}
+                    alt={image.caption ?? "Experience photo"}
+                    className="aspect-square w-full"
+                  />
+                  {isPrimary ? (
+                    <Badge tone="sky" className="absolute top-1.5 left-1.5">
+                      Primary
+                    </Badge>
+                  ) : null}
+                </div>
+                <div className="flex items-center justify-between gap-1 text-xs">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={busy || index === 0}
+                      onClick={() => handleReorder(image.id, "up")}
+                      className="font-medium text-navy-500 hover:text-navy-900 disabled:opacity-30"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || index === images.length - 1}
+                      onClick={() => handleReorder(image.id, "down")}
+                      className="font-medium text-navy-500 hover:text-navy-900 disabled:opacity-30"
+                    >
+                      ↓
+                    </button>
+                  </div>
                   <button
                     type="button"
-                    disabled={busy || index === 0}
-                    onClick={() => handleReorder(image.id, "up")}
-                    className="font-medium text-navy-500 hover:text-navy-900 disabled:opacity-30"
+                    disabled={busy}
+                    onClick={() => handleRemove(image)}
+                    className="font-medium text-navy-400 hover:text-red-600 disabled:opacity-30"
                   >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy || index === images.length - 1}
-                    onClick={() => handleReorder(image.id, "down")}
-                    className="font-medium text-navy-500 hover:text-navy-900 disabled:opacity-30"
-                  >
-                    ↓
+                    Remove
                   </button>
                 </div>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => handleRemove(image)}
-                  className="font-medium text-navy-400 hover:text-red-600 disabled:opacity-30"
-                >
-                  Remove
-                </button>
+                {!isPrimary ? (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => handleSetPrimary(image.id)}
+                    className="text-left text-xs font-medium text-sky-600 hover:text-sky-700 disabled:opacity-30"
+                  >
+                    Set as primary
+                  </button>
+                ) : null}
               </div>
-              {index === 0 ? <p className="text-xs text-sky-700">Primary photo</p> : null}
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <p className="text-sm text-navy-400">No photos yet — add at least one before publishing.</p>

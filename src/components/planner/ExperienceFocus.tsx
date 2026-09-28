@@ -7,6 +7,7 @@ import { formatPrice } from "@/lib/format";
 import type { RecommendedExperience } from "@/lib/matching/actions";
 import { getDeclineReasonLabel, type DeclineReason, type PlanItemStatus } from "@/lib/matching/booking-status";
 import { FallbackImage } from "./FallbackImage";
+import { ExperienceGalleryViewer } from "./ExperienceGalleryViewer";
 
 function humanize(value: string): string {
   return value.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -156,6 +157,8 @@ export function ExperienceFocus({
 
       {!compact ? (
         <>
+          <ExperienceGalleryViewer images={experience.gallery} title={experience.title} />
+
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-navy-700">
             <span>{formatPrice(experience.price_per_person, experience.currency)}</span>
             <span>

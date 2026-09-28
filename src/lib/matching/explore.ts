@@ -48,7 +48,7 @@ export async function getPublishedExperiences(supabase: SupabaseClient): Promise
       .in("experience_id", experienceIds),
     supabase
       .from("experience_gallery")
-      .select("experience_id, image_url, sort_order")
+      .select("experience_id, image_url, caption, sort_order")
       .in("experience_id", experienceIds)
       .order("sort_order", { ascending: true }),
     supabase
@@ -59,7 +59,7 @@ export async function getPublishedExperiences(supabase: SupabaseClient): Promise
   ]);
 
   type AttributeRow = { experience_id: string; attribute_type: string; attribute_value: string };
-  type GalleryRow = { experience_id: string; image_url: string; sort_order: number };
+  type GalleryRow = { experience_id: string; image_url: string; caption: string | null; sort_order: number };
   type ProviderRow = {
     id: string;
     display_name: string;
@@ -77,12 +77,14 @@ export async function getPublishedExperiences(supabase: SupabaseClient): Promise
   }
 
   // Rows arrive ordered by sort_order, so the first one seen per experience
-  // is its primary image (same convention as hard-filter.ts).
-  const primaryImageByExperience = new Map<string, string>();
+  // is its primary image (same convention as hard-filter.ts). Grouped here
+  // (rather than reduced to just the primary) so the full gallery is
+  // available too, e.g. for the guest-facing detail gallery.
+  const galleryByExperience = new Map<string, { image_url: string; caption: string | null }[]>();
   for (const row of (galleryRes.data as GalleryRow[] | null) ?? []) {
-    if (!primaryImageByExperience.has(row.experience_id)) {
-      primaryImageByExperience.set(row.experience_id, row.image_url);
-    }
+    const list = galleryByExperience.get(row.experience_id) ?? [];
+    list.push({ image_url: row.image_url, caption: row.caption });
+    galleryByExperience.set(row.experience_id, list);
   }
 
   const providerById = new Map(
@@ -101,6 +103,8 @@ export async function getPublishedExperiences(supabase: SupabaseClient): Promise
     const provider = providerById.get(exp.provider_id);
     if (!provider) continue; // no public profile visible -> can't safely surface this experience
 
+    const gallery = galleryByExperience.get(exp.id) ?? [];
+
     results.push({
       id: exp.id,
       provider_id: exp.provider_id,
@@ -114,7 +118,8 @@ export async function getPublishedExperiences(supabase: SupabaseClient): Promise
       min_guests: exp.min_guests,
       max_guests: exp.max_guests,
       duration_minutes: exp.duration_minutes,
-      image_url: primaryImageByExperience.get(exp.id) ?? null,
+      image_url: gallery[0]?.image_url ?? null,
+      gallery,
       attributes: attributesByExperience.get(exp.id) ?? [],
       provider: {
         id: provider.id,
