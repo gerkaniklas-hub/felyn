@@ -5,18 +5,26 @@ import { LoginForm } from "./login-form";
 
 export default function LoginPage() {
   return (
-    <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-8 px-6 py-16">
-      <Logo size="lg" className="self-center" />
-      <Heading level={2} className="text-center">
-        Welcome back
-      </Heading>
-      <LoginForm />
-      <p className="text-center text-sm text-navy-500">
-        New to Felyn?{" "}
-        <Link href="/signup" className="font-medium text-sky-600 hover:text-sky-700">
-          Create new account
-        </Link>
-      </p>
+    <div className="relative flex flex-1 flex-col">
+      <Link
+        href="/login/host"
+        className="absolute top-6 right-6 text-sm font-medium text-sky-600 hover:text-sky-700"
+      >
+        I&apos;m a Felyn host →
+      </Link>
+      <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-8 px-6 py-16">
+        <Logo size="lg" className="self-center" />
+        <Heading level={2} className="text-center">
+          Welcome back
+        </Heading>
+        <LoginForm />
+        <p className="text-center text-sm text-navy-500">
+          New to Felyn?{" "}
+          <Link href="/signup" className="font-medium text-sky-600 hover:text-sky-700">
+            Create new account
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

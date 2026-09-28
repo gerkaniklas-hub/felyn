@@ -15,5 +15,5 @@ export async function completeOnboarding(formData: FormData) {
     .update({ onboarding_completed_at: new Date().toISOString() })
     .eq("id", stayId);
 
-  redirect("/home");
+  redirect(`/recommendations?stay=${stayId}`);
 }

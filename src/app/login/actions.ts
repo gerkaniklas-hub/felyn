@@ -8,7 +8,15 @@ export type ActionState = {
   unconfirmedEmail?: string;
 };
 
+/**
+ * `redirectTo` is bound by the caller (see LoginForm) rather than read from
+ * form data, so it can never be spoofed via the submitted request — it's
+ * baked into the Server Action reference itself. Guest login binds "/home",
+ * host login binds "/provider"; everything else (Supabase Auth call,
+ * validation, unconfirmed-email handling) is shared, unchanged logic.
+ */
 export async function login(
+  redirectTo: string,
   _prevState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
@@ -32,5 +40,5 @@ export async function login(
     return { error: "Incorrect email or password." };
   }
 
-  redirect("/home");
+  redirect(redirectTo);
 }

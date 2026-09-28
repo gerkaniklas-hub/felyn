@@ -12,6 +12,15 @@ export type Stay = {
   budget_min: number | null;
   budget_max: number | null;
   budget_flexible: boolean;
+  // M6.5: structured location fields — null until a geocoding provider is
+  // configured and actually verifies location_text. Never invented/backfilled.
+  formatted_address: string | null;
+  locality: string | null;
+  postcode: string | null;
+  country: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  place_id: string | null;
   onboarding_completed_at: string | null;
   created_at: string;
   updated_at: string;

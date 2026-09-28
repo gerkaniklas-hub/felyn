@@ -1,9 +1,10 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { validateStayDates, type CheckOutError } from "@/lib/onboarding/stay-dates";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export type ActionState = { error?: string };
+export type ActionState = { error?: string; checkOutError?: CheckOutError };
 
 export async function saveStay(
   _prevState: ActionState,
@@ -22,8 +23,10 @@ export async function saveStay(
   if (!Number.isInteger(guestCount) || guestCount < 1) {
     return { error: "Enter a valid number of guests." };
   }
-  if (checkOut <= checkIn) {
-    return { error: "Check-out must be after check-in." };
+
+  const checkOutError = validateStayDates(checkIn, checkOut);
+  if (checkOutError) {
+    return { checkOutError };
   }
 
   const supabase = await createSupabaseServerClient();

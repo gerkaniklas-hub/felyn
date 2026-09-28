@@ -12,8 +12,9 @@ const initialState: ActionState = {};
 
 type ResendStatus = "idle" | "sending" | "sent" | "error";
 
-export function LoginForm() {
-  const [state, formAction, isPending] = useActionState(login, initialState);
+export function LoginForm({ redirectTo = "/home" }: { redirectTo?: string }) {
+  const loginWithRedirect = login.bind(null, redirectTo);
+  const [state, formAction, isPending] = useActionState(loginWithRedirect, initialState);
   const [resendStatus, setResendStatus] = useState<ResendStatus>("idle");
 
   async function handleResend() {

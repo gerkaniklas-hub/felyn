@@ -3,10 +3,20 @@ import { NextResponse, type NextRequest } from "next/server";
 
 /**
  * Routes that require a signed-in user. Everything else stays public.
- * Extend this list as real product routes land in later milestones
- * (e.g. /explore, /experiences, /messages, /profile, /booking).
+ * Extend this list as real product routes land in later milestones.
+ * "/stays" is reserved here ahead of the Milestone 1 stay-overview page
+ * (/stays/[stayId]) landing in a later stage of this same milestone.
  */
-const PROTECTED_PREFIXES = ["/home", "/onboarding"];
+const PROTECTED_PREFIXES = [
+  "/home",
+  "/onboarding",
+  "/explore",
+  "/provider",
+  "/messages",
+  "/profile",
+  "/experiences",
+  "/stays",
+];
 
 /**
  * Named `proxy` (not `middleware`) per the Next.js 16 rename — this runs on
