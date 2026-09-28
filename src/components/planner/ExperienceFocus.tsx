@@ -7,7 +7,7 @@ import { formatPrice } from "@/lib/format";
 import type { RecommendedExperience } from "@/lib/matching/actions";
 import { getDeclineReasonLabel, type DeclineReason, type PlanItemStatus } from "@/lib/matching/booking-status";
 import { FallbackImage } from "./FallbackImage";
-import { ExperienceGalleryViewer } from "./ExperienceGalleryViewer";
+import { ExperienceGallery } from "./ExperienceGallery";
 
 function humanize(value: string): string {
   return value.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -99,14 +99,31 @@ export function ExperienceFocus({
         {closeLabel}
       </button>
 
-      {/* A shallow banner, not a hero image — most of the panel is for
-          the title/price/description/attributes/provider CTA below. */}
-      <div className={`overflow-hidden rounded-xl ${compact ? "h-20" : "h-32 sm:h-40"}`}>
-        <FallbackImage src={experience.image_url} alt={experience.title} className="h-full w-full" />
-      </div>
+      {compact ? (
+        // compact is a slim summary (used once a provider panel opens
+        // beside it) — a single small thumbnail, not the full gallery.
+        <div className="h-20 overflow-hidden rounded-xl">
+          <FallbackImage src={experience.image_url} alt={experience.title} className="h-full w-full" />
+        </div>
+      ) : (
+        <ExperienceGallery images={experience.gallery} title={experience.title} />
+      )}
 
       <div>
         <Heading level={compact ? 3 : 2}>{experience.title}</Heading>
+        {!compact ? (
+          <p className="mt-1 flex items-center gap-2 text-sm text-navy-500">
+            <FallbackImage
+              src={experience.provider.profile_photo_url}
+              alt={experience.provider.display_name}
+              className="h-6 w-6 shrink-0 rounded-full"
+            />
+            <span>
+              Hosted by {experience.provider.display_name}
+              {experience.provider.base_location ? ` · ${experience.provider.base_location}` : ""}
+            </span>
+          </p>
+        ) : null}
         {reason ? <p className="mt-1 text-sm text-navy-500">{reason}</p> : null}
         {plannedEntries.length > 0 ? (
           <ul className="mt-3 flex flex-col gap-2">
@@ -157,8 +174,6 @@ export function ExperienceFocus({
 
       {!compact ? (
         <>
-          <ExperienceGalleryViewer images={experience.gallery} title={experience.title} />
-
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-navy-700">
             <span>{formatPrice(experience.price_per_person, experience.currency)}</span>
             <span>

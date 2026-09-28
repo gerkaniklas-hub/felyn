@@ -1,50 +1,113 @@
 "use client";
 
-import { useState } from "react";
-import { FallbackImage } from "./FallbackImage";
+import { useEffect, useRef } from "react";
 import type { MatchedGalleryImage } from "@/lib/matching/hard-filter";
+import { FallbackImage } from "./FallbackImage";
+
+const SWIPE_THRESHOLD_PX = 40;
 
 /**
- * Guest-facing gallery for the experience detail panel (ExperienceFocus,
- * shared by both the planner and Explore — see that component's own
- * comment). A large image with a thumbnail strip beneath it, no external
- * carousel library (none is installed in this project). Renders nothing
- * for 0 or 1 images — ExperienceFocus's own hero banner already covers
- * that case, so this component only adds value once there's more than one
- * photo to browse.
+ * Full-screen gallery viewer, opened from ExperienceGallery. Next/previous,
+ * a visible "N of M" counter, Escape/click-outside/× to close, arrow-key
+ * navigation on desktop, and swipe navigation on mobile — all built with
+ * plain React/touch events (no carousel library is installed in this
+ * project, and this is simple enough not to need one).
  */
-export function ExperienceGalleryViewer({ images, title }: { images: MatchedGalleryImage[]; title: string }) {
-  const [activeIndex, setActiveIndex] = useState(0);
+export function ExperienceGalleryViewer({
+  images,
+  title,
+  index,
+  onIndexChange,
+  onClose,
+}: {
+  images: MatchedGalleryImage[];
+  title: string;
+  index: number;
+  onIndexChange: (index: number) => void;
+  onClose: () => void;
+}) {
+  const touchStartX = useRef<number | null>(null);
 
-  if (images.length <= 1) return null;
+  const goPrev = () => onIndexChange((index - 1 + images.length) % images.length);
+  const goNext = () => onIndexChange((index + 1) % images.length);
 
-  const active = images[Math.min(activeIndex, images.length - 1)];
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+      else if (event.key === "ArrowLeft") goPrev();
+      else if (event.key === "ArrowRight") goNext();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- goPrev/goNext close over `index`, which is already a dependency via re-running this effect on every render they'd change.
+  }, [index, images.length, onClose]);
+
+  if (images.length === 0) return null;
+  const active = images[index];
 
   return (
-    <div className="flex flex-col gap-2">
-      <p className="text-xs font-medium tracking-wide text-navy-300">PHOTOS</p>
-      <div className="overflow-hidden rounded-xl">
-        <FallbackImage
-          src={active.image_url}
-          alt={active.caption ?? title}
-          className="aspect-[4/3] w-full sm:aspect-video"
-        />
+    <div
+      className="fixed inset-0 z-[70] flex flex-col bg-navy-950/95"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${title} photos`}
+      onClick={onClose}
+      onTouchStart={(e) => {
+        touchStartX.current = e.touches[0]?.clientX ?? null;
+      }}
+      onTouchEnd={(e) => {
+        if (touchStartX.current == null) return;
+        const delta = e.changedTouches[0].clientX - touchStartX.current;
+        if (delta > SWIPE_THRESHOLD_PX) goPrev();
+        else if (delta < -SWIPE_THRESHOLD_PX) goNext();
+        touchStartX.current = null;
+      }}
+    >
+      <div className="flex items-center justify-between px-4 py-4 text-ivory-50 sm:px-6">
+        <span className="text-sm font-medium">
+          {index + 1} of {images.length}
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close gallery"
+          className="text-2xl leading-none text-ivory-50 hover:text-ivory-200"
+        >
+          ×
+        </button>
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {images.map((image, index) => (
+
+      <div className="relative flex flex-1 items-center justify-center px-2 pb-4" onClick={(e) => e.stopPropagation()}>
+        {images.length > 1 ? (
           <button
-            key={`${image.image_url}-${index}`}
             type="button"
-            onClick={() => setActiveIndex(index)}
-            aria-label={`View photo ${index + 1} of ${images.length}`}
-            aria-current={index === activeIndex}
-            className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg transition-opacity ${
-              index === activeIndex ? "opacity-100 ring-2 ring-sky-500" : "opacity-70 hover:opacity-100"
-            }`}
+            onClick={goPrev}
+            aria-label="Previous photo"
+            className="absolute left-2 z-10 hidden h-11 w-11 items-center justify-center rounded-full bg-ivory-50/10 text-2xl text-ivory-50 hover:bg-ivory-50/20 sm:flex"
           >
-            <FallbackImage src={image.image_url} alt={image.caption ?? `${title} photo ${index + 1}`} className="h-full w-full" />
+            ‹
           </button>
-        ))}
+        ) : null}
+
+        <div className="flex h-full max-h-[80vh] w-full max-w-5xl items-center justify-center">
+          <FallbackImage
+            src={active.image_url}
+            alt={active.caption ?? `${title} photo ${index + 1}`}
+            fit="contain"
+            className="max-h-full max-w-full rounded-lg"
+          />
+        </div>
+
+        {images.length > 1 ? (
+          <button
+            type="button"
+            onClick={goNext}
+            aria-label="Next photo"
+            className="absolute right-2 z-10 hidden h-11 w-11 items-center justify-center rounded-full bg-ivory-50/10 text-2xl text-ivory-50 hover:bg-ivory-50/20 sm:flex"
+          >
+            ›
+          </button>
+        ) : null}
       </div>
     </div>
   );

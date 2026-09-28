@@ -29,10 +29,13 @@ export function FallbackImage({
   src,
   alt,
   className = "",
+  fit = "cover",
 }: {
   src: string | null;
   alt: string;
   className?: string;
+  /** "cover" (default, unchanged everywhere existing) fills its box, cropping as needed. "contain" (the full-screen gallery viewer) shows the whole image, letterboxed if its aspect ratio doesn't match. */
+  fit?: "cover" | "contain";
 }) {
   const [failed, setFailed] = useState(false);
 
@@ -48,6 +51,11 @@ export function FallbackImage({
 
   return (
     // eslint-disable-next-line @next/next/no-img-element -- demo asset URLs aren't on a configured next/image remote host
-    <img src={src} alt={alt} onError={() => setFailed(true)} className={`object-cover ${className}`} />
+    <img
+      src={src}
+      alt={alt}
+      onError={() => setFailed(true)}
+      className={`${fit === "cover" ? "object-cover" : "object-contain"} ${className}`}
+    />
   );
 }
