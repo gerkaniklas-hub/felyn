@@ -4,36 +4,50 @@ This directory is **not currently a fully reproducible clean-install history**.
 A fresh Supabase project cannot be created from these files alone. Read this
 before assuming `0001` → latest can be replayed end-to-end.
 
-## Missing file: `0018_experience_cancellation_columns.sql`
+## Migration 0018: cancellation columns — RECOVERED, ALREADY APPLIED, DO NOT RE-RUN
 
-- Migration 0018 **was applied** to the live Supabase database. It introduced
-  the cancellation-related schema on `booking_request_items` — at minimum the
-  `cancelled_at` and `cancelled_by` columns, a widened `status` check
-  constraint (adding `CANCELLED` to the allowed values), and a constraint
-  pairing `cancelled_at`/`cancelled_by` (referenced by name in 0019's preflight
-  as `booking_request_items_cancelled_pair_check`).
-- Its **original SQL file was lost before this project's migrations were ever
-  committed to Git** — there is no commit, stash, branch, tag, or local backup
-  containing it. It cannot be recovered.
-- The **exact original constraint definitions and full file contents are
-  unavailable**. What's listed above is reconstructed only from what later
-  migrations' preflight checks explicitly depend on, and from columns already
-  in active use by the application — not from the original text.
-- No reconciliation or "replacement 0018" file has been created for this gap,
-  and none should be assumed to exist. Do not guess at or recreate 0018's
-  contents without a deliberate, clearly-labeled decision to do so.
+- `0018_experience_cancellation_columns.sql` **was applied to production on
+  2026-09-27** (Supabase SQL Editor). **Do not run it against production
+  again.** A re-run would abort by itself anyway: its safety check expects
+  the pre-0018 four-value status constraint, and production now has five
+  values.
+- **Recovered from the session transcript (2026-09-29).** The file was
+  never saved to disk or committed; the SQL was reviewed in a Claude Code
+  session and pasted into the SQL Editor from there. It has been restored
+  byte-for-byte from that session's final reviewed version — the one shown
+  immediately before it was applied (SHA-256 `7c5c20ad79e73a53…`). Its SQL
+  body has not been edited or reconstructed.
+- What it does, all on `public.booking_request_items`, inside
+  `begin; … commit;`, with no row updated:
+  - adds nullable `timestamptz` columns `decided_at` and `cancelled_at`, and
+    nullable `text` column `cancelled_by`;
+  - adds `booking_request_items_cancelled_by_check` — `cancelled_by` is NULL,
+    `'guest'`, or `'provider'`;
+  - adds `booking_request_items_cancelled_pair_check` — `cancelled_at` and
+    `cancelled_by` are both NULL or both non-NULL;
+  - verifies the existing `booking_request_items_status_check` references
+    exactly `REQUESTED`, `CONFIRMED`, `DECLINED`, `WITHDRAWN` (aborting
+    otherwise), then recreates it allowing those four plus `CANCELLED`.
+- **Verified against production (read-only, 2026-09-29):** the three
+  columns (nullable, with the types above), both cancellation constraints,
+  and the five-value status constraint all exist as described.
+- History of the gap: until 2026-09-29 this file was missing and believed
+  unrecoverable. The earlier description here was reconstructed from 0019's
+  preflight checks and omitted `booking_request_items_cancelled_by_check`
+  (which no later migration references) and listed `decided_at` as
+  unconfirmed. Both are corrected above.
 
-## How later migrations relate to this gap
+## How later migrations relate to 0018
 
 - **`0019` onward** contain explicit preflight checks (`do $$ ... raise
-  exception ...`) that verify the schema 0018 is assumed to have left behind
-  actually exists before making any change — e.g. 0019 aborts if
-  `cancelled_at` or the `booking_request_items_cancelled_pair_check`
-  constraint isn't present. These checks are the only remaining evidence of
-  what 0018 must have contained.
+  exception ...`) that verify the schema 0018 left behind actually exists
+  before making any change — e.g. 0019 aborts if `cancelled_at` or the
+  `booking_request_items_cancelled_pair_check` constraint isn't present.
+  (Before 0018 was recovered, these checks were the only evidence of what it
+  contained.)
 - **`0021`** additionally notes that `decided_at` was understood to have been
-  added by 0018 as well, though this specific detail was not independently
-  re-verified against the live schema at the time 0021 was written.
+  added by 0018 as well. This is now confirmed by both the recovered 0018
+  file and the production check of 2026-09-29.
 
 ## What has been verified against the live database
 
@@ -56,8 +70,38 @@ what's written in these migration files.
 - Treat this directory as an **incremental record of changes applied to an
   already-existing database**, not a from-scratch schema definition.
 - **Do not** attempt to provision a new Supabase project by running these
-  migrations in order — the sequence has a real, undocumented gap at 0018
-  and will not produce the same schema as the current live database.
+  migrations in order. The 0018 file has been recovered (see above), but
+  replaying `0001` → latest on a fresh project has never been tested and is
+  not known to reproduce the current live database.
 - Anyone provisioning a new environment from this repo needs a proper
   baseline/reconciliation migration (or a full schema dump) first. None
   exists yet as of this writing.
+
+## Migration 0023: host applications — ALREADY APPLIED, DO NOT RE-RUN
+
+- `0023_host_applications.sql` **was applied to production on 2026-09-29**
+  (Supabase SQL Editor, role `postgres`). **Do not run it against production
+  again.** Its own starting checks would abort a re-run (it refuses if
+  `host_applications` or `felyn_admin` already exists), but it must not be
+  executed as part of any deployment.
+- It creates `public.host_applications` (RLS; applicants may insert their own
+  application and edit only `display_name` while `submitted`), replaces the
+  `providers` "manage own profile" policy with read-only access and revokes
+  client INSERT/UPDATE/DELETE on `providers`, and adds
+  `felyn_admin.approve_host_application` / `felyn_admin.reject_host_application`
+  (SECURITY DEFINER, `search_path = ''`, not executable by anon,
+  authenticated or service_role; the `felyn_admin` schema is not exposed to
+  the API). Host approval/rejection is a manual SQL Editor operation.
+- The file is committed byte-for-byte as reviewed and applied. It is a single
+  `DO` statement (no BEGIN/COMMIT) that either applies fully and commits, or
+  rolls back fully.
+- Companion files (neither is a migration; never run during deployment):
+  - `host_applications_isolated_test.sql` — the fail-closed rehearsal that
+    passed in production before 0023 was applied. It re-creates 0023's
+    objects inside one statement that always ends in an error, so it rolls
+    back by design. It would fail now that 0023 exists, and should not be
+    re-run.
+  - `host_applications_rollback_DESTRUCTIVE.sql` — **destructive** undo that
+    restores the pre-0023 `providers` policy/grants and **drops
+    `host_applications` with every application in it**. Only for a
+    deliberate, reviewed rollback, after exporting the table.

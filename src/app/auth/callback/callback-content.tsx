@@ -23,12 +23,15 @@ export function CallbackContent() {
     if (!code) return;
 
     const supabase = createSupabaseBrowserClient();
-    supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+    supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
       if (error) {
         setStatus("invalid");
         return;
       }
-      router.replace("/home");
+      // host_intent (set at /signup?intent=host) only picks the landing
+      // page. /host/apply re-checks everything server-side from the database.
+      const hostIntent = data.user?.user_metadata?.host_intent === true;
+      router.replace(hostIntent ? "/host/apply" : "/home");
     });
   }, [code, router]);
 

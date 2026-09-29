@@ -16,7 +16,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
  * event never fires server-side and the verifier would be silently lost.
  * The browser client writes cookies synchronously on every change instead.
  */
-export function SignupForm() {
+export function SignupForm({ hostIntent = false }: { hostIntent?: boolean }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -48,7 +48,15 @@ export function SignupForm() {
       email,
       password,
       options: {
-        data: { first_name: firstName, last_name: lastName, phone: phone || null },
+        // host_intent is navigation context only (the confirmation link then
+        // opens /host/apply instead of /home). It grants nothing: host access
+        // exists only once Felyn approves the application in the database.
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          phone: phone || null,
+          ...(hostIntent ? { host_intent: true } : {}),
+        },
         emailRedirectTo: `${siteUrl}/auth/callback`,
       },
     });
@@ -61,11 +69,11 @@ export function SignupForm() {
 
     if (data.session) {
       // Only happens if email confirmation is off — already signed in.
-      router.push("/home");
+      router.push(hostIntent ? "/host/apply" : "/home");
       return;
     }
 
-    router.push(`/signup/check-email?email=${encodeURIComponent(email)}`);
+    router.push(`/signup/check-email?email=${encodeURIComponent(email)}${hostIntent ? "&intent=host" : ""}`);
   }
 
   return (

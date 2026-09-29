@@ -15,6 +15,7 @@ import {
 import { HOST_NOTE_MAX_LENGTH, PLANNED_MOMENTS, getPlannedMomentLabel, type PlannedMoment } from "./plan";
 import { getGuestCountRange, isAvailableAt, isPreferredTimeAllowed, normalizeTime } from "./slot-availability";
 import { formatDayLabel } from "./timeline";
+import { assertGuestJourney } from "@/lib/journey-server";
 
 export type SubmitBookingRequestItem = {
   experienceId: string;
@@ -112,6 +113,7 @@ export async function submitBookingRequest(
   stayId: string,
   items: SubmitBookingRequestItem[],
 ): Promise<SubmitBookingRequestResult> {
+  await assertGuestJourney();
   if (items.length === 0) {
     return { ok: false, error: "Select at least one experience before requesting." };
   }
@@ -313,6 +315,7 @@ export async function submitBookingRequest(
  * signed-in guest's own rows.
  */
 export async function getActiveBookingRequest(stayId: string): Promise<ActiveBookingRequest | null> {
+  await assertGuestJourney();
   const supabase = await createSupabaseServerClient();
 
   const { data: request } = await supabase
@@ -410,6 +413,7 @@ export type WithdrawItemResult = { ok: true } | { ok: false; error: string };
  * the total is recalculated.
  */
 export async function withdrawBookingRequestItem(itemId: string): Promise<WithdrawItemResult> {
+  await assertGuestJourney();
   const supabase = await createSupabaseServerClient();
 
   const {
@@ -482,6 +486,7 @@ export async function cancelBookingRequestItemAsGuest(
   reason: CancelReason,
   note: string,
 ): Promise<CancelItemResult> {
+  await assertGuestJourney();
   const supabase = await createSupabaseServerClient();
   const GENERIC_ERROR = "We couldn't cancel this experience. It may already have been decided, or it isn't yours to manage.";
 
@@ -555,6 +560,7 @@ export async function cancelBookingRequestItemAsGuest(
 export async function withdrawBookingRequest(
   requestId: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  await assertGuestJourney();
   const supabase = await createSupabaseServerClient();
 
   const {

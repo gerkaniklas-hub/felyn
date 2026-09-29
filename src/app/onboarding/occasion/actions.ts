@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import type { Occasion } from "@/lib/onboarding/constants";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { assertGuestJourney } from "@/lib/journey-server";
 
 export type ActionState = { error?: string };
 
@@ -10,6 +11,7 @@ export async function saveOccasions(
   _prevState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  await assertGuestJourney();
   const stayId = String(formData.get("stayId") ?? "");
   const occasions = formData.getAll("occasions") as string[];
 

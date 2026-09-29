@@ -1,13 +1,20 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { assertGuestJourney, getJourney } from "@/lib/journey-server";
 import { getStay } from "@/lib/onboarding/queries";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
+/**
+ * Shared by GuestNav, ProviderNav and HostNav. Returns to the login page of
+ * the journey the user is in, so the next login keeps the same experience
+ * (the journey cookie itself survives logout).
+ */
 export async function logout() {
+  const journey = await getJourney();
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
-  redirect("/login");
+  redirect(journey === "host" ? "/login/host" : "/login");
 }
 
 export type DeleteStayResult = { ok: true } | { ok: false; error: string };
@@ -52,6 +59,7 @@ export type DeleteStayResult = { ok: true } | { ok: false; error: string };
  *    stay_occasions/stay_preferences/stay_dietary_requirements (0001).
  */
 export async function deleteStay(stayId: string): Promise<DeleteStayResult> {
+  await assertGuestJourney();
   const supabase = await createSupabaseServerClient();
 
   const {

@@ -2,8 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { assertGuestJourney } from "@/lib/journey-server";
 
 export async function completeOnboarding(formData: FormData) {
+  await assertGuestJourney();
   const stayId = String(formData.get("stayId") ?? "");
   if (!stayId) {
     redirect("/onboarding/add-stay");

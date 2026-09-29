@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getHardFilteredExperiences, type MatchedExperience } from "./hard-filter";
 import { getProviderProfile, type ProviderProfile } from "./provider-profile";
 import { rankExperiencesWithAI } from "./soft-rank";
+import { assertGuestJourney, assertSharedActionAllowedForJourney } from "@/lib/journey-server";
 
 export type RecommendedExperience = {
   experience: MatchedExperience;
@@ -39,6 +40,7 @@ export async function getRecommendedExperiences(
   stayId: string,
   count: number = 3,
 ): Promise<RecommendedExperience[]> {
+  await assertGuestJourney();
   const supabase = await createSupabaseServerClient();
 
   const eligible = await getHardFilteredExperiences(supabase, stayId);
@@ -107,6 +109,7 @@ export async function getRecommendedExperiences(
  * experience) rather than throwing — the UI treats that as "unavailable."
  */
 export async function getProviderProfileAction(providerId: string): Promise<ProviderProfile | null> {
+  await assertSharedActionAllowedForJourney(); // also used by the provider dashboard and messaging
   const supabase = await createSupabaseServerClient();
   return getProviderProfile(supabase, providerId);
 }

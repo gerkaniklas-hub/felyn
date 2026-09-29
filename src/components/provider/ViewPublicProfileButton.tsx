@@ -31,7 +31,14 @@ export function ViewPublicProfileButton({ providerId, providerName }: { provider
       {open ? (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-ivory-100/95 p-4">
           <div className="mx-auto h-full max-w-lg">
-            <ProviderFocus profile={profile} providerName={providerName} onClose={() => setOpen(false)} />
+            {/* Null = no row in provider_public_profiles, which only lists hosts with a published
+                experience (e.g. every experience was unpublished after the dashboard loaded). */}
+            <ProviderFocus
+              profile={profile}
+              providerName={providerName}
+              onClose={() => setOpen(false)}
+              unavailableMessage="Your public profile isn't visible to guests yet. It appears once you have at least one published experience."
+            />
           </div>
         </div>
       ) : null}

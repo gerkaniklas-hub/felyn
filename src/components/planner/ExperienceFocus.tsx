@@ -112,7 +112,9 @@ export function ExperienceFocus({
       <div>
         <Heading level={compact ? 3 : 2}>{experience.title}</Heading>
         {!compact ? (
-          <p className="mt-1 flex items-center gap-2 text-sm text-navy-500">
+          // A <div>, not a <p>: FallbackImage renders a <div> placeholder tile
+          // (missing/failed/demo photo), and a <div> inside a <p> is invalid HTML.
+          <div className="mt-1 flex items-center gap-2 text-sm text-navy-500">
             <FallbackImage
               src={experience.provider.profile_photo_url}
               alt={experience.provider.display_name}
@@ -122,7 +124,7 @@ export function ExperienceFocus({
               Hosted by {experience.provider.display_name}
               {experience.provider.base_location ? ` · ${experience.provider.base_location}` : ""}
             </span>
-          </p>
+          </div>
         ) : null}
         {reason ? <p className="mt-1 text-sm text-navy-500">{reason}</p> : null}
         {plannedEntries.length > 0 ? (

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import type { DietaryType } from "@/lib/onboarding/constants";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { assertGuestJourney } from "@/lib/journey-server";
 
 export type ActionState = { error?: string };
 
@@ -10,6 +11,7 @@ export async function saveDietary(
   _prevState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  await assertGuestJourney();
   const stayId = String(formData.get("stayId") ?? "");
   if (!stayId) {
     return { error: "Something went wrong. Please start over." };

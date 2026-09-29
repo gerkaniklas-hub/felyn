@@ -66,6 +66,10 @@ export async function getUnreadNotificationCount(supabase: SupabaseClient): Prom
  * a destination.
  */
 export function getNotificationHref(type: string, bookingRequestItemId: string | null): string | null {
+  // Host-application decisions aren't tied to a booking item (0023 inserts
+  // them with booking_request_item_id = null), so they're routed before the
+  // item check. /provider re-checks host access server-side.
+  if (type === "host_application_approved") return "/provider";
   if (!bookingRequestItemId) return null;
   switch (type) {
     case "booking_item_confirmed":

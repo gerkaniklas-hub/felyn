@@ -97,7 +97,15 @@ export default async function ProviderDashboardPage() {
             {identity.publishedExperienceCount} published experience
             {identity.publishedExperienceCount === 1 ? "" : "s"}
           </p>
-          <ViewPublicProfileButton providerId={identity.id} providerName={identity.displayName} />
+          {identity.publishedExperienceCount > 0 ? (
+            <ViewPublicProfileButton providerId={identity.id} providerName={identity.displayName} />
+          ) : (
+            // provider_public_profiles only lists hosts with a published experience,
+            // so there is nothing public to preview yet.
+            <p className="text-sm text-navy-500">
+              Your public profile becomes visible to guests once you publish your first experience.
+            </p>
+          )}
         </Card>
 
         <div className="flex flex-col gap-6">

@@ -3,6 +3,11 @@ import { Heading } from "@/components/ui/heading";
 import { Logo } from "@/components/ui/logo";
 import { LoginForm } from "./login-form";
 
+/**
+ * The GUEST login — entering here selects the guest journey (proxy.ts).
+ * Host logins use /login/host; the old /login?next=host alias is redirected
+ * there by proxy.ts.
+ */
 export default function LoginPage() {
   return (
     <div className="relative flex flex-1 flex-col">

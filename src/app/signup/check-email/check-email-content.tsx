@@ -10,7 +10,11 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 type ResendStatus = "idle" | "sending" | "sent" | "error";
 
 export function CheckEmailContent() {
-  const email = useSearchParams().get("email");
+  const searchParams = useSearchParams();
+  const email = searchParams.get("email");
+  // Copy only — where the confirmation link lands is decided by the account's
+  // host_intent flag in /auth/callback, and access by the database.
+  const hostIntent = searchParams.get("intent") === "host";
   const [status, setStatus] = useState<ResendStatus>("idle");
 
   async function handleResend() {
@@ -39,6 +43,11 @@ export function CheckEmailContent() {
         )}
         . Click it to activate your account.
       </p>
+      {hostIntent && (
+        <p className="text-sm text-navy-500">
+          After confirming, you&apos;ll continue straight to your host application.
+        </p>
+      )}
       {email && (
         <div className="flex flex-col items-center gap-2">
           <Button

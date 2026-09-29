@@ -16,10 +16,13 @@ export function ProviderFocus({
   profile,
   providerName,
   onClose,
+  unavailableMessage = "We couldn't load this provider right now.",
 }: {
   profile: ProviderProfile | "loading" | null;
   providerName: string;
   onClose: () => void;
+  /** Shown when `profile` is null. Guest views keep the default; a host previewing their own profile passes a "not public yet" explanation. */
+  unavailableMessage?: string;
 }) {
   return (
     <div className="flex h-full flex-col gap-6 overflow-y-auto rounded-2xl border border-ivory-300 bg-ivory-50 p-6 sm:p-8">
@@ -35,7 +38,7 @@ export function ProviderFocus({
         <div className="flex flex-1 items-center justify-center text-center text-sm text-navy-500">
           {profile === "loading"
             ? `Loading ${providerName}'s story…`
-            : "We couldn't load this provider right now."}
+            : unavailableMessage}
         </div>
       ) : (
         <>

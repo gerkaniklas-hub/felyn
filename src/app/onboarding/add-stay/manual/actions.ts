@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { validateStayDates, type CheckOutError } from "@/lib/onboarding/stay-dates";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { assertGuestJourney } from "@/lib/journey-server";
 
 export type ActionState = { error?: string; checkOutError?: CheckOutError };
 
@@ -10,6 +11,7 @@ export async function saveStay(
   _prevState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  await assertGuestJourney();
   const stayId = String(formData.get("stayId") ?? "").trim();
   const propertyName = String(formData.get("propertyName") ?? "").trim();
   const location = String(formData.get("location") ?? "").trim();

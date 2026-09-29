@@ -7,8 +7,11 @@ import { LoginForm } from "../login-form";
  * P0.5: the host entry point into the SAME Supabase Auth email/password
  * flow the guest login uses (see LoginForm's `redirectTo` prop) — only the
  * surrounding page (copy, redirect target, colour treatment) differs.
- * Deliberately no registration here yet; /provider itself is what decides
- * whether a signed-in user actually has a provider profile.
+ * Entering here selects the HOST journey (proxy.ts / src/lib/journey.ts).
+ * Every host login lands on /host/apply, which routes from the DATABASE:
+ * an approved host (providers row) -> /provider, an applicant ->
+ * /host/application, anyone else -> the application form. The journey
+ * itself grants nothing.
  */
 export default function HostLoginPage() {
   return (
@@ -29,13 +32,23 @@ export default function HostLoginPage() {
             Welcome back, host
           </Heading>
           <p className="mt-2 text-center text-sm text-navy-500">
-            Log in to manage your Felyn experiences.
+            Log in to manage your experiences or check your host application.
           </p>
           <div className="mt-6">
-            <LoginForm redirectTo="/provider" />
+            <LoginForm redirectTo="/host/apply" />
           </div>
         </div>
-        <p className="text-center text-sm text-sky-300">Host registration is coming soon.</p>
+        <p className="text-center text-sm text-sky-300">
+          New to hosting?{" "}
+          <Link href="/signup?intent=host" className="font-medium text-ivory-50 underline-offset-4 hover:underline">
+            Create a host account
+          </Link>{" "}
+          or{" "}
+          <Link href="/become-a-host" className="font-medium text-ivory-50 underline-offset-4 hover:underline">
+            learn how hosting works
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );

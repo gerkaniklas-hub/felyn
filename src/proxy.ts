@@ -1,5 +1,15 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  hostJourneyHome,
+  isGuestRoute,
+  isLoginPage,
+  journeyForEntryPoint,
+  JOURNEY_COOKIE,
+  JOURNEY_COOKIE_OPTIONS,
+  parseJourney,
+  type Journey,
+} from "@/lib/journey";
 
 /**
  * Routes that require a signed-in user. Everything else stays public.
@@ -16,12 +26,45 @@ const PROTECTED_PREFIXES = [
   "/profile",
   "/experiences",
   "/stays",
+  "/host",
 ];
+
+function isHostArea(pathname: string): boolean {
+  return (
+    pathname === "/host" ||
+    pathname.startsWith("/host/") ||
+    pathname === "/provider" ||
+    pathname.startsWith("/provider/")
+  );
+}
+
+/**
+ * GET/HEAD page requests only — Server Action calls are POSTs and never
+ * change the journey (guest actions guard themselves). NOTE: Next.js strips
+ * its own RSC/prefetch headers (next-router-prefetch, rsc, …) before the
+ * proxy runs (next/dist/server/web/adapter.js), so a client-router prefetch
+ * is indistinguishable from a real visit here. That is why the two login
+ * pages — which link to, and prefetch, each other — never switch the
+ * journey on a signed-out visit (see below and login/actions.ts). Browser
+ * speculative prefetches that do announce themselves are skipped.
+ */
+function isPageRequest(request: NextRequest): boolean {
+  if (request.method !== "GET" && request.method !== "HEAD") return false;
+  const purpose = `${request.headers.get("purpose") ?? ""} ${request.headers.get("sec-purpose") ?? ""}`.toLowerCase();
+  return !purpose.includes("prefetch");
+}
 
 /**
  * Named `proxy` (not `middleware`) per the Next.js 16 rename — this runs on
  * the Node.js runtime before rendering, refreshes the Supabase session
  * cookie on every request, and redirects based on auth state.
+ *
+ * It also keeps the guest and host JOURNEYS apart (see src/lib/journey.ts):
+ * explicit entry points set an httpOnly journey cookie, and in the host
+ * journey guest pages redirect to the host experience chosen from the
+ * account's DATABASE status. The cookie only selects the experience — host
+ * access itself is still enforced by RLS (a providers row), the /provider
+ * layout, and each Server Action's own checks.
  */
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -51,22 +94,73 @@ export async function proxy(request: NextRequest) {
   // what actually triggers the token refresh and cookie write above.
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { pathname } = request.nextUrl;
+  const { pathname, searchParams } = request.nextUrl;
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
 
+  // ── journey: explicit entry points select it ──
+  // Signed-out visits to the login pages are excluded (prefetch-safe); a
+  // successful login writes the journey from the login Server Action.
+  const storedJourney = parseJourney(request.cookies.get(JOURNEY_COOKIE)?.value);
+  const entryJourney =
+    isPageRequest(request) && !(isLoginPage(pathname) && !user) ? journeyForEntryPoint(pathname, searchParams) : null;
+  const journey: Journey = entryJourney ?? storedJourney;
+  const shouldWriteJourney = entryJourney !== null && entryJourney !== storedJourney;
+
+  /** Every response carries the refreshed Supabase session cookies and, when it changed, the journey cookie. */
+  function finalize(result: NextResponse): NextResponse {
+    if (result !== response) {
+      response.cookies.getAll().forEach((cookie) => result.cookies.set(cookie));
+    }
+    if (shouldWriteJourney) result.cookies.set(JOURNEY_COOKIE, journey, JOURNEY_COOKIE_OPTIONS);
+    return result;
+  }
+
+  function redirectTo(path: string): NextResponse {
+    const url = request.nextUrl.clone();
+    url.pathname = path;
+    url.search = "";
+    return finalize(NextResponse.redirect(url));
+  }
+
+  // The old host-login alias now lives on the dedicated host login page.
+  if (pathname === "/login" && searchParams.get("next") === "host") {
+    return redirectTo(user ? "/host/apply" : "/login/host");
+  }
+
   if (!user && isProtected) {
+    // Host/provider areas return through the host login; everything else
+    // through the guest login, exactly as before.
+    if (isHostArea(pathname)) return redirectTo("/login/host");
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    return NextResponse.redirect(url);
+    return finalize(NextResponse.redirect(url));
   }
 
-  if (user && (pathname === "/login" || pathname === "/signup")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/home";
-    return NextResponse.redirect(url);
+  if (user && (pathname === "/login" || pathname === "/signup" || pathname === "/login/host")) {
+    // Decided by the entry point itself: host login / host sign-up -> host
+    // experience; the explicit guest login / sign-up -> guest home. Navigation
+    // only: /host/apply decides from the database whether this account should
+    // apply, see its application, or go to /provider.
+    return redirectTo(journeyForEntryPoint(pathname, searchParams) === "host" ? "/host/apply" : "/home");
   }
 
-  return response;
+  // ── host journey: guest pages are not part of it ──
+  // Only page navigations are redirected here; guest Server Actions refuse
+  // themselves in the host journey (assertGuestJourney), because a Server
+  // Action POST can target any route and can't be identified from the path.
+  // Prefetches are redirected too (so no guest payload can be cached for a
+  // later client-side navigation) — they just never *change* the journey.
+  if (user && journey === "host" && isGuestRoute(pathname) && (request.method === "GET" || request.method === "HEAD")) {
+    const [providerRes, applicationRes] = await Promise.all([
+      supabase.from("providers").select("id").eq("user_id", user.id).maybeSingle(),
+      supabase.from("host_applications").select("id").eq("user_id", user.id).maybeSingle(),
+    ]);
+    return redirectTo(
+      hostJourneyHome({ isProvider: Boolean(providerRes.data), hasApplication: Boolean(applicationRes.data) }),
+    );
+  }
+
+  return finalize(response);
 }
 
 export const config = {

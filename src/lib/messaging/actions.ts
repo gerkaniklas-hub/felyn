@@ -2,6 +2,7 @@
 
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getMessages, mapMessageRow, MESSAGE_MAX_LENGTH, type Message } from "./messages";
+import { assertSharedActionAllowedForJourney } from "@/lib/journey-server";
 
 export type SendMessageResult = { ok: true; message: Message } | { ok: false; error: string };
 
@@ -15,6 +16,7 @@ export type SendMessageResult = { ok: true; message: Message } | { ok: false; er
  * gets a hard rejection the instant the database says otherwise.
  */
 export async function sendMessage(itemId: string, body: string): Promise<SendMessageResult> {
+  await assertSharedActionAllowedForJourney();
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -56,6 +58,7 @@ export async function sendMessage(itemId: string, body: string): Promise<SendMes
  * migration for the full reasoning.
  */
 export async function markMessagesRead(itemId: string): Promise<void> {
+  await assertSharedActionAllowedForJourney();
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -72,6 +75,7 @@ export async function markMessagesRead(itemId: string): Promise<void> {
 
 /** Client-callable wrapper around getMessages, for lazy-loading a thread on demand (e.g. the guest's "Message host" modal). */
 export async function getMessagesAction(itemId: string): Promise<Message[]> {
+  await assertSharedActionAllowedForJourney();
   const supabase = await createSupabaseServerClient();
   return getMessages(supabase, itemId);
 }
