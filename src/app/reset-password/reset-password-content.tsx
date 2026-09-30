@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { PasswordInput } from "@/components/ui/password-input";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getPostResetDestination } from "./actions";
 
 type Status = "confirm" | "verifying" | "ready" | "invalid";
 
@@ -73,14 +74,28 @@ export function ResetPasswordContent() {
     setSubmitting(true);
     const supabase = createSupabaseBrowserClient();
     const { error: updateError } = await supabase.auth.updateUser({ password });
-    setSubmitting(false);
 
     if (updateError) {
-      setError("Something went wrong. Please request a new reset link.");
+      setSubmitting(false);
+      setError(
+        updateError.code === "same_password"
+          ? "You can't reuse your current password. Please choose a different password."
+          : "Something went wrong. Please request a new reset link.",
+      );
       return;
     }
 
-    router.replace("/home");
+    // Approved host -> host experience, everyone else -> guest; decided
+    // server-side from the database (see actions.ts), never from the cookie.
+    let destination: string;
+    try {
+      destination = await getPostResetDestination();
+    } catch {
+      setSubmitting(false);
+      setError("Your password has been changed, but we couldn't finish signing you in. Please log in with your new password.");
+      return;
+    }
+    router.replace(destination);
   }
 
   if (status === "confirm") {
