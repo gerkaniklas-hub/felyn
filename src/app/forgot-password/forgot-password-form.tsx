@@ -14,8 +14,13 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
  * of which fire for a bare password-reset request — so a server-issued
  * request's verifier is silently dropped and the emailed link can never
  * be redeemed, regardless of how quickly it's clicked.
+ *
+ * `resetPath` is the page the emailed link opens (sent as redirectTo; the
+ * email template builds the link from it): /reset-password for guests,
+ * /host/reset-password for hosts. It only picks the journey — host access
+ * is still decided from the database after the reset.
  */
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({ resetPath = "/reset-password" }: { resetPath?: string }) {
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -34,7 +39,7 @@ export function ForgotPasswordForm() {
     const supabase = createSupabaseBrowserClient();
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? window.location.origin;
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${siteUrl}/reset-password`,
+      redirectTo: `${siteUrl}${resetPath}`,
     });
     setSubmitting(false);
 

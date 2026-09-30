@@ -29,6 +29,14 @@ const PROTECTED_PREFIXES = [
   "/host",
 ];
 
+/**
+ * The only /host pages a signed-out user may open: the host password-reset
+ * pages (a host who forgot their password can't be signed in). Exact paths
+ * only — every other /host route stays protected. They grant nothing: a
+ * successful reset continues to /host/apply, which checks the database.
+ */
+const PUBLIC_HOST_PATHS = new Set(["/host/forgot-password", "/host/reset-password"]);
+
 function isHostArea(pathname: string): boolean {
   return (
     pathname === "/host" ||
@@ -95,7 +103,7 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   const { pathname, searchParams } = request.nextUrl;
-  const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
+  const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p)) && !PUBLIC_HOST_PATHS.has(pathname);
 
   // ── journey: explicit entry points select it ──
   // Signed-out visits to the login pages are excluded (prefetch-safe); a

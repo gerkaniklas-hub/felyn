@@ -35,7 +35,7 @@ export default function HostLoginPage() {
             Log in to manage your experiences or check your host application.
           </p>
           <div className="mt-6">
-            <LoginForm redirectTo="/host/apply" />
+            <LoginForm redirectTo="/host/apply" forgotPasswordHref="/host/forgot-password" />
           </div>
         </div>
         <p className="text-center text-sm text-sky-300">

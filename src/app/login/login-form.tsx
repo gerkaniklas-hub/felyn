@@ -12,7 +12,14 @@ const initialState: ActionState = {};
 
 type ResendStatus = "idle" | "sending" | "sent" | "error";
 
-export function LoginForm({ redirectTo = "/home" }: { redirectTo?: string }) {
+export function LoginForm({
+  redirectTo = "/home",
+  forgotPasswordHref = "/forgot-password",
+}: {
+  redirectTo?: string;
+  /** Host login passes /host/forgot-password so the reset keeps the host journey. */
+  forgotPasswordHref?: string;
+}) {
   const loginWithRedirect = login.bind(null, redirectTo);
   const [state, formAction, isPending] = useActionState(loginWithRedirect, initialState);
   const [resendStatus, setResendStatus] = useState<ResendStatus>("idle");
@@ -71,7 +78,7 @@ export function LoginForm({ redirectTo = "/home" }: { redirectTo?: string }) {
         {isPending ? "Logging in…" : "Log in"}
       </Button>
       <Link
-        href="/forgot-password"
+        href={forgotPasswordHref}
         className="text-center text-sm text-sky-600 hover:text-sky-700"
       >
         Forgot password?
