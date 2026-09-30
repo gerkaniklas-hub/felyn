@@ -62,6 +62,16 @@ export async function getHostAccess(supabase: SupabaseClient, userId: string): P
       .maybeSingle(),
   ]);
 
+  // Fail closed: a failed read must never look like "not a host / never
+  // applied", or a rejected applicant would be shown the application form.
+  // Log the error code only — no user data, query results or credentials.
+  if (providerRes.error || applicationRes.error) {
+    const failed = providerRes.error ? "providers" : "host_applications";
+    const code = (providerRes.error ?? applicationRes.error)?.code ?? "unknown";
+    console.error(`getHostAccess: ${failed} read failed (code ${code})`);
+    throw new Error("Could not load host access");
+  }
+
   const provider = providerRes.data as { id: string } | null;
   const row = applicationRes.data as HostApplicationRow | null;
 

@@ -155,6 +155,15 @@ export async function proxy(request: NextRequest) {
       supabase.from("providers").select("id").eq("user_id", user.id).maybeSingle(),
       supabase.from("host_applications").select("id").eq("user_id", user.id).maybeSingle(),
     ]);
+    // Fail closed: a failed read must not count as "no application". Send the
+    // user to /host/apply, which re-reads the database itself and shows an
+    // error rather than the form if the read fails again. Error code only.
+    if (providerRes.error || applicationRes.error) {
+      const failed = providerRes.error ? "providers" : "host_applications";
+      const code = (providerRes.error ?? applicationRes.error)?.code ?? "unknown";
+      console.error(`proxy: host journey ${failed} read failed (code ${code})`);
+      return redirectTo("/host/apply");
+    }
     return redirectTo(
       hostJourneyHome({ isProvider: Boolean(providerRes.data), hasApplication: Boolean(applicationRes.data) }),
     );
