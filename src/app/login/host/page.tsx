@@ -18,6 +18,7 @@ export default function HostLoginPage() {
     <div className="relative flex flex-1 flex-col bg-navy-950">
       <Link
         href="/login"
+        prefetch={false}
         className="absolute top-6 right-6 text-sm font-medium text-sky-300 hover:text-sky-200"
       >
         I&apos;m a guest →

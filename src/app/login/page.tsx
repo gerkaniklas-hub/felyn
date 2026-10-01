@@ -13,6 +13,7 @@ export default function LoginPage() {
     <div className="relative flex flex-1 flex-col">
       <Link
         href="/login/host"
+        prefetch={false}
         className="absolute top-6 right-6 text-sm font-medium text-sky-600 hover:text-sky-700"
       >
         I&apos;m a Felyn host →
