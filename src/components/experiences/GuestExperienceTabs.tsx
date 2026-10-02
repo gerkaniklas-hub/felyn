@@ -52,7 +52,8 @@ export function GuestExperienceTabs({ items }: { items: GuestExperienceItem[] })
   const tabs: { key: TabKey; label: string; items: GuestExperienceItem[] }[] = [
     { key: "upcoming", label: "Upcoming", items: upcoming },
     { key: "past", label: "Past", items: past },
-    { key: "cancelled", label: "Cancelled / Declined", items: cancelled },
+    // Also holds declined and withdrawn requests; each card's own badge says which.
+    { key: "cancelled", label: "Cancelled", items: cancelled },
   ];
 
   const active = tabs.find((t) => t.key === activeTab)!;
@@ -65,7 +66,11 @@ export function GuestExperienceTabs({ items }: { items: GuestExperienceItem[] })
 
   return (
     <div className="flex flex-col gap-5">
-      <div role="tablist" aria-label="Your experiences" className="flex flex-wrap gap-2 border-b border-ivory-300">
+      <div
+        role="tablist"
+        aria-label="Your experiences"
+        className="inline-flex flex-wrap gap-1 self-start rounded-full border border-ivory-300 bg-ivory-50 p-1"
+      >
         {tabs.map((tab) => (
           <button
             key={tab.key}
@@ -73,19 +78,20 @@ export function GuestExperienceTabs({ items }: { items: GuestExperienceItem[] })
             role="tab"
             aria-selected={activeTab === tab.key}
             onClick={() => selectTab(tab.key)}
-            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
-              activeTab === tab.key
-                ? "border-navy-900 text-navy-900"
-                : "border-transparent text-navy-400 hover:text-navy-700"
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+              activeTab === tab.key ? "bg-navy-900 text-ivory-50" : "text-navy-500 hover:text-navy-900"
             }`}
           >
-            {tab.label} ({tab.items.length})
+            {tab.label}
+            <span className={`ml-1.5 text-xs ${activeTab === tab.key ? "text-ivory-200" : "text-navy-300"}`}>
+              {tab.items.length}
+            </span>
           </button>
         ))}
       </div>
 
       {active.items.length === 0 ? (
-        <p className="text-sm text-navy-400">
+        <p className="rounded-3xl border border-dashed border-ivory-400 bg-ivory-50 px-6 py-10 text-center text-sm text-navy-400">
           {activeTab === "upcoming"
             ? "Nothing upcoming yet."
             : activeTab === "past"

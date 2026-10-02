@@ -1,54 +1,21 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { logout } from "@/app/home/actions";
-import { Logo } from "@/components/ui/logo";
+import { AppSidebar, type SidebarItem } from "@/components/navigation/AppSidebar";
 
-const LINKS = [
-  { href: "/provider", label: "Dashboard" },
-  { href: "/provider/experiences", label: "Experiences" },
-  { href: "/provider/calendar", label: "Calendar" },
-  { href: "/provider/requests", label: "Requests" },
-  { href: "/provider/messages", label: "Messages" },
-  { href: "/provider/profile", label: "Profile" },
+const LINKS: SidebarItem[] = [
+  { href: "/provider", label: "Dashboard", icon: "home", exact: true },
+  { href: "/provider/experiences", label: "Experiences", icon: "grid" },
+  { href: "/provider/calendar", label: "Calendar", icon: "calendar" },
+  { href: "/provider/requests", label: "Requests", icon: "calendarCheck" },
+  { href: "/provider/messages", label: "Messages", icon: "chat" },
+  { href: "/provider/profile", label: "Profile", icon: "user" },
 ];
 
 /**
- * P1: the provider area's top bar — a deliberately subtle carry-over of
- * P0.5's host navy/sky/gold treatment (a dark bar, not a whole dark app),
- * so the space still unmistakably reads as Felyn rather than a generic
- * admin console.
+ * The provider (approved host) navigation — same items, routes and order as
+ * before, now rendered through the shared AppSidebar so hosts and guests
+ * share one navigation layout and icon language.
  */
 export function ProviderNav() {
-  const pathname = usePathname();
-
-  return (
-    <nav className="flex flex-wrap items-center justify-between gap-4 bg-navy-950 px-4 py-4 sm:px-6 lg:px-8">
-      <div className="flex flex-wrap items-center gap-x-8 gap-y-2">
-        <Logo variant="reverse" size="sm" />
-        <div className="flex flex-wrap gap-x-5 gap-y-1">
-          {LINKS.map((link) => {
-            const active = link.href === "/provider" ? pathname === link.href : pathname.startsWith(link.href);
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={`text-sm font-medium transition-colors ${
-                  active ? "text-gold-400" : "text-sky-200 hover:text-ivory-50"
-                }`}
-              >
-                {link.label}
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-      <form action={logout}>
-        <button type="submit" className="text-sm font-medium text-sky-200 hover:text-ivory-50">
-          Log out
-        </button>
-      </form>
-    </nav>
-  );
+  return <AppSidebar items={LINKS} ariaLabel="Host" />;
 }

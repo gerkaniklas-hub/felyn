@@ -46,6 +46,7 @@ export const GUEST_ROUTE_PREFIXES = [
   "/profile",
   "/experiences",
   "/stays",
+  "/trips",
   "/recommendations",
 ];
 

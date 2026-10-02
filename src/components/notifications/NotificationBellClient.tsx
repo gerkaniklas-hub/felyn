@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { BellIcon } from "@/components/navigation/icons";
 import { markAllNotificationsRead, markNotificationRead } from "@/app/notifications/actions";
 import { getNotificationHref, type Notification } from "@/lib/notifications";
 
@@ -57,19 +58,24 @@ export function NotificationBellClient({
   }
 
   return (
-    <div className="relative">
+    <div className="relative lg:w-full">
+      {/* Phone top bar: a round icon button. Sidebar (md+): a row matching the nav items, label shown on desktop. */}
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications"}
-        className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-navy-700 hover:bg-ivory-200"
+        title="Notifications"
+        className="relative inline-flex h-9 w-9 items-center justify-center gap-3 rounded-full text-navy-500 transition-colors hover:bg-ivory-200 hover:text-navy-900 md:h-10 md:rounded-xl lg:w-full lg:justify-start lg:px-3 lg:text-sm lg:font-medium"
       >
-        <span aria-hidden="true">🔔</span>
-        {unreadCount > 0 ? (
-          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold-500 px-1 text-[10px] font-semibold text-ivory-50">
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </span>
-        ) : null}
+        <span className="relative shrink-0">
+          <BellIcon className="h-5 w-5" />
+          {unreadCount > 0 ? (
+            <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold-500 px-1 text-[10px] font-semibold text-ivory-50">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          ) : null}
+        </span>
+        <span className="hidden lg:inline">Notifications</span>
       </button>
 
       {open ? (
@@ -80,7 +86,7 @@ export function NotificationBellClient({
             onClick={() => setOpen(false)}
             className="fixed inset-0 z-40 cursor-default"
           />
-          <div className="absolute right-0 z-50 mt-2 w-80 max-w-[90vw] rounded-2xl border border-ivory-300 bg-ivory-50 p-3 shadow-xl">
+          <div className="absolute right-0 z-50 mt-2 w-80 max-w-[90vw] rounded-2xl md:right-auto md:bottom-full md:left-0 md:mt-0 md:mb-2 border border-ivory-300 bg-ivory-50 p-3 shadow-xl">
             <div className="flex items-center justify-between px-1 pb-2">
               <p className="text-xs font-medium tracking-wide text-navy-300">NOTIFICATIONS</p>
               {unreadCount > 0 ? (

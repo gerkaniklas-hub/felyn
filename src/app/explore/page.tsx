@@ -1,36 +1,37 @@
-import { ExploreBrowser } from "@/components/explore/ExploreBrowser";
+import { ExploreView } from "@/components/explore/ExploreView";
 import { GuestNav } from "@/components/navigation/GuestNav";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Heading } from "@/components/ui/heading";
-import { getPublishedExperiences } from "@/lib/matching/explore";
+import { getProviderServiceLocationTexts, getPublishedExperiences } from "@/lib/matching/explore";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
  * General experience discovery — no stay required. Deliberately simple:
  * every published experience, no hard filter, no AI ranking (see
- * getPublishedExperiences). Adding a discovered experience to a stay is
+ * getPublishedExperiences). Search, location and category chips filter that
+ * same list client-side (ExploreView); location matches each host's stored
+ * base location and service locations. Adding a discovered experience to a stay is
  * out of scope for this milestone; browsing/viewing is enough (M6's
  * planner remains the only place a plan is actually built).
  */
 export default async function ExplorePage() {
   const supabase = await createSupabaseServerClient();
   const experiences = await getPublishedExperiences(supabase);
+  const serviceLocationsByProvider = await getProviderServiceLocationTexts(supabase, [
+    ...new Set(experiences.map((experience) => experience.provider_id)),
+  ]);
 
   return (
     <div className="flex flex-1 flex-col">
       <GuestNav notifications={<NotificationBell />} />
-      <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-      <p className="text-xs font-medium tracking-wide text-navy-300">EXPLORE</p>
-      <Heading level={1} className="mt-2">
-        Discover Felyn experiences
-      </Heading>
-      <p className="mt-3 max-w-xl text-navy-500">
-        Browse experiences from Felyn&apos;s hosts. Add a stay when you&apos;re ready to bring one
-        to your trip.
-      </p>
-      <div className="mt-8">
-        <ExploreBrowser experiences={experiences} />
-      </div>
+      <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 md:py-12 lg:px-10">
+        <Heading level={1}>Explore experiences</Heading>
+        <p className="mt-2 max-w-xl text-navy-500">
+          Browse experiences from Felyn&apos;s hosts. Add a stay when you&apos;re ready to bring one to your trip.
+        </p>
+        <div className="mt-8">
+          <ExploreView experiences={experiences} serviceLocationsByProvider={serviceLocationsByProvider} />
+        </div>
       </div>
     </div>
   );

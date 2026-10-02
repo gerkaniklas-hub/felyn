@@ -45,8 +45,8 @@ export default async function GuestExperienceDetailPage({ params }: { params: Pr
           <Card className="mx-auto max-w-md text-center">
             <Heading level={2}>Booking not found</Heading>
             <p className="mt-2 text-navy-500">This booking doesn&apos;t exist, or isn&apos;t yours to view.</p>
-            <Link href="/experiences" className="mt-3 inline-block text-sm font-medium text-sky-600 hover:text-sky-700">
-              ← Back to your experiences
+            <Link href="/trips" className="mt-3 inline-block text-sm font-medium text-sky-600 hover:text-sky-700">
+              ← Back to trips
             </Link>
           </Card>
         </div>
@@ -61,8 +61,8 @@ export default async function GuestExperienceDetailPage({ params }: { params: Pr
     <div className="flex flex-1 flex-col">
       <GuestNav notifications={<NotificationBell />} />
       <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        <Link href="/experiences" className="text-sm font-medium text-sky-600 hover:text-sky-700">
-          ← Back to your experiences
+        <Link href="/trips" className="text-sm font-medium text-sky-600 hover:text-sky-700">
+          ← Back to trips
         </Link>
 
         <div className="mt-4 flex flex-col gap-6">

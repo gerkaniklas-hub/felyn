@@ -30,6 +30,7 @@ export function MessageThread({
   openCaption,
   visible = true,
   onMessagesChange,
+  appearance = "card",
 }: {
   itemId: string;
   currentUserId: string;
@@ -50,6 +51,8 @@ export function MessageThread({
   visible?: boolean;
   /** Lets a parent (the floating window) mirror this thread's messages for its own minimized unread badge — never used to bypass this component's own read/send logic. */
   onMessagesChange?: (messages: Message[]) => void;
+  /** "card" (default, unchanged): the boxed thread used by the floating window and the provider booking page. "pane": borderless with sky outgoing bubbles, for the guest inbox's conversation pane. Presentation only. */
+  appearance?: "card" | "pane";
 }) {
   const [messages, setMessages] = useState(initialMessages);
   const [draft, setDraft] = useState("");
@@ -149,26 +152,37 @@ export function MessageThread({
     setDraft("");
   }
 
+  const pane = appearance === "pane";
+
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
+    <div className={`flex h-full min-h-0 flex-col ${pane ? "gap-0" : "gap-3"}`}>
       <div
         ref={listRef}
-        className="flex min-h-[220px] flex-1 flex-col gap-2 overflow-y-auto rounded-xl border border-ivory-300 bg-ivory-100 p-3"
+        className={
+          pane
+            ? "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-5 sm:px-6"
+            : "flex min-h-[220px] flex-1 flex-col gap-2 overflow-y-auto rounded-xl border border-ivory-300 bg-ivory-100 p-3"
+        }
       >
         {messages.length === 0 ? (
           <p className="py-6 text-center text-sm text-navy-400">No messages yet.</p>
         ) : (
           messages.map((message) => {
             const mine = message.senderId === currentUserId;
+            const bubble = pane
+              ? mine
+                ? "rounded-br-md bg-sky-600 text-ivory-50"
+                : "rounded-bl-md border border-ivory-300 bg-ivory-50 text-navy-900"
+              : mine
+                ? "bg-navy-900 text-ivory-50"
+                : "border border-ivory-300 bg-ivory-50 text-navy-900";
             return (
               <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${
-                    mine ? "bg-navy-900 text-ivory-50" : "border border-ivory-300 bg-ivory-50 text-navy-900"
-                  }`}
+                  className={`max-w-[80%] rounded-2xl text-sm ${pane ? "px-4 py-2.5 sm:max-w-[70%]" : "px-3 py-2"} ${bubble}`}
                 >
                   <p className="whitespace-pre-wrap break-words">{message.body}</p>
-                  <p className={`mt-1 text-[11px] ${mine ? "text-ivory-200" : "text-navy-300"}`}>
+                  <p className={`mt-1 text-[11px] ${mine ? (pane ? "text-sky-100" : "text-ivory-200") : "text-navy-300"}`}>
                     {formatTimestamp(message.createdAt)}
                   </p>
                 </div>
@@ -179,9 +193,9 @@ export function MessageThread({
       </div>
 
       {canSend ? (
-        <div className="flex flex-col gap-1.5">
+        <div className={`flex flex-col gap-1.5 ${pane ? "border-t border-ivory-300 bg-ivory-50 px-4 py-3 sm:px-6" : ""}`}>
           {openCaption ? <p className="text-xs text-navy-400">{openCaption}</p> : null}
-          <div className="flex gap-2">
+          <div className={`flex gap-2 ${pane ? "items-end" : ""}`}>
             <textarea
               value={draft}
               onChange={(event) => setDraft(event.target.value.slice(0, MESSAGE_MAX_LENGTH))}
@@ -191,9 +205,13 @@ export function MessageThread({
                   handleSend();
                 }
               }}
-              rows={2}
+              rows={pane ? 1 : 2}
               placeholder="Write a message…"
-              className="flex-1 resize-none rounded-xl border border-ivory-400 bg-ivory-50 px-3 py-2 text-sm text-navy-900 placeholder:text-navy-300"
+              className={
+                pane
+                  ? "max-h-40 min-h-11 flex-1 resize-none rounded-3xl border border-ivory-300 bg-ivory-100 px-4 py-2.5 text-sm text-navy-900 placeholder:text-navy-300 focus:border-sky-300 focus:outline-none"
+                  : "flex-1 resize-none rounded-xl border border-ivory-400 bg-ivory-50 px-3 py-2 text-sm text-navy-900 placeholder:text-navy-300"
+              }
             />
             <Button type="button" onClick={handleSend} disabled={sending || draft.trim().length === 0}>
               Send
@@ -207,7 +225,9 @@ export function MessageThread({
           </div>
         </div>
       ) : (
-        <p className="rounded-lg bg-ivory-100 px-3 py-2 text-center text-sm text-navy-400">
+        <p
+          className={`bg-ivory-100 px-3 py-2 text-center text-sm text-navy-400 ${pane ? "border-t border-ivory-300 py-4" : "rounded-lg"}`}
+        >
           {closedLabel ?? "This conversation is closed."}
         </p>
       )}

@@ -21,7 +21,8 @@ function formatMessageTimestamp(iso: string): string {
   return new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-function toHandle(c: ConversationSummary): ConversationHandle {
+/** Shared with the guest inbox (GuestInbox), which opens the same handle in its own pane. */
+export function toHandle(c: ConversationSummary): ConversationHandle {
   const windowState = getMessagingWindowState(c.itemStatus, c.decidedAt, c.cancelledAt);
   return {
     itemId: c.itemId,

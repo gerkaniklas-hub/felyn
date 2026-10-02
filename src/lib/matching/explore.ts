@@ -136,3 +136,28 @@ export async function getPublishedExperiences(supabase: SupabaseClient): Promise
 
   return results;
 }
+
+/**
+ * Explore's location search: every service-area text each provider has
+ * (service_locations.location_text, any date range), keyed by provider id.
+ * Read through the existing "Guests read service locations of published
+ * providers" RLS policy (0002), the same table the stay matcher uses
+ * (hard-filter.ts). Free text only: no geocoding. A failed read just means
+ * location search falls back to each provider's base_location.
+ */
+export async function getProviderServiceLocationTexts(
+  supabase: SupabaseClient,
+  providerIds: string[],
+): Promise<Record<string, string[]>> {
+  if (providerIds.length === 0) return {};
+  const { data } = await supabase
+    .from("service_locations")
+    .select("provider_id, location_text")
+    .in("provider_id", providerIds);
+
+  const byProvider: Record<string, string[]> = {};
+  for (const row of (data as { provider_id: string; location_text: string }[] | null) ?? []) {
+    (byProvider[row.provider_id] ??= []).push(row.location_text);
+  }
+  return byProvider;
+}

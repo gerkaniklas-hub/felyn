@@ -1,11 +1,13 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
 import { GuestNav } from "@/components/navigation/GuestNav";
+import { SuitcaseIcon } from "@/components/navigation/icons";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { AvatarEditor } from "@/components/profile/AvatarEditor";
 import { EmailChangeForm } from "@/components/profile/EmailChangeForm";
 import { PasswordChangeForm } from "@/components/profile/PasswordChangeForm";
 import { ProfileDetailsForm } from "@/components/profile/ProfileDetailsForm";
-import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
 import { getSignedAvatarUrl } from "@/lib/storage/avatars";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -52,51 +54,83 @@ export default async function GuestProfilePage() {
     .eq("status", "CONFIRMED")
     .not("completed_at", "is", null);
 
+  const fullName = [firstName, lastName].filter(Boolean).join(" ");
+
   return (
     <div className="flex flex-1 flex-col">
       <GuestNav notifications={<NotificationBell />} />
-      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
-        <div>
-          <p className="text-xs font-medium tracking-wide text-navy-300">PROFILE</p>
-          <Heading level={1} className="mt-2">
-            Your profile
-          </Heading>
-        </div>
+      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 md:py-12 lg:px-10">
+        <Heading level={1}>Profile</Heading>
 
-        <Card className="flex flex-col gap-3">
-          <AvatarEditor userId={user.id} initialSignedUrl={signedAvatarUrl} />
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-ivory-300 pt-3">
-            <p className="font-display text-lg text-navy-950">
-              {[firstName, lastName].filter(Boolean).join(" ") || "Your profile"}
-            </p>
-            {completedCountError ? (
-              <p className="text-sm text-navy-500">Completed experiences: unavailable right now.</p>
-            ) : (
-              <p className="flex items-center gap-1.5 text-sm font-medium text-navy-700">
-                <span aria-hidden="true" className="text-sky-600">
-                  ✓
-                </span>
-                {completedCount ?? 0} experience{completedCount === 1 ? "" : "s"} completed
-              </p>
-            )}
+        <div className="grid items-start gap-6 lg:grid-cols-[20rem_1fr]">
+          <aside className="flex flex-col gap-4 lg:sticky lg:top-8">
+            <div className="flex flex-col gap-5 rounded-3xl border border-ivory-300 bg-ivory-50 p-6 shadow-sm">
+              <AvatarEditor userId={user.id} initialSignedUrl={signedAvatarUrl} />
+              <div className="border-t border-ivory-300 pt-4">
+                <p className="font-display text-2xl text-navy-950">{fullName || "Your profile"}</p>
+                {user.email ? <p className="mt-0.5 truncate text-sm text-navy-500">{user.email}</p> : null}
+                {completedCountError ? (
+                  <p className="mt-3 text-sm text-navy-500">Completed experiences: unavailable right now.</p>
+                ) : (
+                  <p className="mt-3 flex items-center gap-1.5 text-sm font-medium text-navy-700">
+                    <span aria-hidden="true" className="text-sky-600">
+                      ✓
+                    </span>
+                    {completedCount ?? 0} experience{completedCount === 1 ? "" : "s"} completed
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <Link
+              href="/trips"
+              className="flex items-center gap-3 rounded-3xl border border-ivory-300 bg-ivory-50 p-4 shadow-sm transition-colors hover:border-sky-300"
+            >
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-600">
+                <SuitcaseIcon className="h-5 w-5" />
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-sm font-medium text-navy-900">Upcoming experiences</span>
+                <span className="text-xs text-navy-500">See your trips and bookings</span>
+              </span>
+              <span aria-hidden="true" className="text-navy-300">
+                →
+              </span>
+            </Link>
+          </aside>
+
+          <div className="flex flex-col gap-6">
+            <ProfileSection title="Personal details" description="Your name and phone number.">
+              <ProfileDetailsForm firstName={firstName} lastName={lastName} phone={phone} />
+            </ProfileSection>
+
+            <ProfileSection title="Settings" description="The email address and password you sign in with.">
+              <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-3">
+                  <h3 className="text-sm font-semibold text-navy-900">Email</h3>
+                  <EmailChangeForm currentEmail={user.email ?? ""} />
+                </div>
+                <div className="flex flex-col gap-3 border-t border-ivory-300 pt-6">
+                  <h3 className="text-sm font-semibold text-navy-900">Password</h3>
+                  <PasswordChangeForm />
+                </div>
+              </div>
+            </ProfileSection>
           </div>
-        </Card>
-
-        <Card className="flex flex-col gap-4">
-          <Heading level={3}>Your details</Heading>
-          <ProfileDetailsForm firstName={firstName} lastName={lastName} phone={phone} />
-        </Card>
-
-        <Card className="flex flex-col gap-4">
-          <Heading level={3}>Email</Heading>
-          <EmailChangeForm currentEmail={user.email ?? ""} />
-        </Card>
-
-        <Card className="flex flex-col gap-4">
-          <Heading level={3}>Password</Heading>
-          <PasswordChangeForm />
-        </Card>
+        </div>
       </div>
     </div>
+  );
+}
+
+function ProfileSection({ title, description, children }: { title: string; description: string; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-5 rounded-3xl border border-ivory-300 bg-ivory-50 p-6 shadow-sm sm:p-8">
+      <div>
+        <h2 className="font-display text-xl font-medium tracking-tight text-navy-950">{title}</h2>
+        <p className="mt-1 text-sm text-navy-500">{description}</p>
+      </div>
+      {children}
+    </section>
   );
 }

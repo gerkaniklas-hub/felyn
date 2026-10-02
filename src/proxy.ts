@@ -26,6 +26,7 @@ const PROTECTED_PREFIXES = [
   "/profile",
   "/experiences",
   "/stays",
+  "/trips",
   "/host",
 ];
 

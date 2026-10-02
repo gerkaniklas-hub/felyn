@@ -61,6 +61,21 @@ body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* App navigation (AppSidebar): from tablet up the nav is a fixed left rail
+   (5rem) that widens into the full sidebar (16rem) on desktop. Offsetting
+   the body here, only on pages that render the nav, keeps every page's own
+   layout unchanged. Breakpoints match Tailwind's md (48rem) and lg (64rem). */
+@media (min-width: 48rem) {
+  body:has([data-app-nav]) {
+    padding-left: 5rem;
+  }
+}
+@media (min-width: 64rem) {
+  body:has([data-app-nav]) {
+    padding-left: 16rem;
+  }
+}
+
 /* Phase 5 (trip planner date navigation): hides the scrollbar on an
    otherwise-native horizontally scrolling strip, so left/right arrow
    buttons are the visible way to navigate it rather than a drag-track —
