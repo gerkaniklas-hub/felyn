@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MapPinIcon, SearchIcon } from "@/components/navigation/icons";
+import { SearchIcon } from "@/components/navigation/icons";
+import { matchesLocation, normalizeText } from "@/lib/locations";
 import type { ExperienceCategory, MatchedExperience } from "@/lib/matching/hard-filter";
 import { ExploreBrowser } from "./ExploreBrowser";
+import { LocationPicker } from "./LocationPicker";
 
 /** Every category Felyn experiences can have today (see the experiences.category check constraint). */
 const FOOD_AND_DRINK: ExperienceCategory[] = ["food", "drink", "food_drink"];
@@ -18,21 +20,17 @@ const CATEGORIES: { key: CategoryKey; label: string }[] = [
 /** Shown so guests can see where Felyn is heading; not selectable until such experiences exist. */
 const COMING_SOON = ["Nature", "Water", "Culture", "Wellness", "For Families"];
 
-/** Lowercase and strip accents, so "orotava" matches "La Orotava" and "guimar" matches "Güímar". */
-function normalize(value: string): string {
-  return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-}
-
 /**
  * /explore's search, location and category controls, in front of the
  * existing ExploreBrowser grid. Filtering is purely client-side over the
  * list the page already loads: no backend filter, no geocoding.
  *
- * - Search matches title, host name, cuisine and short description.
- * - Location matches the host's base location and any of their service
- *   locations (the only stored location data; experiences have none of
- *   their own). Partial, case- and accent-insensitive.
- * - All three combine; an empty field doesn't filter.
+ * - Search matches title, host name, cuisine and short description
+ *   (partial, case- and accent-insensitive).
+ * - Location is a canonical place chosen from LocationPicker (never free
+ *   text). It matches when the host's base location or service locations
+ *   name that place or a place beneath it (see matchesLocation).
+ * - All three combine; nothing selected/typed means no filter.
  */
 export function ExploreView({
   experiences,
@@ -42,24 +40,28 @@ export function ExploreView({
   serviceLocationsByProvider: Record<string, string[]>;
 }) {
   const [query, setQuery] = useState("");
-  const [location, setLocation] = useState("");
+  const [locationId, setLocationId] = useState<string | null>(null);
   const [category, setCategory] = useState<CategoryKey>("all");
 
   const filtered = useMemo(() => {
-    const q = normalize(query.trim());
-    const where = normalize(location.trim());
+    const q = normalizeText(query.trim());
     return experiences.filter((experience) => {
       if (category === "food_drink" && !FOOD_AND_DRINK.includes(experience.category)) return false;
-      if (where) {
-        const places = [experience.provider.base_location, ...(serviceLocationsByProvider[experience.provider_id] ?? [])];
-        if (!places.some((place) => place && normalize(place).includes(where))) return false;
+      if (
+        locationId &&
+        !matchesLocation(
+          [experience.provider.base_location, ...(serviceLocationsByProvider[experience.provider_id] ?? [])],
+          locationId,
+        )
+      ) {
+        return false;
       }
       if (!q) return true;
       return [experience.title, experience.provider.display_name, experience.cuisine, experience.short_description]
         .filter(Boolean)
-        .some((value) => normalize(value as string).includes(q));
+        .some((value) => normalizeText(value as string).includes(q));
     });
-  }, [experiences, serviceLocationsByProvider, query, location, category]);
+  }, [experiences, serviceLocationsByProvider, query, locationId, category]);
 
   const inputClass =
     "h-12 w-full rounded-full border border-ivory-300 bg-ivory-50 pr-4 pl-12 text-sm text-navy-900 placeholder:text-navy-300 focus:border-sky-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 sm:h-14 sm:rounded-none sm:border-0 sm:bg-transparent sm:focus-visible:ring-0";
@@ -83,17 +85,9 @@ export function ExploreView({
           />
         </label>
         <span aria-hidden="true" className="hidden h-8 w-px shrink-0 bg-ivory-300 sm:block" />
-        <label className="relative block sm:flex-1">
-          <span className="sr-only">Location</span>
-          <MapPinIcon className="pointer-events-none absolute top-1/2 left-4 h-5 w-5 -translate-y-1/2 text-navy-300" />
-          <input
-            type="search"
-            value={location}
-            onChange={(event) => setLocation(event.target.value)}
-            placeholder="Where?"
-            className={inputClass}
-          />
-        </label>
+        <div className="sm:flex-1">
+          <LocationPicker selectedId={locationId} onSelect={setLocationId} inputClassName={inputClass} />
+        </div>
       </div>
 
       <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">

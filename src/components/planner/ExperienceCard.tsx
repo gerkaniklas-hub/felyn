@@ -56,8 +56,11 @@ export function ExperienceCard({
         selected ? "border-sky-500 ring-1 ring-sky-500" : "border-ivory-300"
       }`}
     >
-      <div className="relative aspect-[4/3] w-full">
-        <FallbackImage src={experience.image_url} alt={experience.title} className="h-full w-full" />
+      {/* Fixed 4:3 frame for every card. The image (or placeholder) is absolutely positioned and cropped with
+          object-cover, so its own dimensions can never stretch the frame — as an in-flow flex child, a tall
+          upload's intrinsic height used to push this box past 4:3. */}
+      <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden">
+        <FallbackImage src={experience.image_url} alt={experience.title} className="absolute inset-0 h-full w-full" />
         {!locked ? (
           <button
             type="button"
