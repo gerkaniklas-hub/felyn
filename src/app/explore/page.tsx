@@ -2,21 +2,22 @@ import { ExploreView } from "@/components/explore/ExploreView";
 import { GuestNav } from "@/components/navigation/GuestNav";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Heading } from "@/components/ui/heading";
-import { getProviderServiceLocationTexts, getPublishedExperiences } from "@/lib/matching/explore";
+import { getCanonicalLocations, getProviderServiceLocationTexts, getPublishedExperiences } from "@/lib/matching/explore";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
  * General experience discovery — no stay required. Deliberately simple:
  * every published experience, no hard filter, no AI ranking (see
  * getPublishedExperiences). Search, location and category chips filter that
- * same list client-side (ExploreView); location matches each host's stored
+ * same list client-side (ExploreView). The location picker offers Felyn's
+ * canonical locations (public.locations); a chosen place matches each host's stored
  * base location and service locations. Adding a discovered experience to a stay is
  * out of scope for this milestone; browsing/viewing is enough (M6's
  * planner remains the only place a plan is actually built).
  */
 export default async function ExplorePage() {
   const supabase = await createSupabaseServerClient();
-  const experiences = await getPublishedExperiences(supabase);
+  const [experiences, locations] = await Promise.all([getPublishedExperiences(supabase), getCanonicalLocations(supabase)]);
   const serviceLocationsByProvider = await getProviderServiceLocationTexts(supabase, [
     ...new Set(experiences.map((experience) => experience.provider_id)),
   ]);
@@ -30,7 +31,11 @@ export default async function ExplorePage() {
           Browse experiences from Felyn&apos;s hosts. Add a stay when you&apos;re ready to bring one to your trip.
         </p>
         <div className="mt-8">
-          <ExploreView experiences={experiences} serviceLocationsByProvider={serviceLocationsByProvider} />
+          <ExploreView
+            experiences={experiences}
+            serviceLocationsByProvider={serviceLocationsByProvider}
+            locations={locations}
+          />
         </div>
       </div>
     </div>

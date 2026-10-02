@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Location } from "@/lib/locations";
 import type { ExperienceAttribute, ExperienceCategory, MatchedExperience } from "./hard-filter";
 
 /**
@@ -160,4 +161,38 @@ export async function getProviderServiceLocationTexts(
     (byProvider[row.provider_id] ??= []).push(row.location_text);
   }
   return byProvider;
+}
+
+/**
+ * Explore's location picker options: Felyn's canonical locations
+ * (public.locations, migration 0024), readable by any signed-in user via
+ * the "Signed-in users read canonical locations" RLS policy. Shaped for
+ * lib/locations.ts. A failed read returns an empty list: the picker then
+ * simply offers no places and every other Explore filter keeps working.
+ */
+export async function getCanonicalLocations(supabase: SupabaseClient): Promise<Location[]> {
+  const { data, error } = await supabase
+    .from("locations")
+    .select("id, name, parent_id, region, country, aliases")
+    .order("name", { ascending: true });
+  if (error) {
+    console.error(`explore: locations read failed (code ${error.code ?? "unknown"})`);
+    return [];
+  }
+  type LocationRow = {
+    id: string;
+    name: string;
+    parent_id: string | null;
+    region: string | null;
+    country: string;
+    aliases: string[] | null;
+  };
+  return ((data as LocationRow[] | null) ?? []).map((row) => ({
+    id: row.id,
+    name: row.name,
+    parentId: row.parent_id,
+    region: row.region,
+    country: row.country,
+    aliases: row.aliases ?? [],
+  }));
 }

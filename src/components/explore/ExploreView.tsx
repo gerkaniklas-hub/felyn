@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { SearchIcon } from "@/components/navigation/icons";
-import { matchesLocation, normalizeText } from "@/lib/locations";
+import { type Location, matchesLocation, normalizeText } from "@/lib/locations";
 import type { ExperienceCategory, MatchedExperience } from "@/lib/matching/hard-filter";
 import { ExploreBrowser } from "./ExploreBrowser";
 import { LocationPicker } from "./LocationPicker";
@@ -27,7 +27,7 @@ const COMING_SOON = ["Nature", "Water", "Culture", "Wellness", "For Families"];
  *
  * - Search matches title, host name, cuisine and short description
  *   (partial, case- and accent-insensitive).
- * - Location is a canonical place chosen from LocationPicker (never free
+ * - Location is a canonical place (public.locations) chosen from LocationPicker (never free
  *   text). It matches when the host's base location or service locations
  *   name that place or a place beneath it (see matchesLocation).
  * - All three combine; nothing selected/typed means no filter.
@@ -35,9 +35,12 @@ const COMING_SOON = ["Nature", "Water", "Culture", "Wellness", "For Families"];
 export function ExploreView({
   experiences,
   serviceLocationsByProvider,
+  locations,
 }: {
   experiences: MatchedExperience[];
   serviceLocationsByProvider: Record<string, string[]>;
+  /** Felyn's canonical locations (public.locations), loaded by the page. */
+  locations: Location[];
 }) {
   const [query, setQuery] = useState("");
   const [locationId, setLocationId] = useState<string | null>(null);
@@ -50,6 +53,7 @@ export function ExploreView({
       if (
         locationId &&
         !matchesLocation(
+          locations,
           [experience.provider.base_location, ...(serviceLocationsByProvider[experience.provider_id] ?? [])],
           locationId,
         )
@@ -61,7 +65,7 @@ export function ExploreView({
         .filter(Boolean)
         .some((value) => normalizeText(value as string).includes(q));
     });
-  }, [experiences, serviceLocationsByProvider, query, locationId, category]);
+  }, [experiences, serviceLocationsByProvider, locations, query, locationId, category]);
 
   const inputClass =
     "h-12 w-full rounded-full border border-ivory-300 bg-ivory-50 pr-4 pl-12 text-sm text-navy-900 placeholder:text-navy-300 focus:border-sky-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-200 sm:h-14 sm:rounded-none sm:border-0 sm:bg-transparent sm:focus-visible:ring-0";
@@ -86,7 +90,12 @@ export function ExploreView({
         </label>
         <span aria-hidden="true" className="hidden h-8 w-px shrink-0 bg-ivory-300 sm:block" />
         <div className="sm:flex-1">
-          <LocationPicker selectedId={locationId} onSelect={setLocationId} inputClassName={inputClass} />
+          <LocationPicker
+            locations={locations}
+            selectedId={locationId}
+            onSelect={setLocationId}
+            inputClassName={inputClass}
+          />
         </div>
       </div>
 

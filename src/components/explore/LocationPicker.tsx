@@ -2,33 +2,36 @@
 
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { MapPinIcon } from "@/components/navigation/icons";
-import { getLocation, getLocationContext, searchLocations } from "@/lib/locations";
+import { type Location, getLocation, getLocationContext, searchLocations } from "@/lib/locations";
 
 /**
  * Explore's "Where?" field: a small combobox over Felyn's canonical
- * locations (src/lib/locations.ts). Typing only narrows the suggestions;
+ * locations (public.locations, passed in). Typing only narrows the suggestions;
  * the filter changes only when a suggestion is chosen, so results never
  * depend on arbitrary free text. Arrow keys move, Enter selects, Escape
  * closes; clicking outside closes.
  */
 export function LocationPicker({
+  locations,
   selectedId,
   onSelect,
   inputClassName,
 }: {
+  /** Felyn's canonical locations (public.locations), loaded server-side by the Explore page. */
+  locations: Location[];
   selectedId: string | null;
   onSelect: (locationId: string | null) => void;
   inputClassName: string;
 }) {
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
-  const selected = selectedId ? getLocation(selectedId) : undefined;
+  const selected = selectedId ? getLocation(locations, selectedId) : undefined;
 
   const [text, setText] = useState(selected?.name ?? "");
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const suggestions = searchLocations(selected && text === selected.name ? "" : text);
+  const suggestions = searchLocations(locations, selected && text === selected.name ? "" : text);
 
   useEffect(() => {
     if (!open) return;
@@ -46,7 +49,7 @@ export function LocationPicker({
   }
 
   function choose(id: string) {
-    const location = getLocation(id);
+    const location = getLocation(locations, id);
     onSelect(id);
     setText(location?.name ?? "");
     setOpen(false);
@@ -152,7 +155,7 @@ export function LocationPicker({
                 </span>
                 <span className="flex min-w-0 flex-col">
                   <span className="text-sm font-medium text-navy-950">{location.name}</span>
-                  <span className="text-xs text-navy-500">{getLocationContext(location)}</span>
+                  <span className="text-xs text-navy-500">{getLocationContext(locations, location)}</span>
                 </span>
               </li>
             ))
