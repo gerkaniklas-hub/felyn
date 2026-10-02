@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { GuestExperienceTabs } from "@/components/experiences/GuestExperienceTabs";
 import { RemoveStayButton } from "@/components/home/RemoveStayButton";
 import { CalendarIcon, MapPinIcon, PlusIcon, UsersIcon } from "@/components/navigation/icons";
 import { GuestNav } from "@/components/navigation/GuestNav";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Badge } from "@/components/ui/badge";
-import { Heading } from "@/components/ui/heading";
 import { formatCurrency, formatDateRange } from "@/lib/format";
+import { todayISODate } from "@/lib/onboarding/stay-dates";
 import {
   deriveAggregateItemStage,
   getAggregateItemStageCaption,
@@ -15,21 +14,16 @@ import {
   type ActiveBookingRequestStatus,
   type BookingItemStatus,
 } from "@/lib/matching/booking-status";
-import { getGuestExperiences } from "@/lib/matching/guest-experiences";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
- * My trips: everything the guest has planned, in one place. Two parts, both
- * moved here unchanged in data and behaviour:
+ * My trips: the guest's stays (their trips), as Upcoming / Past tabs
+ * (?tab=past). Each opens that stay's trip planner
+ * (/recommendations?stay=<id>); "Trip details" opens the stay overview
+ * (/stays/<id>) and "Remove stay" works as before. Requested experiences,
+ * with or without a trip, are their own section: Experiences (/experiences).
  *
- * - The Upcoming / Past / Cancelled experience tabs (GuestExperienceTabs,
- *   fed by getGuestExperiences), previously the /experiences page, which
- *   now redirects here.
- * - The guest's stays with their request status, "Add a stay" and "Remove
- *   stay", previously the /home dashboard. /home is now the guest's
- *   welcome screen instead.
- *
- * The stays queries are exactly the ones /home used. Each stay's badge is
+ * The stays queries are exactly the ones the old /home dashboard used. Each stay's badge is
  * derived from its items' OWN statuses (deriveAggregateItemStage), never
  * booking_requests.status: that column is only ever 'REQUESTED' at insert
  * or 'WITHDRAWN' when the guest withdraws the whole request, so reading it
@@ -38,24 +32,36 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  * new row), so all of them are listed; one active (REQUESTED/CONFIRMED)
  * request per stay is guaranteed by the DB's partial unique index.
  */
-export default async function TripsPage() {
+type TripTab = "upcoming" | "past";
+
+export default async function TripsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const { tab: tabParam } = await searchParams;
+  const tab: TripTab = tabParam === "past" ? "past" : "upcoming";
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [{ data: stays }, experiences] = await Promise.all([
-    supabase
-      .from("stays")
-      .select("id, property_name, location_text, check_in, check_out, guest_count")
-      .eq("user_id", user.id)
-      .not("onboarding_completed_at", "is", null)
-      .order("check_in", { ascending: true }),
-    getGuestExperiences(supabase),
-  ]);
+  const { data: stays } = await supabase
+    .from("stays")
+    .select("id, property_name, location_text, check_in, check_out, guest_count")
+    .eq("user_id", user.id)
+    .not("onboarding_completed_at", "is", null)
+    .order("check_in", { ascending: true });
 
   const stayList = stays ?? [];
+  // Upcoming includes a trip that's under way (check-out today or later). Stays
+  // have no cancelled state in the database (a removed stay is deleted), so
+  // there is no Cancelled tab.
+  const today = todayISODate();
+  const upcomingStays = stayList.filter((stay) => stay.check_out >= today);
+  const pastStays = stayList.filter((stay) => stay.check_out < today).reverse();
+  const shownStays = tab === "past" ? pastStays : upcomingStays;
+  const tabs: { key: TripTab; label: string; count: number }[] = [
+    { key: "upcoming", label: "Upcoming", count: upcomingStays.length },
+    { key: "past", label: "Past", count: pastStays.length },
+  ];
 
   const stayIds = stayList.map((stay) => stay.id);
   type ActiveRequestRow = { id: string; stay_id: string; status: ActiveBookingRequestStatus; estimated_total: number };
@@ -89,33 +95,13 @@ export default async function TripsPage() {
     <div className="flex flex-1 flex-col">
       <GuestNav notifications={<NotificationBell />} />
       <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-12 px-4 py-8 sm:px-6 md:py-12 lg:px-10">
-        <div>
-          <Heading level={1}>My trips</Heading>
-          <p className="mt-2 max-w-xl text-navy-500">
-            Your upcoming and past experiences, and the stays you&apos;ve added, all in one place.
-          </p>
-        </div>
-
-        <section aria-label="Your experiences">
-          {experiences.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-ivory-400 bg-ivory-50 px-6 py-12 text-center">
-              <p className="text-navy-600">You haven&apos;t requested any experiences yet.</p>
-              <Link href="/explore" className="text-sm font-medium text-sky-600 hover:text-sky-700">
-                Discover experiences →
-              </Link>
-            </div>
-          ) : (
-            <GuestExperienceTabs items={experiences} />
-          )}
-        </section>
-
-        <section className="flex flex-col gap-4" aria-labelledby="your-stays">
-          <div className="flex flex-wrap items-end justify-between gap-3">
+        <section className="flex flex-col gap-6" aria-labelledby="my-trips">
+          <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h2 id="your-stays" className="font-display text-2xl font-medium tracking-tight text-navy-950">
-                Your stays
-              </h2>
-              <p className="mt-1 text-sm text-navy-500">Plan experiences around the places you&apos;re staying.</p>
+              <h1 id="my-trips" className="font-display text-4xl leading-tight font-medium tracking-tight text-navy-950 sm:text-5xl">
+                My trips
+              </h1>
+              <p className="mt-2 max-w-xl text-navy-500">Your stays and travel plans. Each trip opens its own planner.</p>
             </div>
             <Link
               href="/onboarding/add-stay"
@@ -126,9 +112,28 @@ export default async function TripsPage() {
             </Link>
           </div>
 
-          {stayList.length > 0 ? (
+          <nav
+            aria-label="Trips"
+            className="inline-flex flex-wrap gap-1 self-start rounded-full border border-ivory-300 bg-ivory-50 p-1"
+          >
+            {tabs.map((item) => (
+              <Link
+                key={item.key}
+                href={item.key === "upcoming" ? "/trips" : "/trips?tab=past"}
+                aria-current={tab === item.key ? "page" : undefined}
+                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                  tab === item.key ? "bg-navy-900 text-ivory-50" : "text-navy-500 hover:text-navy-900"
+                }`}
+              >
+                {item.label}
+                <span className={`ml-1.5 text-xs ${tab === item.key ? "text-ivory-200" : "text-navy-300"}`}>{item.count}</span>
+              </Link>
+            ))}
+          </nav>
+
+          {shownStays.length > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2">
-              {stayList.map((stay) => {
+              {shownStays.map((stay) => {
                 const activeRequest = activeRequestByStay.get(stay.id);
                 const itemStatuses = activeRequest ? (itemStatusesByRequest.get(activeRequest.id) ?? []) : [];
                 const itemCount = itemStatuses.length;
@@ -143,7 +148,12 @@ export default async function TripsPage() {
                     className="flex flex-col gap-4 rounded-3xl border border-ivory-300 bg-ivory-50 p-5 shadow-sm"
                   >
                     <div className="min-w-0">
-                      <p className="truncate font-display text-xl text-navy-950">{stay.property_name}</p>
+                      <Link
+                        href={`/recommendations?stay=${stay.id}`}
+                        className="block truncate font-display text-xl text-navy-950 hover:text-sky-700"
+                      >
+                        {stay.property_name}
+                      </Link>
                       <div className="mt-2 flex flex-col gap-1.5 text-sm text-navy-600">
                         <span className="flex items-center gap-2">
                           <MapPinIcon className="h-4 w-4 shrink-0 text-navy-300" />
@@ -176,8 +186,14 @@ export default async function TripsPage() {
                     )}
 
                     <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-ivory-300 pt-3">
+                      <Link
+                        href={`/recommendations?stay=${stay.id}`}
+                        className="inline-flex h-9 items-center justify-center rounded-full bg-navy-900 px-4 text-sm font-medium text-ivory-50 transition-colors hover:bg-navy-950"
+                      >
+                        Open planner
+                      </Link>
                       <Link href={`/stays/${stay.id}`} className="text-sm font-medium text-sky-600 hover:text-sky-700">
-                        {activeRequest ? "View your request →" : "Discover experiences →"}
+                        Trip details
                       </Link>
                       <div className="ml-auto">
                         <RemoveStayButton stay={stay} />
@@ -189,10 +205,18 @@ export default async function TripsPage() {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2 rounded-3xl border border-dashed border-ivory-400 bg-ivory-50 px-6 py-10 text-center">
-              <p className="text-navy-600">You haven&apos;t added a stay yet.</p>
-              <Link href="/onboarding/add-stay" className="text-sm font-medium text-sky-600 hover:text-sky-700">
-                Add your first stay →
-              </Link>
+              {tab === "past" ? (
+                <p className="text-navy-600">No past trips yet.</p>
+              ) : (
+                <>
+                  <p className="text-navy-600">
+                    {stayList.length === 0 ? "You haven’t added a stay yet." : "No upcoming trips."}
+                  </p>
+                  <Link href="/onboarding/add-stay" className="text-sm font-medium text-sky-600 hover:text-sky-700">
+                    {stayList.length === 0 ? "Add your first stay →" : "Add a stay →"}
+                  </Link>
+                </>
+              )}
             </div>
           )}
         </section>

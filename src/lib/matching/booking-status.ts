@@ -298,3 +298,6 @@ export function getMessagingClosedLabel(
   if (status === "WITHDRAWN") return "This booking was withdrawn — the conversation is closed.";
   return "This conversation is closed.";
 }
+
+/** Shown wherever a trip/stay name would be, for a request made without a trip (0026). */
+export const NO_TRIP_LINKED_LABEL = "No trip linked";

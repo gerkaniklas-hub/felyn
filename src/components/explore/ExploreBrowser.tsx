@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { RequestExperienceModal } from "@/components/booking/RequestExperienceModal";
 import { ExperienceCard } from "@/components/planner/ExperienceCard";
 import { ExperienceFocus } from "@/components/planner/ExperienceFocus";
 import { ProviderFocus } from "@/components/planner/ProviderFocus";
 import { getProviderProfileAction } from "@/lib/matching/actions";
+import type { GuestStayOption } from "@/lib/matching/explore";
 import type { MatchedExperience } from "@/lib/matching/hard-filter";
 import type { ProviderProfile } from "@/lib/matching/provider-profile";
 
@@ -18,16 +20,26 @@ type FocusState =
  * layered Experience -> Provider navigation the Stay Planner uses
  * (ExperienceCard / ExperienceFocus / ProviderFocus) — every card renders
  * `locked` so no "+"/"Add to my plan" control appears, since there's no
- * plan here to add into (see M-Explore's scope: browsable/viewable only).
+ * plan here to add into. The detail panel offers "Request experience"
+ * instead (RequestExperienceModal), with or without one of the guest's trips.
  */
-export function ExploreBrowser({ experiences }: { experiences: MatchedExperience[] }) {
+export function ExploreBrowser({
+  experiences,
+  stays = [],
+}: {
+  experiences: MatchedExperience[];
+  /** The guest's own stays, offered as "Add to a trip" in the request form when one covers the chosen date. */
+  stays?: GuestStayOption[];
+}) {
   const [focus, setFocus] = useState<FocusState>({ type: "none" });
+  const [requestingId, setRequestingId] = useState<string | null>(null);
   const [providerProfiles, setProviderProfiles] = useState<
     Record<string, ProviderProfile | "loading" | null>
   >({});
 
   const experienceById = new Map(experiences.map((experience) => [experience.id, experience]));
   const focusedExperience = focus.type !== "none" ? experienceById.get(focus.experienceId) : undefined;
+  const requestingExperience = requestingId ? experienceById.get(requestingId) : undefined;
 
   async function openProvider(providerId: string, experienceId: string) {
     setFocus({ type: "provider", providerId, experienceId });
@@ -77,6 +89,7 @@ export function ExploreBrowser({ experiences }: { experiences: MatchedExperience
             onChangeSlot={() => {}}
             onToggleSelect={() => {}}
             onOpenProvider={() => openProvider(focusedExperience.provider_id, focus.experienceId)}
+            onRequest={() => setRequestingId(focusedExperience.id)}
             onClose={() => setFocus({ type: "none" })}
           />
         </div>
@@ -90,6 +103,9 @@ export function ExploreBrowser({ experiences }: { experiences: MatchedExperience
             onClose={closeProvider}
           />
         </div>
+      ) : null}
+      {requestingExperience ? (
+        <RequestExperienceModal experience={requestingExperience} stays={stays} onClose={() => setRequestingId(null)} />
       ) : null}
     </>
   );

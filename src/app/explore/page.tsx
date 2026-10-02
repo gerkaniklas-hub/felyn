@@ -2,7 +2,12 @@ import { ExploreView } from "@/components/explore/ExploreView";
 import { GuestNav } from "@/components/navigation/GuestNav";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Heading } from "@/components/ui/heading";
-import { getCanonicalLocations, getProviderServiceLocationTexts, getPublishedExperiences } from "@/lib/matching/explore";
+import {
+  getCanonicalLocations,
+  getGuestStayOptions,
+  getProviderServiceLocationTexts,
+  getPublishedExperiences,
+} from "@/lib/matching/explore";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
@@ -11,13 +16,20 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  * getPublishedExperiences). Search, location and category chips filter that
  * same list client-side (ExploreView). The location picker offers Felyn's
  * canonical locations (public.locations); a chosen place matches each host's stored
- * base location and service locations. Adding a discovered experience to a stay is
+ * base location and service locations. `?location=<id>` (the "Explore
+ * experiences" link after adding a stay) preselects that canonical location
+ * when it exists; anything else is ignored. Adding a discovered experience to a stay is
  * out of scope for this milestone; browsing/viewing is enough (M6's
  * planner remains the only place a plan is actually built).
  */
-export default async function ExplorePage() {
+export default async function ExplorePage({ searchParams }: { searchParams: Promise<{ location?: string }> }) {
+  const { location: requestedLocationId } = await searchParams;
   const supabase = await createSupabaseServerClient();
-  const [experiences, locations] = await Promise.all([getPublishedExperiences(supabase), getCanonicalLocations(supabase)]);
+  const [experiences, locations, stays] = await Promise.all([
+    getPublishedExperiences(supabase),
+    getCanonicalLocations(supabase),
+    getGuestStayOptions(supabase),
+  ]);
   const serviceLocationsByProvider = await getProviderServiceLocationTexts(supabase, [
     ...new Set(experiences.map((experience) => experience.provider_id)),
   ]);
@@ -35,6 +47,8 @@ export default async function ExplorePage() {
             experiences={experiences}
             serviceLocationsByProvider={serviceLocationsByProvider}
             locations={locations}
+            stays={stays}
+            initialLocationId={locations.some((location) => location.id === requestedLocationId) ? requestedLocationId : undefined}
           />
         </div>
       </div>

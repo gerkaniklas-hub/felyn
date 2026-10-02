@@ -4,7 +4,7 @@ import { GuestNav } from "@/components/navigation/GuestNav";
 import { PlusIcon, SearchIcon } from "@/components/navigation/icons";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { FallbackImage } from "@/components/planner/FallbackImage";
-import { getPublishedExperiences } from "@/lib/matching/explore";
+import { getGuestStayOptions, getPublishedExperiences } from "@/lib/matching/explore";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /** How many experiences the Home discovery strip shows before "See all". */
@@ -28,7 +28,7 @@ export default async function HomePage() {
   } = await supabase.auth.getUser();
 
   const firstName = (user?.user_metadata?.first_name as string | undefined)?.trim() || null;
-  const experiences = await getPublishedExperiences(supabase);
+  const [experiences, stays] = await Promise.all([getPublishedExperiences(supabase), getGuestStayOptions(supabase)]);
   const featured = experiences.slice(0, DISCOVER_COUNT);
   const heroImages = experiences.map((experience) => experience.image_url).filter(Boolean).slice(0, 2) as string[];
 
@@ -92,7 +92,7 @@ export default async function HomePage() {
               See all →
             </Link>
           </div>
-          <ExploreBrowser experiences={featured} />
+          <ExploreBrowser experiences={featured} stays={stays} />
         </section>
       </div>
     </div>

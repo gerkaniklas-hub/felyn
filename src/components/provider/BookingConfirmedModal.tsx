@@ -1,5 +1,6 @@
 "use client";
 
+import { NO_TRIP_LINKED_LABEL } from "@/lib/matching/booking-status";
 import { Button } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 
@@ -36,7 +37,8 @@ export function BookingConfirmedModal({
           </span>
           <Heading level={2}>Booking confirmed!</Heading>
           <p className="text-navy-700">
-            You&apos;ve confirmed {experienceTitle} for {guestCount} guest{guestCount === 1 ? "" : "s"} at {stayName}.
+            You&apos;ve confirmed {experienceTitle} for {guestCount} guest{guestCount === 1 ? "" : "s"}
+            {stayName === NO_TRIP_LINKED_LABEL ? "" : ` at ${stayName}`}.
           </p>
         </div>
 

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { SearchIcon } from "@/components/navigation/icons";
 import { type Location, matchesLocation, normalizeText } from "@/lib/locations";
+import type { GuestStayOption } from "@/lib/matching/explore";
 import type { ExperienceCategory, MatchedExperience } from "@/lib/matching/hard-filter";
 import { ExploreBrowser } from "./ExploreBrowser";
 import { LocationPicker } from "./LocationPicker";
@@ -36,14 +37,20 @@ export function ExploreView({
   experiences,
   serviceLocationsByProvider,
   locations,
+  initialLocationId,
+  stays,
 }: {
   experiences: MatchedExperience[];
   serviceLocationsByProvider: Record<string, string[]>;
   /** Felyn's canonical locations (public.locations), loaded by the page. */
   locations: Location[];
+  /** Preselected canonical location (already validated by the page), e.g. from a newly added stay. */
+  initialLocationId?: string;
+  /** The guest's own stays, for "Add to a trip" in the request form. */
+  stays: GuestStayOption[];
 }) {
   const [query, setQuery] = useState("");
-  const [locationId, setLocationId] = useState<string | null>(null);
+  const [locationId, setLocationId] = useState<string | null>(initialLocationId ?? null);
   const [category, setCategory] = useState<CategoryKey>("all");
 
   const filtered = useMemo(() => {
@@ -137,7 +144,7 @@ export function ExploreView({
           No experiences match your search. Try a different place or clear a filter.
         </p>
       ) : (
-        <ExploreBrowser experiences={filtered} />
+        <ExploreBrowser experiences={filtered} stays={stays} />
       )}
     </div>
   );

@@ -21,6 +21,8 @@ export type Stay = {
   latitude: number | null;
   longitude: number | null;
   place_id: string | null;
+  /** Canonical location (public.locations, migration 0025). Null for stays saved before the simplified Add a stay form. */
+  location_id: string | null;
   onboarding_completed_at: string | null;
   created_at: string;
   updated_at: string;

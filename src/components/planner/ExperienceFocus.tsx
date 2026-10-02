@@ -53,6 +53,7 @@ export function ExperienceFocus({
   compact,
   plannedEntries = [],
   onAddToPlan,
+  onRequest,
   locked = false,
   onOpenProvider,
   onClose,
@@ -66,6 +67,8 @@ export function ExperienceFocus({
   onAddToPlan?: () => void;
   /** Browse-only mode (used by the Explore page): never shows an add action. */
   locked?: boolean;
+  /** Explore / Home: opens the "Request experience" form. Absent everywhere else (e.g. the planner), so no button there. */
+  onRequest?: () => void;
   onOpenProvider: () => void;
   onClose: () => void;
   closeLabel?: string;
@@ -242,6 +245,15 @@ export function ExperienceFocus({
           <Button type="button" className="w-full" onClick={onAddToPlan}>
             Add to my plan
           </Button>
+        </div>
+      ) : null}
+
+      {onRequest && !compact ? (
+        <div className="mt-auto pt-2">
+          <Button type="button" className="w-full" onClick={onRequest}>
+            Request experience
+          </Button>
+          <p className="mt-2 text-center text-xs text-navy-500">The host confirms every request.</p>
         </div>
       ) : null}
     </div>

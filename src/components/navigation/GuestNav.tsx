@@ -6,17 +6,21 @@ import { AppSidebar, type SidebarItem } from "./AppSidebar";
 /**
  * The guest journey's navigation (rendered through the shared AppSidebar).
  *
- * Five destinations: Home (/home, the welcome screen after login), Explore,
- * Messages, Trips (/trips: the guest's stays and their requested
- * experiences, previously the /home dashboard) and Profile.
+ * - Home (/home): the welcome screen after login.
+ * - Explore: discovering experiences.
+ * - Trips (/trips): the guest's stays; each opens its trip planner.
+ * - Experiences (/experiences): every requested/booked experience, with or
+ *   without a trip; each opens its booking detail (/bookings/<id>).
+ * - Messages, Profile.
  */
 const LINKS: SidebarItem[] = [
   { href: "/home", label: "Home", icon: "home" },
   { href: "/explore", label: "Explore", icon: "search" },
+  // Trips also covers the pages reached from a trip: its overview and its planner.
+  { href: "/trips", label: "Trips", icon: "suitcase", activePrefixes: ["/trips", "/stays", "/recommendations"] },
+  // Experiences also covers each booking's own detail page.
+  { href: "/experiences", label: "Experiences", icon: "calendarCheck", activePrefixes: ["/experiences", "/bookings"] },
   { href: "/messages", label: "Messages", icon: "chat" },
-  // Trips also covers the pages reached FROM it: a stay's overview, its
-  // planner, and a booking's own detail page.
-  { href: "/trips", label: "Trips", icon: "suitcase", activePrefixes: ["/trips", "/stays", "/recommendations", "/experiences"] },
   { href: "/profile", label: "Profile", icon: "user" },
 ];
 

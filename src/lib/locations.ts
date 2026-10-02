@@ -107,3 +107,30 @@ export function searchLocations(locations: Location[], query: string): Location[
     .sort((a, b) => a.rank - b.rank || a.location.name.localeCompare(b.location.name))
     .map((entry) => entry.location);
 }
+
+/** The readable full form saved as stays.location_text, e.g. "La Orotava, Tenerife, Canary Islands, Spain". */
+export function getLocationDisplayText(locations: Location[], location: Location): string {
+  return [location.name, getLocationContext(locations, location)].filter(Boolean).join(", ");
+}
+
+/**
+ * For editing a stay saved before stays had a canonical location: the one
+ * location its free-text `location_text` unambiguously names, or null.
+ *
+ * Deliberately strict, never a guess. A match needs either the whole text,
+ * or its first comma-separated part (so "La Orotava, Tenerife" counts), to
+ * equal exactly one location's name, alias or full display text, ignoring
+ * case and accents. Anything else ("South Tenerife (Costa Adeje, …)",
+ * "near Puerto de la Cruz", a name shared by two places) returns null, and
+ * the guest picks the location themselves.
+ */
+export function findConfidentLocationMatch(locations: Location[], text: string): Location | null {
+  const whole = normalizeText(text.trim());
+  const firstPart = normalizeText(text.split(",")[0].trim());
+  if (!whole) return null;
+  const candidates = locations.filter((location) => {
+    const forms = [location.name, ...location.aliases, getLocationDisplayText(locations, location)].map(normalizeText);
+    return forms.includes(whole) || forms.includes(firstPart);
+  });
+  return candidates.length === 1 ? candidates[0] : null;
+}

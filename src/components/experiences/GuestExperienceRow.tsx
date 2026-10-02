@@ -9,6 +9,7 @@ import {
   getDeclineReasonLabel,
   getItemStatusLabel,
   getItemStatusTone,
+  NO_TRIP_LINKED_LABEL,
 } from "@/lib/matching/booking-status";
 import type { GuestExperienceItem } from "@/lib/matching/guest-experiences";
 import { getBookingTimeLabel } from "@/lib/matching/plan";
@@ -27,7 +28,7 @@ import { formatDayLabel } from "@/lib/matching/timeline";
 export function GuestExperienceRow({ item, showStay = true }: { item: GuestExperienceItem; showStay?: boolean }) {
   return (
     <div className="flex flex-col gap-3 rounded-3xl border border-ivory-300 bg-ivory-50 p-3 shadow-sm sm:flex-row sm:p-4">
-      <Link href={`/experiences/${item.id}`} className="shrink-0" tabIndex={-1} aria-hidden="true">
+      <Link href={`/bookings/${item.id}`} className="shrink-0" tabIndex={-1} aria-hidden="true">
         <FallbackImage
           src={item.experienceImageUrl}
           alt={item.experienceTitle}
@@ -37,7 +38,7 @@ export function GuestExperienceRow({ item, showStay = true }: { item: GuestExper
       <div className="flex min-w-0 flex-1 flex-col gap-2 px-1 pb-1 sm:px-0 sm:pb-0">
         <div className="flex items-start justify-between gap-3">
           <Link
-            href={`/experiences/${item.id}`}
+            href={`/bookings/${item.id}`}
             className="min-w-0 font-display text-lg leading-snug text-navy-950 hover:text-sky-700"
           >
             {item.experienceTitle}
@@ -54,7 +55,7 @@ export function GuestExperienceRow({ item, showStay = true }: { item: GuestExper
           {showStay ? (
             <span className="flex items-center gap-2">
               <MapPinIcon className="h-4 w-4 shrink-0 text-navy-300" />
-              <span className="truncate">{item.stayPropertyName}</span>
+              <span className="truncate">{item.stayPropertyName ?? NO_TRIP_LINKED_LABEL}</span>
             </span>
           ) : null}
           <span className="flex items-center gap-2">
@@ -78,10 +79,10 @@ export function GuestExperienceRow({ item, showStay = true }: { item: GuestExper
           </p>
         ) : null}
         <div className="mt-auto flex items-center gap-4 pt-1">
-          <Link href={`/experiences/${item.id}`} className="text-sm font-medium text-sky-600 hover:text-sky-700">
+          <Link href={`/bookings/${item.id}`} className="text-sm font-medium text-sky-600 hover:text-sky-700">
             View details →
           </Link>
-          {item.status === "CONFIRMED" ? <CancelExperienceButton itemId={item.id} stayId={item.stayId} /> : null}
+          {item.status === "CONFIRMED" ? <CancelExperienceButton itemId={item.id} stayId={item.stayId ?? undefined} /> : null}
         </div>
       </div>
     </div>

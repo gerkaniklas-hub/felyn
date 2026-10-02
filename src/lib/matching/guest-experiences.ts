@@ -5,8 +5,10 @@ import { normalizeTime } from "./slot-availability";
 
 export type GuestExperienceItem = {
   id: string;
-  stayId: string;
-  stayPropertyName: string;
+  /** null for a request made without a trip (0026). */
+  stayId: string | null;
+  /** The linked stay's name, or null when the request has no trip. */
+  stayPropertyName: string | null;
   experienceId: string;
   experienceTitle: string;
   experienceImageUrl: string | null;
@@ -60,12 +62,12 @@ export async function getGuestExperiences(
   let requestQuery = supabase.from("booking_requests").select("id, stay_id").eq("user_id", user.id);
   if (stayId) requestQuery = requestQuery.eq("stay_id", stayId);
   const { data: requestRows } = await requestQuery;
-  const requests = (requestRows as { id: string; stay_id: string }[] | null) ?? [];
+  const requests = (requestRows as { id: string; stay_id: string | null }[] | null) ?? [];
   if (requests.length === 0) return [];
 
   const requestIds = requests.map((r) => r.id);
   const stayIdByRequest = new Map(requests.map((r) => [r.id, r.stay_id]));
-  const stayIds = [...new Set(requests.map((r) => r.stay_id))];
+  const stayIds = [...new Set(requests.map((r) => r.stay_id).filter((id): id is string => id !== null))];
 
   const [itemsRes, staysRes] = await Promise.all([
     supabase
@@ -75,7 +77,9 @@ export async function getGuestExperiences(
       )
       .in("booking_request_id", requestIds)
       .order("planned_date", { ascending: false }),
-    supabase.from("stays").select("id, property_name").in("id", stayIds),
+    stayIds.length > 0
+      ? supabase.from("stays").select("id, property_name").in("id", stayIds)
+      : Promise.resolve({ data: [] as { id: string; property_name: string }[] }),
   ]);
 
   type ItemRow = {
@@ -140,11 +144,11 @@ export async function getGuestExperiences(
   // title rather than a broken page.
   return items.map((item) => {
     const experience = experienceById.get(item.experience_id);
-    const stayId = stayIdByRequest.get(item.booking_request_id)!;
+    const stayId = stayIdByRequest.get(item.booking_request_id) ?? null;
     return {
       id: item.id,
       stayId,
-      stayPropertyName: stayNameById.get(stayId) ?? "Your stay",
+      stayPropertyName: stayId ? (stayNameById.get(stayId) ?? "Your stay") : null,
       experienceId: item.experience_id,
       experienceTitle: experience?.title ?? "Experience no longer available",
       experienceImageUrl: primaryImageByExperience.get(item.experience_id) ?? null,
@@ -234,11 +238,13 @@ export async function getGuestExperienceDetail(
     .select("stay_id")
     .eq("id", item.booking_request_id)
     .maybeSingle();
-  const stayId = (requestRow as { stay_id: string } | null)?.stay_id;
-  if (!stayId) return null; // shouldn't happen — the parent request must exist for this item to
+  if (!requestRow) return null; // shouldn't happen — the parent request must exist for this item to
+  const stayId = (requestRow as { stay_id: string | null }).stay_id;
 
   const [stayRes, experienceRes] = await Promise.all([
-    supabase.from("stays").select("property_name").eq("id", stayId).maybeSingle(),
+    stayId
+      ? supabase.from("stays").select("property_name").eq("id", stayId).maybeSingle()
+      : Promise.resolve({ data: null }),
     supabase
       .from("experiences")
       .select("title, short_description, description, category, cuisine, duration_minutes, provider_id, currency")
@@ -246,7 +252,9 @@ export async function getGuestExperienceDetail(
       .maybeSingle(),
   ]);
 
-  const stayPropertyName = (stayRes.data as { property_name: string } | null)?.property_name ?? "Your stay";
+  const stayPropertyName = stayId
+    ? ((stayRes.data as { property_name: string } | null)?.property_name ?? "Your stay")
+    : null;
   type ExperienceRow = {
     title: string;
     short_description: string | null;

@@ -75,7 +75,7 @@ export function getNotificationHref(type: string, bookingRequestItemId: string |
     case "booking_item_confirmed":
     case "booking_item_declined":
     case "booking_item_cancelled":
-      return `/experiences/${bookingRequestItemId}`;
+      return `/bookings/${bookingRequestItemId}`;
     case "new_message":
       return `/messages?item=${bookingRequestItemId}`;
     default:

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
@@ -63,6 +64,8 @@ export type StayPlannerProps = {
   activeRequest: ActiveBookingRequest | null;
   /** Unread messages per booking_request_items.id, from the OTHER participant — see lib/messaging/messages.ts. */
   unreadMessageCounts: Record<string, number>;
+  /** Explore, opened for this stay (its canonical location preselected when it has one). */
+  exploreHref: string;
 };
 
 function makeSelectionId(): string {
@@ -109,6 +112,7 @@ export function StayPlanner({
   loadFailed,
   activeRequest,
   unreadMessageCounts,
+  exploreHref,
 }: StayPlannerProps) {
   const router = useRouter();
   const [selections, setSelections] = useState<PlanSelection[]>([]);
@@ -502,6 +506,9 @@ export function StayPlanner({
               Pick a date and a time of day, see what&apos;s available, and add experiences one at a time
               {activeRequest ? " — your requested ones stay exactly as they are." : "."}
             </p>
+            <Link href={exploreHref} className="mt-3 inline-block text-sm font-medium text-sky-600 hover:text-sky-700">
+              Find more experiences in Explore →
+            </Link>
           </div>
 
           {loadFailed ? (

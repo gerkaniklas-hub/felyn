@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Location } from "@/lib/locations";
-import type { ExperienceAttribute, ExperienceCategory, MatchedExperience } from "./hard-filter";
+import { todayISODate } from "@/lib/onboarding/stay-dates";
+import type { ExperienceAttribute, ExperienceCategory, MatchedAvailability, MatchedExperience } from "./hard-filter";
 
 /**
  * /explore: a lightweight, stay-independent list of every published
@@ -8,10 +9,9 @@ import type { ExperienceAttribute, ExperienceCategory, MatchedExperience } from 
  * ranking, just "what's on Felyn". Reuses the same guest-readable M4
  * tables/RLS policies as hard-filter.ts and provider-profile.ts.
  *
- * MatchedExperience's `service_location`/`availability` only matter for
- * stay-based planning (M5.1's hard filter, the planner's date picker) —
- * neither is rendered by ExperienceCard/ExperienceFocus/ProviderFocus, so
- * they're filled with harmless placeholders here rather than queried.
+ * `availability` is loaded (the guest-readable experience_availability rows)
+ * for the "Request experience" form; `service_location` only matters for
+ * stay-based planning and is a harmless placeholder here.
  */
 export async function getPublishedExperiences(supabase: SupabaseClient): Promise<MatchedExperience[]> {
   const { data: experienceRows } = await supabase
@@ -42,7 +42,7 @@ export async function getPublishedExperiences(supabase: SupabaseClient): Promise
   const experienceIds = experiences.map((exp) => exp.id);
   const providerIds = [...new Set(experiences.map((exp) => exp.provider_id))];
 
-  const [attributesRes, galleryRes, providersRes, languagesRes] = await Promise.all([
+  const [attributesRes, galleryRes, providersRes, languagesRes, availabilityRes] = await Promise.all([
     supabase
       .from("experience_attributes")
       .select("experience_id, attribute_type, attribute_value")
@@ -57,6 +57,11 @@ export async function getPublishedExperiences(supabase: SupabaseClient): Promise
       .select("id, display_name, profile_photo_url, bio, base_location")
       .in("id", providerIds),
     supabase.from("provider_languages").select("provider_id, language").in("provider_id", providerIds),
+    // For "Request experience": which dates and times of day can be requested (slot-availability.ts).
+    supabase
+      .from("experience_availability")
+      .select("experience_id, available_from, available_until, start_time, end_time, max_bookings")
+      .in("experience_id", experienceIds),
   ]);
 
   type AttributeRow = { experience_id: string; attribute_type: string; attribute_value: string };
@@ -69,6 +74,14 @@ export async function getPublishedExperiences(supabase: SupabaseClient): Promise
     base_location: string | null;
   };
   type LanguageRow = { provider_id: string; language: string };
+  type AvailabilityRow = MatchedAvailability & { experience_id: string };
+  const availabilityByExperience = new Map<string, MatchedAvailability[]>();
+  for (const row of (availabilityRes.data as AvailabilityRow[] | null) ?? []) {
+    const { experience_id: experienceId, ...window } = row;
+    const list = availabilityByExperience.get(experienceId) ?? [];
+    list.push(window);
+    availabilityByExperience.set(experienceId, list);
+  }
 
   const attributesByExperience = new Map<string, ExperienceAttribute[]>();
   for (const row of (attributesRes.data as AttributeRow[] | null) ?? []) {
@@ -131,7 +144,7 @@ export async function getPublishedExperiences(supabase: SupabaseClient): Promise
         languages: languagesByProvider.get(exp.provider_id) ?? [],
       },
       service_location: { location_text: provider.base_location ?? "", is_current: true },
-      availability: [],
+      availability: availabilityByExperience.get(exp.id) ?? [],
     });
   }
 
@@ -194,5 +207,36 @@ export async function getCanonicalLocations(supabase: SupabaseClient): Promise<L
     region: row.region,
     country: row.country,
     aliases: row.aliases ?? [],
+  }));
+}
+
+/** One of the guest's own stays, for the optional "Add to a trip" choice when requesting an experience. */
+export type GuestStayOption = { id: string; name: string; checkIn: string; checkOut: string; guestCount: number };
+
+/**
+ * The signed-in guest's own current and upcoming stays, for the "Add to my
+ * trip" choice in the Request experience form. RLS ("Users manage their own
+ * stays") already limits this to their rows; the explicit user filter is the
+ * usual belt-and-braces. Only completed stays, as everywhere else.
+ */
+export async function getGuestStayOptions(supabase: SupabaseClient): Promise<GuestStayOption[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return [];
+  const { data } = await supabase
+    .from("stays")
+    .select("id, property_name, check_in, check_out, guest_count")
+    .eq("user_id", user.id)
+    .not("onboarding_completed_at", "is", null)
+    .gte("check_out", todayISODate())
+    .order("check_in", { ascending: true });
+  type StayRow = { id: string; property_name: string; check_in: string; check_out: string; guest_count: number };
+  return ((data as StayRow[] | null) ?? []).map((row) => ({
+    id: row.id,
+    name: row.property_name,
+    checkIn: row.check_in,
+    checkOut: row.check_out,
+    guestCount: row.guest_count,
   }));
 }

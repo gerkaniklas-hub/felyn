@@ -16,12 +16,15 @@ export function LocationPicker({
   selectedId,
   onSelect,
   inputClassName,
+  stretchList = false,
 }: {
   /** Felyn's canonical locations (public.locations), loaded server-side by the Explore page. */
   locations: Location[];
   selectedId: string | null;
   onSelect: (locationId: string | null) => void;
   inputClassName: string;
+  /** Make the suggestion list as wide as the field at every size (forms); by default it is a fixed-width panel from sm up (Explore). */
+  stretchList?: boolean;
 }) {
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -132,7 +135,9 @@ export function LocationPicker({
           id={listId}
           role="listbox"
           aria-label="Locations"
-          className="absolute top-full right-0 left-0 z-20 mt-2 max-h-80 overflow-y-auto rounded-2xl border border-ivory-300 bg-ivory-50 p-1.5 shadow-lg sm:left-auto sm:w-[22rem]"
+          className={`absolute top-full right-0 left-0 z-20 mt-2 max-h-80 overflow-y-auto rounded-2xl border border-ivory-300 bg-ivory-50 p-1.5 shadow-lg ${
+            stretchList ? "" : "sm:left-auto sm:w-[22rem]"
+          }`}
         >
           {suggestions.length === 0 ? (
             <li className="px-3 py-3 text-sm text-navy-500">No Felyn locations match “{text.trim()}”.</li>

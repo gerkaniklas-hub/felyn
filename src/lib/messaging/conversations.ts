@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { BookingItemStatus } from "@/lib/matching/booking-status";
+import { NO_TRIP_LINKED_LABEL, type BookingItemStatus } from "@/lib/matching/booking-status";
 import type { PlannedMoment } from "@/lib/matching/plan";
 import { getProviderRequestItems, type ProviderVisibleItemStatus } from "@/lib/provider/dashboard";
 import { getItemIdsWithMessages, getLastMessagesByItem, getUnreadMessageCountsByItem } from "./messages";
@@ -77,7 +77,7 @@ export async function getGuestConversations(supabase: SupabaseClient): Promise<C
   if (items.length === 0) return [];
 
   const requestIds = [...new Set(items.map((i) => i.booking_request_id))];
-  type RequestRow = { id: string; user_id: string; stay_id: string };
+  type RequestRow = { id: string; user_id: string; stay_id: string | null };
   const { data: requestRows } = await supabase
     .from("booking_requests")
     .select("id, user_id, stay_id")
@@ -89,7 +89,7 @@ export async function getGuestConversations(supabase: SupabaseClient): Promise<C
   const myItems = items.filter((i) => myRequestById.has(i.booking_request_id));
   if (myItems.length === 0) return [];
 
-  const stayIds = [...new Set([...myRequestById.values()].map((r) => r.stay_id))];
+  const stayIds = [...new Set([...myRequestById.values()].map((r) => r.stay_id).filter((id): id is string => id !== null))];
   const experienceIds = [...new Set(myItems.map((i) => i.experience_id))];
 
   type StayRow = { id: string; property_name: string };
@@ -98,7 +98,9 @@ export async function getGuestConversations(supabase: SupabaseClient): Promise<C
   type ProviderRow = { id: string; display_name: string; profile_photo_url: string | null };
 
   const [staysRes, experiencesRes, galleryRes] = await Promise.all([
-    supabase.from("stays").select("id, property_name").in("id", stayIds),
+    stayIds.length > 0
+      ? supabase.from("stays").select("id, property_name").in("id", stayIds)
+      : Promise.resolve({ data: [] as StayRow[] }),
     supabase.from("experiences").select("id, title, provider_id").in("id", experienceIds),
     supabase
       .from("experience_gallery")
@@ -134,7 +136,7 @@ export async function getGuestConversations(supabase: SupabaseClient): Promise<C
     const experience = experienceById.get(item.experience_id);
     if (!request || !experience) continue;
     const provider = providerById.get(experience.provider_id);
-    const stay = stayById.get(request.stay_id);
+    const stay = request.stay_id ? stayById.get(request.stay_id) : undefined;
     const last = lastMessages.get(item.id);
 
     results.push({
@@ -152,8 +154,9 @@ export async function getGuestConversations(supabase: SupabaseClient): Promise<C
       itemStatus: item.status,
       decidedAt: item.decided_at,
       cancelledAt: item.cancelled_at,
-      stayName: stay?.property_name ?? "Your stay",
-      bookingHref: `/recommendations?stay=${request.stay_id}`,
+      stayName: request.stay_id ? (stay?.property_name ?? "Your stay") : NO_TRIP_LINKED_LABEL,
+      // A trip's booking opens in its planner (as before); a request without a trip opens its own booking page.
+      bookingHref: request.stay_id ? `/recommendations?stay=${request.stay_id}` : `/bookings/${item.id}`,
       lastMessage: last ? { body: last.body, createdAt: last.createdAt, isMine: last.senderId === user.id } : null,
       unreadCount: unreadCounts.get(item.id) ?? 0,
     });

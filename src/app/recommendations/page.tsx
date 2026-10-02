@@ -115,6 +115,7 @@ export default async function RecommendationsPage({
         loadFailed={loadFailed}
         activeRequest={activeRequest}
         unreadMessageCounts={Object.fromEntries(unreadCountsByItem)}
+        exploreHref={stay.location_id ? `/explore?location=${encodeURIComponent(stay.location_id)}` : "/explore"}
       />
       </div>
     </div>

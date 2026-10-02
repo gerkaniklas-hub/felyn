@@ -1,10 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type {
-  ActiveBookingRequestStatus,
-  BookingItemStatus,
-  CancelledBy,
-  CancelReason,
-  DeclineReason,
+import {
+  NO_TRIP_LINKED_LABEL,
+  type ActiveBookingRequestStatus,
+  type BookingItemStatus,
+  type CancelledBy,
+  type CancelReason,
+  type DeclineReason,
 } from "@/lib/matching/booking-status";
 import type { PlannedMoment } from "@/lib/matching/plan";
 import { normalizeTime } from "@/lib/matching/slot-availability";
@@ -244,13 +245,15 @@ export async function getProviderRequestItems(
     .select("id, status, stay_id")
     .in("id", requestIds);
 
-  type RequestRow = { id: string; status: ActiveBookingRequestStatus | "WITHDRAWN"; stay_id: string };
+  // stay_id is null for a guest's request made without a trip (0026).
+  type RequestRow = { id: string; status: ActiveBookingRequestStatus | "WITHDRAWN"; stay_id: string | null };
   const requests = (requestRows as RequestRow[] | null) ?? [];
   if (requests.length === 0) return [];
   const requestById = new Map(requests.map((row) => [row.id, row]));
 
-  const stayIds = [...new Set(requests.map((row) => row.stay_id))];
-  const [stayRowsRes, occasionRowsRes, dietaryRowsRes, guestNamesRes] = await Promise.all([
+  const stayIds = [...new Set(requests.map((row) => row.stay_id).filter((id): id is string => id !== null))];
+  const staylessRequestIds = requests.filter((row) => row.stay_id === null).map((row) => row.id);
+  const [stayRowsRes, occasionRowsRes, dietaryRowsRes, guestNamesRes, staylessGuestNamesRes] = await Promise.all([
     supabase.from("stays").select("id, property_name, location_text").in("id", stayIds),
     // Additive provider SELECT policy from 0013 — see that migration's comment.
     supabase.from("stay_occasions").select("stay_id, occasion").in("stay_id", stayIds),
@@ -264,10 +267,25 @@ export async function getProviderRequestItems(
     // until it was actually investigated. Occasion/dietary get the same
     // treatment for the same reason.
     supabase.rpc("get_guest_first_names_for_provider", { stay_ids: stayIds }),
+    // Requests without a trip have no stay to look the guest up by: 0026's
+    // request-keyed RPC, scoped the same way (only requests this provider
+    // hosts, enforced inside the function). Only called when such requests exist.
+    staylessRequestIds.length > 0
+      ? supabase.rpc("get_guest_first_names_for_provider_requests", { request_ids: staylessRequestIds })
+      : Promise.resolve({ data: [], error: null }),
   ]);
   if (occasionRowsRes.error) console.error("getProviderRequestItems: stay_occasions query failed", occasionRowsRes.error);
   if (dietaryRowsRes.error) console.error("getProviderRequestItems: stay_dietary_requirements query failed", dietaryRowsRes.error);
   if (guestNamesRes.error) console.error("getProviderRequestItems: get_guest_first_names_for_provider RPC failed", guestNamesRes.error);
+  if (staylessGuestNamesRes.error) {
+    console.error("getProviderRequestItems: get_guest_first_names_for_provider_requests RPC failed", staylessGuestNamesRes.error);
+  }
+  const guestFirstNameByStaylessRequest = new Map(
+    ((staylessGuestNamesRes.data as { booking_request_id: string; first_name: string | null }[] | null) ?? []).map((row) => [
+      row.booking_request_id,
+      row.first_name,
+    ]),
+  );
 
   type StayRow = { id: string; property_name: string; location_text: string };
   const stayById = new Map(((stayRowsRes.data as StayRow[] | null) ?? []).map((row) => [row.id, row]));
@@ -318,18 +336,20 @@ export async function getProviderRequestItems(
 
     const experience = experienceById.get(item.experience_id);
     if (!experience) continue;
-    const stay = stayById.get(request.stay_id);
+    const stay = request.stay_id ? stayById.get(request.stay_id) : undefined;
 
     results.push({
       itemId: item.id,
       requestId: request.id,
       status: item.status as ProviderVisibleItemStatus,
       requestStatus: request.status,
-      stayName: stay?.property_name ?? "A Felyn stay",
+      stayName: request.stay_id ? (stay?.property_name ?? "A Felyn stay") : NO_TRIP_LINKED_LABEL,
       stayLocation: stay?.location_text ?? "",
-      guestFirstName: guestFirstNameByStay.get(request.stay_id) ?? null,
-      occasionLabels: occasionLabelsByStay.get(request.stay_id) ?? [],
-      dietary: dietaryByStay.get(request.stay_id) ?? [],
+      guestFirstName: request.stay_id
+        ? (guestFirstNameByStay.get(request.stay_id) ?? null)
+        : (guestFirstNameByStaylessRequest.get(request.id) ?? null),
+      occasionLabels: request.stay_id ? (occasionLabelsByStay.get(request.stay_id) ?? []) : [],
+      dietary: request.stay_id ? (dietaryByStay.get(request.stay_id) ?? []) : [],
       plannedDate: item.planned_date,
       plannedMoment: item.planned_moment,
       guestCount: item.guest_count,
