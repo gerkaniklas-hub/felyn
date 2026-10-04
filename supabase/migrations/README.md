@@ -105,3 +105,42 @@ what's written in these migration files.
     restores the pre-0023 `providers` policy/grants and **drops
     `host_applications` with every application in it**. Only for a
     deliberate, reviewed rollback, after exporting the table.
+
+## Migration 0025: stay location — ALREADY APPLIED TO PRODUCTION — DO NOT RE-RUN
+
+- `0025_stay_location_id.sql` **has been applied to production** (confirmed
+  by the project owner; exact date not recorded here). **Do not run it
+  against production again.** Its own starting checks would abort a re-run
+  (it refuses if `stays.location_id` already exists), but it must not be
+  executed as part of any deployment.
+- It adds `public.stays.location_id`, a nullable `uuid` foreign key to
+  `public.locations` (0024) with `on delete restrict`, and the index
+  `stays_location_id_idx`. No existing row is changed (every pre-0025 stay
+  keeps `location_id` NULL) and no policy or grant is touched. The Add a stay
+  form writes `location_id` together with `location_text`.
+- The file is committed as applied (SHA-256 `0a4be608682f9da4…`). It is a
+  single `DO` statement (no BEGIN/COMMIT) that either applies fully and
+  commits, or rolls back fully.
+
+## Migration 0026: optional stay on booking requests — ALREADY APPLIED TO PRODUCTION — DO NOT RE-RUN
+
+- `0026_optional_stay_on_booking_requests.sql` **has been applied to
+  production**. **Do not run it against production again.** Its own starting
+  checks would abort a re-run (it refuses unless `booking_requests.stay_id`
+  is still NOT NULL, and if
+  `get_guest_first_names_for_provider_requests` already exists), but it must
+  not be executed as part of any deployment.
+- **Verified against production (read-only, 2026-10-04):**
+  `booking_requests.stay_id` is nullable and
+  `public.get_guest_first_names_for_provider_requests(uuid[])` exists.
+- What it does: drops NOT NULL on `public.booking_requests.stay_id` (existing
+  rows keep their stay); recreates the guest policy "Users manage their own
+  booking requests" with the same `USING` clause and a `WITH CHECK` that
+  allows a request with no stay or with the guest's own stay; adds
+  `public.get_guest_first_names_for_provider_requests(request_ids uuid[])`
+  (SECURITY DEFINER, `search_path = public`, returns only the guest's first
+  name for requests the caller hosts, executable by `authenticated` only).
+  No existing row, other policy, trigger or function is changed.
+- The file is committed as applied (SHA-256 `c8d88f3a7fc0579a…`). It is a
+  single `DO` statement (no BEGIN/COMMIT) that either applies fully and
+  commits, or rolls back fully.
