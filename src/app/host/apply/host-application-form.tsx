@@ -1,13 +1,15 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
 import { Input } from "@/components/ui/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Textarea } from "@/components/ui/textarea";
 import { submitHostApplication, type HostApplicationFormState } from "@/app/host/actions";
 import { HOST_APPLICATION_CATEGORIES, HOST_APPLICATION_LIMITS as LIMITS } from "@/lib/host-application/constants";
+import { validatePhone } from "@/lib/phone";
 
 const initialState: HostApplicationFormState = {};
 
@@ -24,15 +26,28 @@ function FieldError({ message }: { message?: string }) {
 export function HostApplicationForm({
   defaults,
 }: {
-  defaults: { firstName: string; lastName: string; phone: string };
+  defaults: { firstName: string; lastName: string; phoneCountry: string; phoneNumber: string };
 }) {
   const [state, formAction, isPending] = useActionState(submitHostApplication, initialState);
   const values = state.values ?? {};
   const errors = state.fieldErrors ?? {};
   const [firstNameHint, setFirstNameHint] = useState(values.firstName ?? defaults.firstName);
+  // The browser check only gives quick feedback; submitHostApplication validates again.
+  const [phoneError, setPhoneError] = useState<{ error: string; field: "country" | "number" } | null>(null);
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    const formData = new FormData(event.currentTarget);
+    const phone = validatePhone(String(formData.get("phoneCountry") ?? ""), String(formData.get("phoneNumber") ?? ""));
+    if (!phone.ok) {
+      event.preventDefault();
+      setPhoneError({ error: phone.error, field: phone.field });
+    } else {
+      setPhoneError(null);
+    }
+  }
 
   return (
-    <form action={formAction} className="flex flex-col gap-6" noValidate>
+    <form action={formAction} onSubmit={handleSubmit} className="flex flex-col gap-6" noValidate>
       <Card className="flex flex-col gap-4">
         <Heading level={3}>About you</Heading>
         <p className="-mt-2 text-sm text-navy-500">Your legal name and phone number are only seen by the Felyn team.</p>
@@ -63,20 +78,17 @@ export function HostApplicationForm({
             <FieldError message={errors.lastName} />
           </div>
         </div>
-        <div className="flex flex-col gap-1">
-          <Input
-            label="Phone number"
-            name="phone"
-            type="tel"
-            autoComplete="tel"
-            required
-            maxLength={LIMITS.phone.max}
-            defaultValue={values.phone ?? defaults.phone}
-            placeholder="+34 600 000 000"
-            aria-invalid={Boolean(errors.phone)}
-          />
-          <FieldError message={errors.phone} />
-        </div>
+        {/* Remounted after each server response so it shows the values the action echoed back. */}
+        <PhoneInput
+          key={state.submittedAt ?? 0}
+          defaultCountry={values.phoneCountry ?? defaults.phoneCountry}
+          defaultNumber={values.phoneNumber ?? defaults.phoneNumber}
+          required
+          error={phoneError?.error ?? errors.phone}
+          errorField={phoneError?.field ?? state.phoneErrorField}
+          hint="This is your account's mobile number: changing it here updates it everywhere on Felyn."
+          onChange={() => setPhoneError(null)}
+        />
         <div className="flex flex-col gap-1">
           <Input
             label="Where would you host?"

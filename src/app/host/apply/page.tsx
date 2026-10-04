@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { HostNav } from "@/components/navigation/HostNav";
 import { Heading } from "@/components/ui/heading";
+import { getContactDetails } from "@/lib/contact/queries";
 import { getHostAccess } from "@/lib/host-application/queries";
+import { formatPhoneNational } from "@/lib/phone";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { HostApplicationForm } from "./host-application-form";
 
@@ -24,12 +26,15 @@ export default async function HostApplyPage() {
   if (access.providerId) redirect("/provider");
   if (access.application) redirect("/host/application");
 
-  // Pre-fill only — the submitted form values are what gets stored.
+  // Pre-fill only — the submitted form values are what gets stored. The
+  // number comes from the account's contact record (user_contact_details).
   const meta = user.user_metadata ?? {};
+  const contact = await getContactDetails(supabase, user.id).catch(() => null);
   const defaults = {
     firstName: typeof meta.first_name === "string" ? meta.first_name : "",
     lastName: typeof meta.last_name === "string" ? meta.last_name : "",
-    phone: typeof meta.phone === "string" ? meta.phone : "",
+    phoneCountry: contact?.phoneCountry ?? "",
+    phoneNumber: contact ? formatPhoneNational(contact.phoneNumber) : "",
   };
 
   return (

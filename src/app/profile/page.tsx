@@ -5,20 +5,23 @@ import { GuestNav } from "@/components/navigation/GuestNav";
 import { SuitcaseIcon } from "@/components/navigation/icons";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { AvatarEditor } from "@/components/profile/AvatarEditor";
+import { ContactPhoneForm } from "@/components/profile/ContactPhoneForm";
 import { EmailChangeForm } from "@/components/profile/EmailChangeForm";
 import { PasswordChangeForm } from "@/components/profile/PasswordChangeForm";
 import { ProfileDetailsForm } from "@/components/profile/ProfileDetailsForm";
 import { Heading } from "@/components/ui/heading";
+import { getContactDetails } from "@/lib/contact/queries";
+import { formatPhoneNational } from "@/lib/phone";
 import { getSignedAvatarUrl } from "@/lib/storage/avatars";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
- * Milestone 1: the guest's real profile — photo, name/phone, email change
+ * Milestone 1: the guest's real profile — photo, name, mobile number, email change
  * (via Supabase Auth's own verification flow), password change, and a
  * completed-experiences count. Replaces the earlier "coming soon"
- * placeholder. Identity fields live only in auth.users.user_metadata (no
- * profiles table exists or is introduced here — see signup-form.tsx for the
- * same fields being written at signup).
+ * placeholder. Name and photo live in auth.users.user_metadata (see
+ * signup-form.tsx for the same fields being written at signup); the mobile
+ * number lives in user_contact_details (0027), shared with the host side.
  *
  * The completed-experiences count reads booking_request_items.completed_at
  * (0016) directly — no join needed: the existing "Users manage their own
@@ -44,9 +47,11 @@ export default async function GuestProfilePage() {
 
   const firstName = (user.user_metadata?.first_name as string | undefined) ?? "";
   const lastName = (user.user_metadata?.last_name as string | undefined) ?? "";
-  const phone = (user.user_metadata?.phone as string | undefined) ?? "";
   const avatarPath = (user.user_metadata?.avatar_path as string | undefined) ?? null;
-  const signedAvatarUrl = avatarPath ? await getSignedAvatarUrl(supabase, avatarPath) : null;
+  const [signedAvatarUrl, contact] = await Promise.all([
+    avatarPath ? getSignedAvatarUrl(supabase, avatarPath) : null,
+    getContactDetails(supabase, user.id),
+  ]);
 
   const { count: completedCount, error: completedCountError } = await supabase
     .from("booking_request_items")
@@ -100,8 +105,15 @@ export default async function GuestProfilePage() {
           </aside>
 
           <div className="flex flex-col gap-6">
-            <ProfileSection title="Personal details" description="Your name and phone number.">
-              <ProfileDetailsForm firstName={firstName} lastName={lastName} phone={phone} />
+            <ProfileSection title="Personal details" description="Your name.">
+              <ProfileDetailsForm firstName={firstName} lastName={lastName} />
+            </ProfileSection>
+
+            <ProfileSection title="Mobile number" description="The number Felyn can reach you on.">
+              <ContactPhoneForm
+                defaultCountry={contact?.phoneCountry ?? ""}
+                defaultNumber={contact ? formatPhoneNational(contact.phoneNumber) : ""}
+              />
             </ProfileSection>
 
             <ProfileSection title="Settings" description="The email address and password you sign in with.">

@@ -144,3 +144,35 @@ what's written in these migration files.
 - The file is committed as applied (SHA-256 `c8d88f3a7fc0579a…`). It is a
   single `DO` statement (no BEGIN/COMMIT) that either applies fully and
   commits, or rolls back fully.
+
+## Migration 0027: user contact details — ALREADY APPLIED TO PRODUCTION — DO NOT RE-RUN
+
+- `0027_user_contact_details.sql` **has been applied to production** (confirmed
+  by the project owner; exact date not recorded here). **Do not run it
+  against production again**, and do not edit or remove the file. Its own
+  starting checks would abort a re-run (it refuses if
+  `public.user_contact_details` or `public.user_contact_details_before_write()`
+  already exists), but it must not be executed as part of any deployment.
+- It creates `public.user_contact_details`: one row per account (`user_id`
+  primary key, references `auth.users`, on delete cascade) holding the
+  account's canonical phone number in E.164 (`phone_number`, unique, format
+  checked) and the ISO country the user picked (`phone_country`, two
+  capital letters). `phone_verified_at` is reserved for future SMS
+  verification: nothing sets it yet, clients can never write it, and a
+  trigger clears it whenever `phone_number` changes (the same trigger keeps
+  `updated_at` current). RLS: a signed-in user can read, add and update only
+  their own row; no delete; anon has no access. `authenticated` may insert
+  only `user_id`, `phone_number`, `phone_country` and update only
+  `phone_number`, `phone_country`. No existing row, table, policy or grant is
+  changed, no existing phone number is copied, and `auth.users.phone` is not
+  used. One record per account, shared by the guest and host journeys.
+- SHA-256 of the file as committed in this repository:
+  `66a55e5f2fec5052…`. This is a fingerprint of the repository file only;
+  it has not been verified byte-for-byte against the SQL that was pasted
+  into Supabase. It is a single `DO` statement (no BEGIN/COMMIT) that either
+  applies fully and commits, or rolls back fully.
+- Companion file (not a migration; never run during deployment):
+  - `user_contact_details_isolated_test.sql` — the fail-closed rehearsal that
+    passed before 0027 was applied. It re-creates 0027's objects inside one
+    statement that always ends in an error, so it rolls back by design. It
+    would fail now that 0027 exists, and should not be re-run.

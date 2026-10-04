@@ -6,7 +6,9 @@ import {
   HOST_APPLICATION_CATEGORIES,
   HOST_APPLICATION_LIMITS as LIMITS,
 } from "@/lib/host-application/constants";
+import { savePhoneNumber } from "@/lib/contact/queries";
 import { getHostAccess } from "@/lib/host-application/queries";
+import { validatePhone } from "@/lib/phone";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type HostApplicationFormState = {
@@ -14,6 +16,10 @@ export type HostApplicationFormState = {
   fieldErrors?: Partial<Record<HostApplicationField, string>>;
   /** Echoed back so the form can re-fill itself after React resets it on an error. */
   values?: Partial<Record<HostApplicationField, string>>;
+  /** Which part of the phone field the phone error is about. */
+  phoneErrorField?: "country" | "number";
+  /** Changes on every response, so the form can remount inputs that keep their own state. */
+  submittedAt?: number;
 };
 
 export type DisplayNameFormState = { error?: string; ok?: boolean };
@@ -22,6 +28,8 @@ type HostApplicationField =
   | "firstName"
   | "lastName"
   | "phone"
+  | "phoneCountry"
+  | "phoneNumber"
   | "location"
   | "experienceCategory"
   | "experienceDescription"
@@ -57,7 +65,8 @@ export async function submitHostApplication(
   const values = {
     firstName: text(formData, "firstName"),
     lastName: text(formData, "lastName"),
-    phone: text(formData, "phone"),
+    phoneCountry: text(formData, "phoneCountry"),
+    phoneNumber: text(formData, "phoneNumber"),
     location: text(formData, "location"),
     experienceCategory: text(formData, "experienceCategory"),
     experienceDescription: text(formData, "experienceDescription"),
@@ -71,9 +80,9 @@ export async function submitHostApplication(
   else if (values.firstName.length > LIMITS.firstName.max) fieldErrors.firstName = "That name is a little too long.";
   if (values.lastName.length < LIMITS.lastName.min) fieldErrors.lastName = "Please enter your last name.";
   else if (values.lastName.length > LIMITS.lastName.max) fieldErrors.lastName = "That name is a little too long.";
-  if (values.phone.length < LIMITS.phone.min || values.phone.length > LIMITS.phone.max) {
-    fieldErrors.phone = "Please enter a phone number we can reach you on.";
-  }
+  // The account's mobile number, validated for the chosen country and normalized to E.164.
+  const phone = validatePhone(values.phoneCountry, values.phoneNumber);
+  if (!phone.ok) fieldErrors.phone = phone.error;
   if (values.location.length < LIMITS.location.min) fieldErrors.location = "Please tell us where you would host.";
   else if (values.location.length > LIMITS.location.max) fieldErrors.location = "Please keep this under 200 characters.";
   if (!HOST_APPLICATION_CATEGORIES.some((category) => category.value === values.experienceCategory)) {
@@ -94,8 +103,14 @@ export async function submitHostApplication(
     fieldErrors.websiteOrInstagram = "Please keep this under 300 characters.";
   }
 
-  if (Object.keys(fieldErrors).length > 0) {
-    return { error: "Please check the highlighted fields.", fieldErrors, values };
+  if (Object.keys(fieldErrors).length > 0 || !phone.ok) {
+    return {
+      error: "Please check the highlighted fields.",
+      fieldErrors,
+      values,
+      phoneErrorField: phone.ok ? undefined : phone.field,
+      submittedAt: Date.now(),
+    };
   }
 
   // Already a host, or already applied: never create a second record.
@@ -103,11 +118,25 @@ export async function submitHostApplication(
   if (access.providerId) redirect("/provider");
   if (access.application) redirect("/host/application");
 
+  // The number is saved to the account's contact record (the source of truth,
+  // also edited from Profile) before the application, which keeps a copy of
+  // the same E.164 number in host_applications.phone (still NOT NULL, 0023).
+  const savedPhone = await savePhoneNumber(supabase, user.id, phone);
+  if (!savedPhone.ok) {
+    return {
+      error: "Please check the highlighted fields.",
+      fieldErrors: { phone: savedPhone.error },
+      values,
+      phoneErrorField: "number",
+      submittedAt: Date.now(),
+    };
+  }
+
   const { error } = await supabase.from("host_applications").insert({
     user_id: user.id,
     first_name: values.firstName,
     last_name: values.lastName,
-    phone: values.phone,
+    phone: phone.e164,
     // Empty -> null: the 0023 trigger defaults the public name to the first name.
     display_name: values.displayName || null,
     location: values.location,
@@ -120,7 +149,7 @@ export async function submitHostApplication(
 
   if (error) {
     if (error.code === UNIQUE_VIOLATION) redirect("/host/application");
-    return { error: GENERIC_ERROR, values };
+    return { error: GENERIC_ERROR, values, submittedAt: Date.now() };
   }
 
   revalidatePath("/host/application");

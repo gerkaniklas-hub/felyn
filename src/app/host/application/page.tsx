@@ -4,8 +4,10 @@ import { HostNav } from "@/components/navigation/HostNav";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
+import { getContactDetails } from "@/lib/contact/queries";
 import { getCategoryLabel } from "@/lib/host-application/constants";
 import { getHostAccess, type HostApplication } from "@/lib/host-application/queries";
+import { formatPhoneInternational } from "@/lib/phone";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { DisplayNameForm } from "./display-name-form";
 
@@ -15,10 +17,11 @@ function formatDate(value: string): string {
   return new Date(value).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 }
 
-function Summary({ application }: { application: HostApplication }) {
+/** `phone`: the account's current number (user_contact_details) — the source of truth — in E.164. */
+function Summary({ application, phone }: { application: HostApplication; phone: string }) {
   const rows: [string, string | null][] = [
     ["Name", `${application.firstName} ${application.lastName}`],
-    ["Phone", application.phone],
+    ["Phone", formatPhoneInternational(phone)],
     ["Location", application.location],
     ["Experience", getCategoryLabel(application.experienceCategory)],
     ["What you'd offer", application.experienceDescription],
@@ -62,7 +65,11 @@ export default async function HostApplicationPage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login/host");
 
-  const { providerId, application } = await getHostAccess(supabase, user.id);
+  const [{ providerId, application }, contact] = await Promise.all([
+    getHostAccess(supabase, user.id),
+    // Display only: if this read fails, show the number submitted with the application.
+    getContactDetails(supabase, user.id).catch(() => null),
+  ]);
   if (!application) redirect(providerId ? "/provider" : "/host/apply");
 
   const justSubmitted = (await searchParams).submitted === "1" && application.status === "submitted";
@@ -100,7 +107,7 @@ export default async function HostApplicationPage({
               <DisplayNameForm currentName={application.displayName} />
             </Card>
 
-            <Summary application={application} />
+            <Summary application={application} phone={contact?.phoneNumber ?? application.phone} />
           </>
         )}
 

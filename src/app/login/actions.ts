@@ -2,6 +2,8 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { mobileStepHref } from "@/lib/contact/constants";
+import { getContactDetails } from "@/lib/contact/queries";
 import { JOURNEY_COOKIE, JOURNEY_COOKIE_OPTIONS, journeyForLoginDestination } from "@/lib/journey";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -28,6 +30,9 @@ const ALLOWED_REDIRECTS = new Set(["/home", "/provider", "/host/apply"]);
  * -> guest, host login -> host). This is the prefetch-safe place to do it:
  * a Server Action is never prefetched, unlike a visit to the login page.
  * The journey selects the experience only — it grants no access.
+ *
+ * An account without a mobile number (user_contact_details) continues via
+ * /account/mobile first, which saves the one given at signup or asks for one.
  */
 export async function login(
   redirectTo: string,
@@ -42,7 +47,7 @@ export async function login(
   }
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     if (error.code === "email_not_confirmed") {
@@ -56,5 +61,12 @@ export async function login(
 
   const destination = ALLOWED_REDIRECTS.has(redirectTo) ? redirectTo : "/home";
   (await cookies()).set(JOURNEY_COOKIE, journeyForLoginDestination(destination), JOURNEY_COOKIE_OPTIONS);
-  redirect(destination);
+
+  let hasMobile = true;
+  try {
+    hasMobile = Boolean(await getContactDetails(supabase, data.user.id));
+  } catch {
+    // A failed read must not block the login; /account/mobile is reached again on the next one.
+  }
+  redirect(hasMobile ? destination : mobileStepHref(destination));
 }

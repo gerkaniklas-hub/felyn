@@ -11,6 +11,8 @@
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
+    "country-flag-icons": "^1.6.20",
+    "libphonenumber-js": "^1.13.14",
     "next": "16.3.5",
     "openai": "^7.15.0",
     "react": "19.2.8",
