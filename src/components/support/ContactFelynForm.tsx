@@ -9,7 +9,10 @@ import {
   SUPPORT_CATEGORY_LABELS,
   SUPPORT_MESSAGE_MAX_LENGTH,
   type SupportCategory,
+  type SupportRequesterRole,
 } from "@/lib/support/constants";
+import { openHostSupportConversation } from "@/lib/support/host-actions";
+import { getSupportConversationHref } from "@/lib/support/inbox";
 
 /**
  * The short "talk to Felyn" form: a topic and a message — nothing that reads like
@@ -17,16 +20,19 @@ import {
  * `bookingItemId`, which the guest never types or sees). On success the guest
  * lands in that Felyn Team conversation in Messages. The server action and the
  * database function decide everything (ownership, reuse of an open conversation);
- * the checks here only make the form pleasant.
+ * the checks here only make the form pleasant. `requesterRole` picks the guest
+ * (default) or host side: its gated action and the Messages page it lands on.
  */
 export function ContactFelynForm({
   bookingItemId = null,
   defaultCategory = null,
   onCancel,
+  requesterRole = "guest",
 }: {
   bookingItemId?: string | null;
   defaultCategory?: SupportCategory | null;
   onCancel?: () => void;
+  requesterRole?: SupportRequesterRole;
 }) {
   const router = useRouter();
   const [category, setCategory] = useState<SupportCategory | null>(defaultCategory);
@@ -46,14 +52,15 @@ export function ContactFelynForm({
     }
     setSending(true);
     setError(null);
-    const result = await openGuestSupportConversation({ category, body, bookingItemId });
+    const open = requesterRole === "host" ? openHostSupportConversation : openGuestSupportConversation;
+    const result = await open({ category, body, bookingItemId });
     if (!result.ok) {
       setSending(false);
       setError(result.error);
       return;
     }
     // Stays in the "sending" state while Messages loads.
-    router.push(`/messages?support=${result.threadId}`);
+    router.push(getSupportConversationHref(result.threadId, requesterRole));
   }
 
   return (

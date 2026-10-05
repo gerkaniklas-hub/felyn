@@ -4,14 +4,17 @@ import { Heading } from "@/components/ui/heading";
 import { ProviderBookingCard } from "@/components/provider/ProviderBookingCard";
 import { RequestItemActions } from "@/components/provider/RequestItemActions";
 import { MessageLauncherButton } from "@/components/messaging/MessageLauncherButton";
+import { GetHelpButton } from "@/components/support/GetHelpButton";
 import {
   getMessagingClosedLabel,
   getMessagingOpenCaption,
   getMessagingWindowState,
 } from "@/lib/matching/booking-status";
+import { getBookingTimeLabel } from "@/lib/matching/plan";
 import { formatDayLabel } from "@/lib/matching/timeline";
 import { getUnreadMessageCount } from "@/lib/messaging/messages";
 import { getProviderIdentity, getProviderRequestItems } from "@/lib/provider/dashboard";
+import { getOpenSupportThreadId } from "@/lib/support/queries";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /**
@@ -27,13 +30,20 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
  * this information (task 4). The summary itself reuses `ProviderBookingCard`
  * (`linkable={false}`, since this page already IS the destination and the
  * card must not wrap the real Confirm/Decline controls in an anchor).
+ *
+ * "Get help" contacts the Felyn Team about this booking as the HOST (host-side
+ * support; the booking is attached automatically); `?help=1` opens it straight
+ * away ("Contact Felyn again").
  */
 export default async function ProviderRequestItemPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ itemId: string }>;
+  searchParams: Promise<{ help?: string }>;
 }) {
   const { itemId } = await params;
+  const { help } = await searchParams;
   const supabase = await createSupabaseServerClient();
   const {
     data: { user },
@@ -65,7 +75,10 @@ export default async function ProviderRequestItemPage({
     );
   }
 
-  const unreadCount = await getUnreadMessageCount(supabase, item.itemId);
+  const [unreadCount, openSupportThreadId] = await Promise.all([
+    getUnreadMessageCount(supabase, item.itemId),
+    getOpenSupportThreadId(supabase, "host", item.itemId),
+  ]);
   const messagingWindow = getMessagingWindowState(item.status, item.decidedAt, item.cancelledAt);
 
   return (
@@ -116,6 +129,25 @@ export default async function ProviderRequestItemPage({
             closedLabel: getMessagingClosedLabel(item.status, messagingWindow),
             openCaption: getMessagingOpenCaption(messagingWindow),
           }}
+        />
+      </Card>
+
+      <Card className="flex flex-col gap-3">
+        <div>
+          <Heading level={3}>Need help?</Heading>
+          <p className="mt-1 text-sm text-navy-500">Questions or a problem with this booking? The Felyn Team is here to help.</p>
+        </div>
+        <GetHelpButton
+          bookingItemId={item.itemId}
+          booking={{
+            experienceTitle: item.experienceTitle,
+            dateLabel: formatDayLabel(item.plannedDate),
+            timeLabel: getBookingTimeLabel(item.plannedMoment, item.preferredTime),
+            guestCount: item.guestCount,
+          }}
+          existingThreadId={openSupportThreadId}
+          initialOpen={help === "1"}
+          requesterRole="host"
         />
       </Card>
     </div>

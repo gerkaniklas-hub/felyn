@@ -1,4 +1,10 @@
-import { SUPPORT_CATEGORY_LABELS, SUPPORT_TEAM_NAME, type SupportCategory, type SupportStatus } from "./constants";
+import {
+  SUPPORT_CATEGORY_LABELS,
+  SUPPORT_TEAM_NAME,
+  type SupportCategory,
+  type SupportRequesterRole,
+  type SupportStatus,
+} from "./constants";
 
 /**
  * Pure presentation helpers for Felyn Team conversations in the guest's Messages
@@ -30,9 +36,18 @@ export const SUPPORT_RESOLVED_CAPTION = `${SUPPORT_TEAM_NAME} marked this conver
 export const SUPPORT_REOPENED_CAPTION = `You reopened this conversation. ${SUPPORT_TEAM_NAME} will reply here.`;
 export const SUPPORT_CLOSED_LABEL = "This conversation is closed.";
 
-/** Where "Contact Felyn again" starts a NEW conversation: the same booking's Get help, or the general Contact Felyn form. */
-export function getContactAgainHref(bookingItemId: string | null): string {
+/**
+ * Where "Contact Felyn again" starts a NEW conversation: the same booking's Get help,
+ * or the general Contact Felyn form — on the guest side (default) or the host side.
+ */
+export function getContactAgainHref(bookingItemId: string | null, role: SupportRequesterRole = "guest"): string {
+  if (role === "host") return bookingItemId ? `/provider/requests/${bookingItemId}?help=1` : "/provider/help";
   return bookingItemId ? `/bookings/${bookingItemId}?help=1` : "/help";
+}
+
+/** Where a Felyn Team conversation opens: the guest's Messages, or the host's. */
+export function getSupportConversationHref(threadId: string, role: SupportRequesterRole = "guest"): string {
+  return `${role === "host" ? "/provider/messages" : "/messages"}?support=${threadId}`;
 }
 
 /** Inbox search for Felyn Team rows: the name, the topic and the booking's experience. */

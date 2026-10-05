@@ -1,10 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { AppSidebar, type SidebarItem } from "./AppSidebar";
-import { HelpIcon } from "./icons";
+import { HelpLink } from "./HelpLink";
 
 /**
  * The guest journey's navigation (rendered through the shared AppSidebar).
@@ -43,29 +41,10 @@ export function GuestNav({ notifications }: { notifications?: ReactNode }) {
       ariaLabel="Main"
       utilities={
         <>
-          <HelpLink />
+          <HelpLink href="/help" />
           {notifications}
         </>
       }
     />
-  );
-}
-
-/** Styled like the notification bell button, so the two utilities read as a pair. */
-function HelpLink() {
-  const active = usePathname() === "/help";
-  return (
-    <Link
-      href="/help"
-      aria-label="Help"
-      title="Help"
-      aria-current={active ? "page" : undefined}
-      className={`inline-flex h-9 w-9 items-center justify-center gap-3 rounded-full transition-colors md:h-10 md:rounded-xl lg:w-full lg:justify-start lg:px-3 lg:text-sm lg:font-medium ${
-        active ? "bg-sky-50 text-sky-700" : "text-navy-500 hover:bg-ivory-200 hover:text-navy-900"
-      }`}
-    >
-      <HelpIcon className="h-5 w-5 shrink-0" />
-      <span className="hidden lg:inline">Help</span>
-    </Link>
   );
 }

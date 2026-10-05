@@ -1,16 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { SupportCategory, SupportSenderType, SupportStatus } from "./constants";
+import type { SupportCategory, SupportRequesterRole, SupportSenderType, SupportStatus } from "./constants";
 
 /**
- * Felyn support reads for the GUEST side (0029). Plain server-only helpers (no
+ * Felyn support reads for the guest and host sides (0029). Plain server-only helpers (no
  * "use server"), same convention as lib/messaging/messages.ts; mutations live in
  * ./actions.ts and go through the 0029 database functions only.
  *
  * Every query is scoped by the 0029 RLS policies, AND explicitly filtered to the
- * caller's own guest-side threads (user_id + requester_role = 'guest'). The
- * explicit filter matters for two kinds of account: one that is also a host (its
- * host-side threads must not appear in the guest inbox) and a staff account (RLS
- * lets staff read every thread — those must never show up as its own inbox).
+ * caller's own threads on ONE side (user_id + requester_role = the given role). The
+ * explicit filter matters for two kinds of account: one that is both guest and host
+ * (its guest-side and host-side threads must never mix — each inbox shows only its
+ * own side) and a staff account (RLS lets staff read every thread — those must never
+ * show up as its own inbox). The getGuest* helpers are the guest side.
  *
  * Reads fail soft: if the support tables are unavailable (e.g. 0029 not applied
  * yet) the guest simply sees no Felyn Team conversations, and booking Messages
@@ -75,8 +76,16 @@ function logReadError(what: string, error: { code?: string } | null) {
   if (error) console.error(`support: ${what} read failed (code ${error.code ?? "unknown"})`);
 }
 
-/** The signed-in guest's own Felyn Team conversations, newest activity first. */
+/** The signed-in guest's own (guest-side) Felyn Team conversations, newest activity first. */
 export async function getGuestSupportConversations(supabase: SupabaseClient): Promise<SupportConversationSummary[]> {
+  return getSupportConversations(supabase, "guest");
+}
+
+/** The signed-in user's own Felyn Team conversations on one side (guest or host), newest activity first. */
+export async function getSupportConversations(
+  supabase: SupabaseClient,
+  role: SupportRequesterRole,
+): Promise<SupportConversationSummary[]> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -93,7 +102,7 @@ export async function getGuestSupportConversations(supabase: SupabaseClient): Pr
     .from("support_threads")
     .select("id, category, status, booking_request_item_id, last_message_at")
     .eq("user_id", user.id)
-    .eq("requester_role", "guest")
+    .eq("requester_role", role)
     .order("last_message_at", { ascending: false });
   logReadError("threads", threadError);
   const threads = (threadRows as ThreadRow[] | null) ?? [];
@@ -149,6 +158,15 @@ export async function getGuestSupportConversations(supabase: SupabaseClient): Pr
  * doesn't exist / isn't theirs (indistinguishable on purpose).
  */
 export async function getGuestSupportThread(supabase: SupabaseClient, threadId: string): Promise<SupportThreadState | null> {
+  return getSupportThread(supabase, threadId, "guest");
+}
+
+/** As getGuestSupportThread, for either side: null unless it is the caller's own thread on that side. */
+export async function getSupportThread(
+  supabase: SupabaseClient,
+  threadId: string,
+  role: SupportRequesterRole,
+): Promise<SupportThreadState | null> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -159,7 +177,7 @@ export async function getGuestSupportThread(supabase: SupabaseClient, threadId: 
     .select("id, status, booking_request_item_id")
     .eq("id", threadId)
     .eq("user_id", user.id)
-    .eq("requester_role", "guest")
+    .eq("requester_role", role)
     .maybeSingle();
   logReadError("thread", error);
   const thread = threadRow as { id: string; status: SupportStatus; booking_request_item_id: string | null } | null;
@@ -191,6 +209,15 @@ export async function getOpenGuestSupportThreadId(
   supabase: SupabaseClient,
   bookingItemId: string | null,
 ): Promise<string | null> {
+  return getOpenSupportThreadId(supabase, "guest", bookingItemId);
+}
+
+/** As getOpenGuestSupportThreadId, for either side. */
+export async function getOpenSupportThreadId(
+  supabase: SupabaseClient,
+  role: SupportRequesterRole,
+  bookingItemId: string | null,
+): Promise<string | null> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -200,7 +227,7 @@ export async function getOpenGuestSupportThreadId(
     .from("support_threads")
     .select("id")
     .eq("user_id", user.id)
-    .eq("requester_role", "guest")
+    .eq("requester_role", role)
     .neq("status", "CLOSED");
   query = bookingItemId ? query.eq("booking_request_item_id", bookingItemId) : query.is("booking_request_item_id", null);
   const { data, error } = await query.maybeSingle();

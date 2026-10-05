@@ -5,7 +5,13 @@ import { useEffect, useState } from "react";
 import { ThreadComposer } from "@/components/messaging/ThreadComposer";
 import { ThreadMessages } from "@/components/messaging/ThreadMessages";
 import { getGuestSupportThreadAction, markGuestSupportThreadRead, sendGuestSupportMessage } from "@/lib/support/actions";
-import { SUPPORT_MESSAGE_MAX_LENGTH, SUPPORT_TEAM_NAME, type SupportStatus } from "@/lib/support/constants";
+import {
+  SUPPORT_MESSAGE_MAX_LENGTH,
+  SUPPORT_TEAM_NAME,
+  type SupportRequesterRole,
+  type SupportStatus,
+} from "@/lib/support/constants";
+import { getHostSupportThreadAction, markHostSupportThreadRead, sendHostSupportMessage } from "@/lib/support/host-actions";
 import {
   getContactAgainHref,
   SUPPORT_CLOSED_LABEL,
@@ -14,6 +20,12 @@ import {
 } from "@/lib/support/inbox";
 import type { SupportMessage } from "@/lib/support/queries";
 import { useSupportThreadRealtime } from "./useSupportThreadRealtime";
+
+/** Each side talks to the database through its own gated Server Actions (fixed requester_role). */
+const ACTIONS = {
+  guest: { send: sendGuestSupportMessage, markRead: markGuestSupportThreadRead, load: getGuestSupportThreadAction },
+  host: { send: sendHostSupportMessage, markRead: markHostSupportThreadRead, load: getHostSupportThreadAction },
+} as const;
 
 /**
  * A guest's conversation with the Felyn Team. Looks exactly like a booking
@@ -26,6 +38,7 @@ import { useSupportThreadRealtime } from "./useSupportThreadRealtime";
  *   OPEN      read and reply
  *   RESOLVED  read and reply; replying re-opens it (the database does this)
  *   CLOSED    read only, with "Contact Felyn again" to start a NEW conversation
+ * `requesterRole` picks the guest (default) or host side: its actions and routes.
  */
 export function SupportThread({
   threadId,
@@ -34,6 +47,7 @@ export function SupportThread({
   initialStatus,
   appearance = "pane",
   onStatusChange,
+  requesterRole = "guest",
 }: {
   threadId: string;
   bookingItemId: string | null;
@@ -42,7 +56,9 @@ export function SupportThread({
   appearance?: "card" | "pane";
   /** Lets the inbox keep its list row and header in step (e.g. "Resolved" disappearing after a reply). */
   onStatusChange?: (status: SupportStatus) => void;
+  requesterRole?: SupportRequesterRole;
 }) {
+  const actions = ACTIONS[requesterRole];
   const [messages, setMessages] = useState(initialMessages);
   const [status, setStatus] = useState(initialStatus);
   const [reopened, setReopened] = useState(false);
@@ -77,7 +93,7 @@ export function SupportThread({
     const unreadIds = messages.filter((m) => m.senderType === "staff" && !m.readAt).map((m) => m.id);
     if (unreadIds.length === 0) return;
     let cancelled = false;
-    markGuestSupportThreadRead(threadId).then(() => {
+    actions.markRead(threadId).then(() => {
       if (cancelled) return;
       const readAt = new Date().toISOString();
       setMessages((prev) => prev.map((m) => (unreadIds.includes(m.id) ? { ...m, readAt } : m)));
@@ -85,11 +101,11 @@ export function SupportThread({
     return () => {
       cancelled = true;
     };
-  }, [messages, threadId]);
+  }, [messages, threadId, actions]);
 
   async function refresh() {
     setRefreshing(true);
-    const state = await getGuestSupportThreadAction(threadId);
+    const state = await actions.load(threadId);
     setRefreshing(false);
     if (state) {
       setMessages(state.messages);
@@ -102,7 +118,7 @@ export function SupportThread({
     if (!body || sending) return;
     setSending(true);
     setError(null);
-    const result = await sendGuestSupportMessage(threadId, body);
+    const result = await actions.send(threadId, body);
     setSending(false);
     if (!result.ok) {
       if (result.closed) {
@@ -151,7 +167,7 @@ export function SupportThread({
           className={`flex flex-col items-center gap-1.5 bg-ivory-100 px-3 text-center ${pane ? "border-t border-ivory-300 py-4" : "rounded-lg py-3"}`}
         >
           <p className="text-sm text-navy-400">{SUPPORT_CLOSED_LABEL}</p>
-          <Link href={getContactAgainHref(bookingItemId)} className="text-sm font-medium text-sky-600 hover:text-sky-700">
+          <Link href={getContactAgainHref(bookingItemId, requesterRole)} className="text-sm font-medium text-sky-600 hover:text-sky-700">
             Contact Felyn again
           </Link>
         </div>

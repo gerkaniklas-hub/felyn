@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import type { SupportRequesterRole } from "@/lib/support/constants";
+import { getSupportConversationHref } from "@/lib/support/inbox";
 import { ContactFelynForm } from "./ContactFelynForm";
 
 /**
- * A booking's "Get help" (on /bookings/[itemId]). The booking is attached
- * automatically — the guest only picks a topic and writes. If the guest already
- * has an open conversation with the Felyn Team about this booking, Get help simply
+ * A booking's "Get help" — for the guest (/bookings/[itemId], default) or the host
+ * (/provider/requests/[itemId], requesterRole "host"). The booking is attached
+ * automatically — they only pick a topic and write. If they already have an
+ * open conversation with the Felyn Team about this booking, Get help simply
  * opens it in Messages instead of starting another (the database would reuse it
  * anyway). `initialOpen` supports "Contact Felyn again" from a closed conversation.
  */
@@ -16,11 +19,13 @@ export function GetHelpButton({
   booking,
   existingThreadId,
   initialOpen = false,
+  requesterRole = "guest",
 }: {
   bookingItemId: string;
   booking: { experienceTitle: string; dateLabel: string; timeLabel: string; guestCount: number };
   existingThreadId: string | null;
   initialOpen?: boolean;
+  requesterRole?: SupportRequesterRole;
 }) {
   const [open, setOpen] = useState(initialOpen && !existingThreadId);
 
@@ -30,7 +35,7 @@ export function GetHelpButton({
   if (existingThreadId) {
     return (
       <div className="flex flex-col gap-1">
-        <Link href={`/messages?support=${existingThreadId}`} className={triggerClass}>
+        <Link href={getSupportConversationHref(existingThreadId, requesterRole)} className={triggerClass}>
           Get help
         </Link>
         <p className="text-xs text-navy-500">You&apos;re already talking to the Felyn Team about this booking.</p>
@@ -80,7 +85,12 @@ export function GetHelpButton({
             </div>
 
             <div className="mt-6">
-              <ContactFelynForm bookingItemId={bookingItemId} defaultCategory="booking" onCancel={() => setOpen(false)} />
+              <ContactFelynForm
+                bookingItemId={bookingItemId}
+                defaultCategory="booking"
+                onCancel={() => setOpen(false)}
+                requesterRole={requesterRole}
+              />
             </div>
           </div>
         </div>
