@@ -17,7 +17,10 @@ const code = sql
 test("the scheduler is a separate script, not a numbered migration, and 0028 does not schedule anything", () => {
   assert.ok(!/^\d{4}_/.test(path.basename(file)));
   const numbered = readdirSync(migrations).filter((name) => /^\d{4}_.*\.sql$/.test(name));
-  assert.ok(!numbered.some((name) => name.startsWith("0029")));
+  assert.ok(
+    !numbered.some((name) => readFileSync(path.join(migrations, name), "utf8").includes("email-outbox-sweep")),
+    "no numbered migration schedules the sweep",
+  );
   const outbox = readFileSync(path.join(migrations, "0028_email_outbox.sql"), "utf8");
   assert.doesNotMatch(outbox, /cron\.schedule|net\.http_post|vault\./);
 });

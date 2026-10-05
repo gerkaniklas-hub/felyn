@@ -6,6 +6,7 @@ import { mobileStepHref } from "@/lib/contact/constants";
 import { getContactDetails } from "@/lib/contact/queries";
 import { JOURNEY_COOKIE, JOURNEY_COOKIE_OPTIONS, journeyForLoginDestination } from "@/lib/journey";
 import { safeReturnTo } from "@/lib/return-to";
+import { isFelynStaff } from "@/lib/support/staff";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type ActionState = {
@@ -41,6 +42,11 @@ const ALLOWED_REDIRECTS = new Set(["/home", "/provider", "/host/apply"]);
  * the guest login, /provider pages for the host login); the journey cookie
  * is still decided by `redirectTo` alone. The mobile step keeps its own
  * allow-list, so an account without a number lands on the usual page.
+ *
+ * A Felyn staff account (staff_members, asked of the database via
+ * isFelynStaff) goes straight to the support inbox instead, from either login
+ * page — it is not a guest or host account, so the guest/host landing pages and
+ * the mobile step don't apply. /admin re-checks staff status itself.
  */
 export async function login(
   redirectTo: string,
@@ -72,6 +78,8 @@ export async function login(
   const journey = journeyForLoginDestination(destination);
   (await cookies()).set(JOURNEY_COOKIE, journey, JOURNEY_COOKIE_OPTIONS);
   const finalDestination = safeReturnTo(returnTo, journey) ?? destination;
+
+  if (await isFelynStaff(supabase)) redirect("/admin/support");
 
   let hasMobile = true;
   try {

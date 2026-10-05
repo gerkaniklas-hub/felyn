@@ -12,6 +12,7 @@ import { ProfileDetailsForm } from "@/components/profile/ProfileDetailsForm";
 import { Heading } from "@/components/ui/heading";
 import { getContactDetails } from "@/lib/contact/queries";
 import { formatPhoneNational } from "@/lib/phone";
+import { isFelynStaff } from "@/lib/support/staff";
 import { getSignedAvatarUrl } from "@/lib/storage/avatars";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -48,9 +49,10 @@ export default async function GuestProfilePage() {
   const firstName = (user.user_metadata?.first_name as string | undefined) ?? "";
   const lastName = (user.user_metadata?.last_name as string | undefined) ?? "";
   const avatarPath = (user.user_metadata?.avatar_path as string | undefined) ?? null;
-  const [signedAvatarUrl, contact] = await Promise.all([
+  const [signedAvatarUrl, contact, isStaff] = await Promise.all([
     avatarPath ? getSignedAvatarUrl(supabase, avatarPath) : null,
     getContactDetails(supabase, user.id),
+    isFelynStaff(supabase),
   ]);
 
   const { count: completedCount, error: completedCountError } = await supabase
@@ -102,6 +104,25 @@ export default async function GuestProfilePage() {
                 →
               </span>
             </Link>
+
+            {/* Felyn staff only (staff_members, checked by the database); the link grants nothing — /admin re-checks. */}
+            {isStaff ? (
+              <Link
+                href="/admin/support"
+                className="flex items-center gap-3 rounded-3xl border border-ivory-300 bg-ivory-50 p-4 shadow-sm transition-colors hover:border-sky-300"
+              >
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy-900 font-display text-base text-ivory-50">
+                  F<span className="text-gold-500">.</span>
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col">
+                  <span className="text-sm font-medium text-navy-900">Felyn Support</span>
+                  <span className="text-xs text-navy-500">Open the support inbox</span>
+                </span>
+                <span aria-hidden="true" className="text-navy-300">
+                  →
+                </span>
+              </Link>
+            ) : null}
           </aside>
 
           <div className="flex flex-col gap-6">

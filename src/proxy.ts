@@ -31,6 +31,8 @@ const PROTECTED_PREFIXES = [
   "/bookings",
   "/host",
   "/account",
+  "/help",
+  "/admin",
 ];
 
 /**

@@ -207,7 +207,7 @@ what's written in these migration files.
   error so everything is rolled back.
 - SHA-256 (repository files, as written; updated 2026-10-05 when the
   host cancellation receipt was added): 0028 `f8176a131f20d9d9…`,
-  isolated test `9954469ed05acf09…`.
+  isolated test `f841799f9ca32680…`.
 
 ### Retry sweep scheduler — SCRIPT WRITTEN, NOT ENABLED
 
@@ -282,3 +282,74 @@ Stopping it: `select jobid from cron.job where jobname = 'email-outbox-sweep';`
 then `select cron.unschedule(<jobid>);`.
 
 Vercel Hobby cron jobs run at most once a day, so they are not used for retries.
+
+## Migration 0029: support — ALREADY APPLIED TO PRODUCTION — DO NOT RE-RUN
+
+- `0029_support.sql` **has been applied to production** (2026-10-05, by the
+  project owner, who confirmed afterwards that the support tables and
+  functions exist and that `messages`, `support_messages` and
+  `support_threads` are in `supabase_realtime`). **Do not run it against
+  production again.** Its own starting checks would abort a re-run (it
+  refuses if any support table or function already exists), but it must not
+  be executed as part of any deployment. Same form as 0023-0028: a single
+  `DO` statement that applies fully or rolls back fully, with preconditions
+  and postconditions. It does not depend on 0028.
+- It creates the Felyn support foundation, fully separate from the
+  guest<->host `public.messages` table (whose table, policies, grants,
+  notification trigger and realtime setup are not touched — a booking-linked
+  support conversation must never be visible to the host):
+  - `public.staff_members` (`user_id`, `role` `support`|`admin`) — RLS on, no
+    policies, no client privileges. Staff are added by hand (below).
+  - `public.is_felyn_staff()` — the database-side staff check.
+  - `public.support_threads` — one ticket; optional reference to the
+    existing `booking_request_items.id` (booking data is never copied);
+    `requester_role` `guest`|`host`; `OPEN` / `RESOLVED` / `CLOSED` with
+    `resolved_at` / `closed_at` kept consistent by check constraints. Partial
+    unique indexes allow at most one non-CLOSED general thread per
+    (user, role) and one non-CLOSED thread per (user, role, booking).
+  - `public.support_messages` — `sender_type` `user`|`staff`,
+    `sender_user_id` for audit, body 1-2000 characters.
+  - `public.notifications.support_thread_id` (nullable, on delete set null)
+    and a trigger adding a `support_reply` notification when staff reply.
+    No email.
+  - `support_messages` (new messages) and `support_threads` (live status
+    changes) added to the `supabase_realtime` publication.
+  - Clients may only SELECT (own threads/messages; staff: all). Every write
+    goes through `SECURITY DEFINER` functions that check `auth.uid()`
+    themselves: `support_open_thread`, `support_send_message`,
+    `support_mark_read`, `support_staff_reply`, `support_staff_set_status`,
+    `support_staff_thread_context`, and `support_staff_list_threads` (the
+    admin ticket list: one status, newest activity first, keyset-paged, with
+    customer name/email, experience, latest message and unread count).
+- Companion file (not a migration; never run during deployment):
+  `support_isolated_test.sql` — the fail-closed rehearsal for running
+  **before** 0029. It embeds 0029's section 2 verbatim
+  (`tests/support-migration.test.ts` fails if the two drift), runs its
+  checks as the `authenticated` role with real user claims so row-level
+  security is genuinely enforced, and always ends in an error so everything
+  is rolled back. It would fail now that 0029 exists, and should not be
+  re-run against production.
+- SHA-256 of the files as committed in this repository: 0029
+  `16eaf8345b72df50…`, isolated test `f841799f9ca32680…`. These fingerprint
+  the repository files only; they have not been verified byte-for-byte
+  against the SQL that was pasted into Supabase.
+
+### Staff accounts
+
+One dedicated staff account is registered in production with role
+`support` (added 2026-10-05). Staff sign in through the normal login and
+land on `/admin/support`. To add another (the Auth user must already exist,
+created in Dashboard → Authentication → Users with Auto Confirm), run as
+`postgres` in the SQL Editor, replacing the placeholder with that account's
+sign-in email:
+
+```sql
+insert into public.staff_members (user_id, role)
+select id, 'support' from auth.users where email = '<staff account email>'
+on conflict (user_id) do update set role = 'support'
+returning user_id, role;
+```
+
+Exactly one row should be returned. Removing staff access:
+`delete from public.staff_members where user_id = '<user id>';` — it takes
+effect on the next request, no sign-out needed.

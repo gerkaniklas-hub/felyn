@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ExploreBrowser } from "@/components/explore/ExploreBrowser";
 import { GuestNav } from "@/components/navigation/GuestNav";
 import { PlusIcon, SearchIcon } from "@/components/navigation/icons";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { FallbackImage } from "@/components/planner/FallbackImage";
 import { getGuestStayOptions, getPublishedExperiences } from "@/lib/matching/explore";
+import { isFelynStaff } from "@/lib/support/staff";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 /** How many experiences the Home discovery strip shows before "See all". */
@@ -20,6 +22,11 @@ const DISCOVER_COUNT = 3;
  * newest first) and Explore's card grid, so opening a card shows the same
  * experience and host detail panels as /explore. No ranking or location
  * data exists yet, so it is labelled as discovery, not "popular near you".
+ *
+ * Felyn staff accounts don't belong in the guest home: they are sent to the
+ * support inbox (this also covers every "signed in -> /home" redirect, e.g. a
+ * signed-in visit to /login). The support area is a dedicated workspace and
+ * deliberately has no link into the guest app.
  */
 export default async function HomePage() {
   const supabase = await createSupabaseServerClient();
@@ -28,7 +35,12 @@ export default async function HomePage() {
   } = await supabase.auth.getUser();
 
   const firstName = (user?.user_metadata?.first_name as string | undefined)?.trim() || null;
-  const [experiences, stays] = await Promise.all([getPublishedExperiences(supabase), getGuestStayOptions(supabase)]);
+  const [isStaff, experiences, stays] = await Promise.all([
+    user ? isFelynStaff(supabase) : false,
+    getPublishedExperiences(supabase),
+    getGuestStayOptions(supabase),
+  ]);
+  if (isStaff) redirect("/admin/support");
   const featured = experiences.slice(0, DISCOVER_COUNT);
   const heroImages = experiences.map((experience) => experience.image_url).filter(Boolean).slice(0, 2) as string[];
 

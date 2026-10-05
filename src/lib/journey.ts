@@ -49,6 +49,8 @@ export const GUEST_ROUTE_PREFIXES = [
   "/trips",
   "/bookings",
   "/recommendations",
+  // Contact Felyn is guest-side for now; host support comes later.
+  "/help",
 ];
 
 export function isGuestRoute(pathname: string): boolean {

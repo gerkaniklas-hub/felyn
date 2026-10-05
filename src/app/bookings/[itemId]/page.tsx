@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CancelExperienceButton } from "@/components/booking/CancelExperienceButton";
 import { GuestNav } from "@/components/navigation/GuestNav";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { GetHelpButton } from "@/components/support/GetHelpButton";
 import { ExperienceGallery } from "@/components/planner/ExperienceGallery";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import {
 import { getGuestExperienceDetail } from "@/lib/matching/guest-experiences";
 import { getBookingTimeLabel } from "@/lib/matching/plan";
 import { formatDayLabel } from "@/lib/matching/timeline";
+import { getOpenGuestSupportThreadId } from "@/lib/support/queries";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function humanizeCategory(category: string): string {
@@ -32,9 +34,19 @@ function humanizeCategory(category: string): string {
  * simply resolves to "not found" here, never leaking another guest's data.
  * Reuses the same ExperienceGallery/lightbox the catalogue detail view
  * uses (Phase 7.2) rather than a second photo component.
+ *
+ * "Get help" contacts the Felyn Team about this booking (the booking is attached
+ * automatically); `?help=1` opens it straight away ("Contact Felyn again").
  */
-export default async function GuestExperienceDetailPage({ params }: { params: Promise<{ itemId: string }> }) {
+export default async function GuestExperienceDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ itemId: string }>;
+  searchParams: Promise<{ help?: string }>;
+}) {
   const { itemId } = await params;
+  const { help } = await searchParams;
   const supabase = await createSupabaseServerClient();
   const item = await getGuestExperienceDetail(supabase, itemId);
 
@@ -57,6 +69,7 @@ export default async function GuestExperienceDetailPage({ params }: { params: Pr
 
   const timeLabel = getBookingTimeLabel(item.plannedMoment, item.preferredTime);
   const total = item.pricePerPerson * item.guestCount;
+  const openSupportThreadId = await getOpenGuestSupportThreadId(supabase, item.id);
 
   return (
     <div className="flex flex-1 flex-col">
@@ -128,6 +141,21 @@ export default async function GuestExperienceDetailPage({ params }: { params: Pr
               {item.cancellationNote ? ` · "${item.cancellationNote}"` : ""}
             </p>
           ) : null}
+
+          <div className="flex flex-col gap-2 border-t border-ivory-300 pt-5">
+            <p className="text-sm text-navy-600">Questions or a problem with this booking? The Felyn Team is here to help.</p>
+            <GetHelpButton
+              bookingItemId={item.id}
+              booking={{
+                experienceTitle: item.experienceTitle,
+                dateLabel: formatDayLabel(item.plannedDate),
+                timeLabel,
+                guestCount: item.guestCount,
+              }}
+              existingThreadId={openSupportThreadId}
+              initialOpen={help === "1"}
+            />
+          </div>
 
           {item.status === "CONFIRMED" ? <CancelExperienceButton itemId={item.id} stayId={item.stayId ?? undefined} /> : null}
         </div>

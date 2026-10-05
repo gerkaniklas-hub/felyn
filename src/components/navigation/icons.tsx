@@ -118,6 +118,16 @@ export function BellIcon(props: IconProps) {
   );
 }
 
+export function HelpIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="8.25" />
+      <path d="M9.75 9.5a2.25 2.25 0 1 1 3.2 2.04c-.6.28-.95.86-.95 1.52v.44" />
+      <path d="M12 16.5h.01" />
+    </Icon>
+  );
+}
+
 export function LogOutIcon(props: IconProps) {
   return (
     <Icon {...props}>

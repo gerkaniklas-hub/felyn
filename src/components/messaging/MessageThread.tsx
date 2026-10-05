@@ -1,14 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { markMessagesRead, sendMessage } from "@/lib/messaging/actions";
 import { MESSAGE_MAX_LENGTH, type Message } from "@/lib/messaging/messages";
-
-function formatTimestamp(iso: string): string {
-  return new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-}
+import { ThreadComposer } from "./ThreadComposer";
+import { ThreadMessages } from "./ThreadMessages";
 
 /**
  * The one message-thread implementation, shared by the provider booking
@@ -58,7 +55,6 @@ export function MessageThread({
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const listRef = useRef<HTMLDivElement>(null);
 
   // Created ONCE per component instance, not per effect run. @supabase/ssr's
   // createBrowserClient shares an underlying client/socket across calls with
@@ -119,10 +115,6 @@ export function MessageThread({
   }, [itemId, supabase]);
 
   useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
-  }, [messages.length]);
-
-  useEffect(() => {
     onMessagesChange?.(messages);
   }, [messages, onMessagesChange]);
 
@@ -156,74 +148,27 @@ export function MessageThread({
 
   return (
     <div className={`flex h-full min-h-0 flex-col ${pane ? "gap-0" : "gap-3"}`}>
-      <div
-        ref={listRef}
-        className={
-          pane
-            ? "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-5 sm:px-6"
-            : "flex min-h-[220px] flex-1 flex-col gap-2 overflow-y-auto rounded-xl border border-ivory-300 bg-ivory-100 p-3"
-        }
-      >
-        {messages.length === 0 ? (
-          <p className="py-6 text-center text-sm text-navy-400">No messages yet.</p>
-        ) : (
-          messages.map((message) => {
-            const mine = message.senderId === currentUserId;
-            const bubble = pane
-              ? mine
-                ? "rounded-br-md bg-sky-600 text-ivory-50"
-                : "rounded-bl-md border border-ivory-300 bg-ivory-50 text-navy-900"
-              : mine
-                ? "bg-navy-900 text-ivory-50"
-                : "border border-ivory-300 bg-ivory-50 text-navy-900";
-            return (
-              <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[80%] rounded-2xl text-sm ${pane ? "px-4 py-2.5 sm:max-w-[70%]" : "px-3 py-2"} ${bubble}`}
-                >
-                  <p className="whitespace-pre-wrap break-words">{message.body}</p>
-                  <p className={`mt-1 text-[11px] ${mine ? (pane ? "text-sky-100" : "text-ivory-200") : "text-navy-300"}`}>
-                    {formatTimestamp(message.createdAt)}
-                  </p>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+      <ThreadMessages
+        messages={messages.map((message) => ({
+          id: message.id,
+          body: message.body,
+          createdAt: message.createdAt,
+          mine: message.senderId === currentUserId,
+        }))}
+        appearance={appearance}
+      />
 
       {canSend ? (
-        <div className={`flex flex-col gap-1.5 ${pane ? "border-t border-ivory-300 bg-ivory-50 px-4 py-3 sm:px-6" : ""}`}>
-          {openCaption ? <p className="text-xs text-navy-400">{openCaption}</p> : null}
-          <div className={`flex gap-2 ${pane ? "items-end" : ""}`}>
-            <textarea
-              value={draft}
-              onChange={(event) => setDraft(event.target.value.slice(0, MESSAGE_MAX_LENGTH))}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  handleSend();
-                }
-              }}
-              rows={pane ? 1 : 2}
-              placeholder="Write a message…"
-              className={
-                pane
-                  ? "max-h-40 min-h-11 flex-1 resize-none rounded-3xl border border-ivory-300 bg-ivory-100 px-4 py-2.5 text-sm text-navy-900 placeholder:text-navy-300 focus:border-sky-300 focus:outline-none"
-                  : "flex-1 resize-none rounded-xl border border-ivory-400 bg-ivory-50 px-3 py-2 text-sm text-navy-900 placeholder:text-navy-300"
-              }
-            />
-            <Button type="button" onClick={handleSend} disabled={sending || draft.trim().length === 0}>
-              Send
-            </Button>
-          </div>
-          <div className="flex items-center justify-between">
-            {error ? <p className="text-xs font-medium text-gold-700">{error}</p> : <span />}
-            <span className="text-xs text-navy-300">
-              {draft.length}/{MESSAGE_MAX_LENGTH}
-            </span>
-          </div>
-        </div>
+        <ThreadComposer
+          draft={draft}
+          onDraftChange={setDraft}
+          onSend={handleSend}
+          sending={sending}
+          error={error}
+          caption={openCaption}
+          maxLength={MESSAGE_MAX_LENGTH}
+          appearance={appearance}
+        />
       ) : (
         <p
           className={`bg-ivory-100 px-3 py-2 text-center text-sm text-navy-400 ${pane ? "border-t border-ivory-300 py-4" : "rounded-lg"}`}
