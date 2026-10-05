@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Heading } from "@/components/ui/heading";
 import { Logo } from "@/components/ui/logo";
+import { RETURN_TO_PARAM, safeReturnTo } from "@/lib/return-to";
 import { LoginForm } from "./login-form";
 
 /**
@@ -8,7 +9,12 @@ import { LoginForm } from "./login-form";
  * Host logins use /login/host; the old /login?next=host alias is redirected
  * there by proxy.ts.
  */
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const returnTo = safeReturnTo((await searchParams)[RETURN_TO_PARAM], "guest");
   return (
     <div className="relative flex flex-1 flex-col">
       <Link
@@ -23,7 +29,7 @@ export default function LoginPage() {
         <Heading level={2} className="text-center">
           Welcome back
         </Heading>
-        <LoginForm />
+        <LoginForm returnTo={returnTo} />
         <p className="text-center text-sm text-navy-500">
           New to Felyn?{" "}
           <Link href="/signup" className="font-medium text-sky-600 hover:text-sky-700">

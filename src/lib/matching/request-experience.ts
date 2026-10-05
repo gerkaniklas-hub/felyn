@@ -1,5 +1,6 @@
 "use server";
 
+import { scheduleEmailDispatch } from "@/lib/email/dispatcher";
 import { assertGuestJourney } from "@/lib/journey-server";
 import { todayISODate } from "@/lib/onboarding/stay-dates";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -121,6 +122,7 @@ export async function requestExperience(input: RequestExperienceInput): Promise<
     await supabase.from("booking_requests").delete().eq("id", request.id);
     return { ok: false, error: "We couldn't send your request. Please try again." };
   }
+  scheduleEmailDispatch();
   return { ok: true, itemId: inserted.id as string };
 }
 

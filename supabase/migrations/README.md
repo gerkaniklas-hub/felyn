@@ -176,3 +176,109 @@ what's written in these migration files.
     passed before 0027 was applied. It re-creates 0027's objects inside one
     statement that always ends in an error, so it rolls back by design. It
     would fail now that 0027 exists, and should not be re-run.
+
+## Migration 0028: email outbox — NOT YET APPLIED ANYWHERE
+
+- `0028_email_outbox.sql` is **written but not applied** (neither to
+  production nor anywhere else). Do not apply it until the project owner
+  approves. Same form as 0023-0027: a single `DO` statement that applies
+  fully or rolls back fully, with preconditions and postconditions.
+- It creates `public.email_outbox` (one row per transactional email event
+  and recipient; unique `event_key`; `pending` / `sending` / `sent` /
+  `failed` / `skipped`; attempts, retry time, claim lease, errors), two
+  `SECURITY DEFINER` trigger functions on `public.booking_request_items`
+  that record events in the same transaction as the booking change (one
+  per-statement trigger for new requests, grouped per guest and per host;
+  one per-row trigger for confirm / decline / cancel — a cancellation
+  emails the other party and sends the canceller a receipt; withdrawals
+  create no email), two internal
+  helpers, and `public.claim_email_outbox(integer)` (FOR UPDATE SKIP
+  LOCKED; executable by `service_role` only). RLS is enabled with no
+  policies; `anon` and `authenticated` have no privileges; `service_role`
+  has SELECT and UPDATE only. The 0009/0014/0020 notification triggers are
+  not changed. Email addresses are never stored; the app's server-only
+  sender (`src/lib/email/dispatcher.ts`) resolves them at send time.
+- Companion file (not a migration; never run during deployment):
+  `email_outbox_isolated_test.sql` — the fail-closed rehearsal, to be run
+  **before** 0028. It embeds 0028's section 2 verbatim, checks grouping,
+  event keys and duplicates, transitions, payload privacy, the missing
+  provider account case, claim semantics, role privileges and that a
+  failing email trigger never blocks a booking, and always ends in an
+  error so everything is rolled back.
+- SHA-256 (repository files, as written; updated 2026-10-05 when the
+  host cancellation receipt was added): 0028 `f8176a131f20d9d9…`,
+  isolated test `9954469ed05acf09…`.
+
+### Retry sweep scheduler — SCRIPT WRITTEN, NOT ENABLED
+
+**The scheduler is not running until someone configures it by hand** (steps
+below). Until then, emails are still delivered right after each booking
+action, but a failed attempt is only retried when a later booking action
+happens.
+
+How delivery works:
+
+```
+booking change ──(same transaction, 0028 trigger)──> email_outbox row
+   ├─ immediately: the Server Action's after() ──┐
+   └─ every 5 min: pg_cron -> pg_net ────────────┴─> POST https://app.felyn.eu/api/email/sweep
+                                                       -> claim_email_outbox (SKIP LOCKED)
+                                                       -> re-check booking state -> Resend
+```
+
+- Script: `email_outbox_sweep_schedule.sql` (companion file — **not** a
+  numbered migration, never run during deployment, **production only**). It
+  schedules the pg_cron job `email-outbox-sweep` at `*/5 * * * *`, which
+  calls the sweep route with `net.http_post(..., timeout_milliseconds :=
+  60000)` (pg_net's own default is only 2 s). It is re-runnable: it first
+  removes any job with the same name, then schedules it again. It checks
+  that 0028, pg_cron, pg_net and the Vault secret exist (and changes nothing
+  if one is missing), and afterwards that exactly one active job exists, that
+  its role can read the Vault secret, and that the secret is not in the stored
+  command.
+- **It contains no secret.** The job's command reads the bearer secret from
+  Supabase Vault (`vault.decrypted_secrets`) every time it runs.
+- Required Vault secret (one): `email_sweep_secret` — exactly the same value
+  as the Vercel Production variable `EMAIL_SWEEP_SECRET`. 32-256 characters
+  of `A-Z a-z 0-9 _ -`, e.g. 64 random hex characters, no spaces or line
+  breaks. The URL is not secret and is written in the script.
+- Overlapping or repeated sweeps are harmless: rows are claimed with
+  `FOR UPDATE SKIP LOCKED`, a crashed run's rows are reclaimed after a
+  10-minute lease, and every attempt for a row reuses the same Resend
+  idempotency key. While `EMAIL_DELIVERY_MODE` is off the route just answers
+  `{"mode":"off"}`.
+
+**Expiry and the idempotency window.** Resend keeps an idempotency key for
+24 hours, so every attempt for one email must happen inside that window. The
+app therefore never delivers an outbox row older than **23 hours** (it is
+marked `skipped` / `expired`; `MAX_EVENT_AGE_MS` in
+`src/lib/email/events.ts`). The full retry schedule (1 min, 5 min, 15 min,
+1 h, 3 h; 6 attempts) finishes in under 5 hours, well inside it.
+
+Setting it up (once 0028 is applied and the app is deployed and working):
+
+1. Generate the secret **on your own computer** (e.g. `openssl rand -hex 32`).
+   Do not paste it into chats, tickets or files.
+2. Vercel -> Project -> Settings -> Environment Variables (Production):
+   set `EMAIL_SWEEP_SECRET` to it, then redeploy.
+3. Supabase Dashboard -> Database -> Extensions: enable `pg_net`.
+4. Supabase Dashboard -> **Vault** (Project Settings / Integrations -> Vault):
+   add a secret named `email_sweep_secret` with the same value. **Use the
+   Vault UI — never `select vault.create_secret('…')` in the SQL editor**,
+   which would keep the secret in the editor's query history.
+5. SQL editor, as `postgres`: run `email_outbox_sweep_schedule.sql`.
+   Expected: "Success. No rows returned".
+6. After the next 5-minute boundary, run the read-only checks at the end of
+   the script: `cron.job_run_details` should show `succeeded` and
+   `net._http_response` status 200. A 401 means the two secret values
+   differ; a 404 means `EMAIL_SWEEP_SECRET` is missing in Vercel.
+
+Rotating the secret: generate a new value, update Vercel and redeploy,
+then edit `email_sweep_secret` in the Vault UI to the same value. The job
+reads Vault on every run, so it does not need to be rescheduled. Sweeps in
+between the two updates get 401 and are simply retried 5 minutes later.
+
+Stopping it: `select jobid from cron.job where jobname = 'email-outbox-sweep';`
+then `select cron.unschedule(<jobid>);`.
+
+Vercel Hobby cron jobs run at most once a day, so they are not used for retries.

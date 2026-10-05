@@ -16,6 +16,7 @@ import { HOST_NOTE_MAX_LENGTH, PLANNED_MOMENTS, getPlannedMomentLabel, type Plan
 import { getGuestCountRange, isAvailableAt, isPreferredTimeAllowed, normalizeTime } from "./slot-availability";
 import { formatDayLabel } from "./timeline";
 import { assertGuestJourney } from "@/lib/journey-server";
+import { scheduleEmailDispatch } from "@/lib/email/dispatcher";
 
 export type SubmitBookingRequestItem = {
   experienceId: string;
@@ -247,6 +248,7 @@ export async function submitBookingRequest(
     }
 
     const estimatedTotal = await recalculateEstimatedTotal(supabase, requestId);
+    scheduleEmailDispatch();
     return {
       ok: true,
       requestId,
@@ -297,6 +299,7 @@ export async function submitBookingRequest(
     return { ok: false, error: "We couldn't submit your request. Please try again." };
   }
 
+  scheduleEmailDispatch();
   return {
     ok: true,
     requestId: request.id,
@@ -546,6 +549,7 @@ export async function cancelBookingRequestItemAsGuest(
   }
 
   await recalculateEstimatedTotal(supabase, item.booking_request_id);
+  scheduleEmailDispatch();
 
   return { ok: true };
 }

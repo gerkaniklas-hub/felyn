@@ -10,6 +10,7 @@ import {
   parseJourney,
   type Journey,
 } from "@/lib/journey";
+import { RETURN_TO_PARAM, safeReturnTo } from "@/lib/return-to";
 
 /**
  * Routes that require a signed-in user. Everything else stays public.
@@ -140,10 +141,24 @@ export async function proxy(request: NextRequest) {
 
   if (!user && isProtected) {
     // Host/provider areas return through the host login; everything else
-    // through the guest login, exactly as before.
-    if (isHostArea(pathname)) return redirectTo("/login/host");
+    // through the guest login, exactly as before. A safe internal page
+    // (src/lib/return-to.ts) is passed along as ?returnTo= so the login can
+    // continue there — e.g. the booking an email button links to. Only for
+    // query-free URLs (every email link is one): a page that needs its query
+    // (e.g. onboarding's ?stay=) keeps the previous behaviour.
+    const hostArea = isHostArea(pathname);
+    const returnTo = request.nextUrl.search ? null : safeReturnTo(pathname, hostArea ? "host" : "guest");
+    if (hostArea) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login/host";
+      url.search = "";
+      if (returnTo) url.searchParams.set(RETURN_TO_PARAM, returnTo);
+      return finalize(NextResponse.redirect(url));
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.searchParams.delete(RETURN_TO_PARAM);
+    if (returnTo) url.searchParams.set(RETURN_TO_PARAM, returnTo);
     return finalize(NextResponse.redirect(url));
   }
 

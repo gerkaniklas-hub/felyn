@@ -14,13 +14,16 @@ type ResendStatus = "idle" | "sending" | "sent" | "error";
 
 export function LoginForm({
   redirectTo = "/home",
+  returnTo = null,
   forgotPasswordHref = "/forgot-password",
 }: {
   redirectTo?: string;
+  /** A page to continue to after login (already checked by the page; re-checked by the action). */
+  returnTo?: string | null;
   /** Host login passes /host/forgot-password so the reset keeps the host journey. */
   forgotPasswordHref?: string;
 }) {
-  const loginWithRedirect = login.bind(null, redirectTo);
+  const loginWithRedirect = login.bind(null, redirectTo, returnTo);
   const [state, formAction, isPending] = useActionState(loginWithRedirect, initialState);
   const [resendStatus, setResendStatus] = useState<ResendStatus>("idle");
 

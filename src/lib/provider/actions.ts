@@ -2,6 +2,7 @@
 
 import { recalculateEstimatedTotal } from "@/lib/matching/booking-requests";
 import { PROVIDER_CANCEL_REASONS, CANCELLATION_NOTE_MAX_LENGTH, type CancelledBy, type CancelReason, type DeclineReason } from "@/lib/matching/booking-status";
+import { scheduleEmailDispatch } from "@/lib/email/dispatcher";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type ProviderItemActionResult = { ok: true } | { ok: false; error: string };
@@ -42,6 +43,7 @@ export async function confirmBookingRequestItem(itemId: string): Promise<Provide
     return { ok: false, error: GENERIC_ERROR };
   }
 
+  scheduleEmailDispatch();
   return { ok: true };
 }
 
@@ -92,6 +94,7 @@ export async function declineBookingRequestItem(
     return { ok: false, error: GENERIC_ERROR };
   }
 
+  scheduleEmailDispatch();
   return { ok: true };
 }
 
@@ -155,6 +158,7 @@ export async function cancelBookingRequestItemAsProvider(
   }
 
   await recalculateEstimatedTotal(supabase, cancelData.booking_request_id);
+  scheduleEmailDispatch();
 
   return { ok: true };
 }

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { mobileStepHref } from "@/lib/contact/constants";
 import { getContactDetails } from "@/lib/contact/queries";
 import { JOURNEY_COOKIE, JOURNEY_COOKIE_OPTIONS, journeyForLoginDestination } from "@/lib/journey";
+import { safeReturnTo } from "@/lib/return-to";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type ActionState = {
@@ -33,9 +34,17 @@ const ALLOWED_REDIRECTS = new Set(["/home", "/provider", "/host/apply"]);
  *
  * An account without a mobile number (user_contact_details) continues via
  * /account/mobile first, which saves the one given at signup or asks for one.
+ *
+ * `returnTo` (also bound, also re-checked here) is the page a signed-out
+ * visitor originally opened, e.g. a booking from an email link. It is used
+ * only if safeReturnTo accepts it for THIS login's journey (guest pages for
+ * the guest login, /provider pages for the host login); the journey cookie
+ * is still decided by `redirectTo` alone. The mobile step keeps its own
+ * allow-list, so an account without a number lands on the usual page.
  */
 export async function login(
   redirectTo: string,
+  returnTo: string | null,
   _prevState: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
@@ -60,7 +69,9 @@ export async function login(
   }
 
   const destination = ALLOWED_REDIRECTS.has(redirectTo) ? redirectTo : "/home";
-  (await cookies()).set(JOURNEY_COOKIE, journeyForLoginDestination(destination), JOURNEY_COOKIE_OPTIONS);
+  const journey = journeyForLoginDestination(destination);
+  (await cookies()).set(JOURNEY_COOKIE, journey, JOURNEY_COOKIE_OPTIONS);
+  const finalDestination = safeReturnTo(returnTo, journey) ?? destination;
 
   let hasMobile = true;
   try {
@@ -68,5 +79,5 @@ export async function login(
   } catch {
     // A failed read must not block the login; /account/mobile is reached again on the next one.
   }
-  redirect(hasMobile ? destination : mobileStepHref(destination));
+  redirect(hasMobile ? finalDestination : mobileStepHref(destination));
 }

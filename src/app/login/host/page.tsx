@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Heading } from "@/components/ui/heading";
 import { Logo } from "@/components/ui/logo";
+import { RETURN_TO_PARAM, safeReturnTo } from "@/lib/return-to";
 import { LoginForm } from "../login-form";
 
 /**
@@ -13,7 +14,12 @@ import { LoginForm } from "../login-form";
  * /host/application, anyone else -> the application form. The journey
  * itself grants nothing.
  */
-export default function HostLoginPage() {
+export default async function HostLoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const returnTo = safeReturnTo((await searchParams)[RETURN_TO_PARAM], "host");
   return (
     <div className="relative flex flex-1 flex-col bg-navy-950">
       <Link
@@ -36,7 +42,7 @@ export default function HostLoginPage() {
             Log in to manage your experiences or check your host application.
           </p>
           <div className="mt-6">
-            <LoginForm redirectTo="/host/apply" forgotPasswordHref="/host/forgot-password" />
+            <LoginForm redirectTo="/host/apply" returnTo={returnTo} forgotPasswordHref="/host/forgot-password" />
           </div>
         </div>
         <p className="text-center text-sm text-sky-300">
