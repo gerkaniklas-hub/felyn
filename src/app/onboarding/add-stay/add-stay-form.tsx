@@ -12,7 +12,7 @@ import { saveStay, type ActionState } from "./actions";
 const initialState: ActionState = {};
 
 const pickerInputClass =
-  "h-11 w-full rounded-xl border border-ivory-400 bg-ivory-50 pr-4 pl-12 text-base text-navy-900 outline-none transition-colors placeholder:text-navy-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-100";
+  "h-11 w-full rounded-full border border-ivory-400 bg-ivory-50 pr-4 pl-12 text-base text-navy-900 outline-none transition-colors placeholder:text-navy-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-100";
 
 /**
  * The simplified Add a stay form: name (optional), canonical location,

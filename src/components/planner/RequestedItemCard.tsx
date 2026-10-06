@@ -19,8 +19,8 @@ import { FallbackImage } from "./FallbackImage";
 
 /** Tailwind classes per status — the whole card changes weight, not just a small badge (P1.4 §7). */
 const STATUS_CARD_CLASS: Record<PlanItemStatus, string> = {
-  CONFIRMED: "border-2 border-sky-500 bg-sky-50 shadow-sm",
-  REQUESTED: "border border-gold-300 bg-ivory-50",
+  CONFIRMED: "border border-sky-300 bg-sky-50 shadow-card",
+  REQUESTED: "border border-gold-300 bg-ivory-50 shadow-card",
   DRAFT: "border border-dashed border-sky-400 bg-ivory-50",
   DECLINED: "border border-ivory-300 bg-ivory-100",
   WITHDRAWN: "border border-ivory-200 bg-ivory-50 opacity-60",
@@ -111,7 +111,7 @@ export function RequestedItemCard({
   const hostFirstName = experience.provider.display_name.split(" ")[0];
 
   return (
-    <div className={`flex gap-4 rounded-2xl p-4 transition-colors ${STATUS_CARD_CLASS[status]}`}>
+    <div className={`flex gap-4 rounded-card p-4 transition-colors sm:p-5 ${STATUS_CARD_CLASS[status]}`}>
       <button type="button" onClick={onOpen} aria-label={`View ${experience.title}`} className="shrink-0 self-start">
         <FallbackImage
           src={experience.image_url}
@@ -122,7 +122,7 @@ export function RequestedItemCard({
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <button type="button" onClick={onOpen} className="min-w-0 text-left">
-            <p className={`truncate font-display text-lg ${isMuted ? "text-navy-500" : "text-navy-950"}`}>
+            <p className={`truncate font-display text-xl ${isMuted ? "text-navy-500" : "text-navy-950"}`}>
               {experience.title}
             </p>
           </button>
@@ -148,7 +148,7 @@ export function RequestedItemCard({
         ) : null}
 
         {conflict ? (
-          <p className="w-fit rounded-md bg-gold-100 px-2 py-1 text-xs font-medium text-gold-700">
+          <p className="w-fit rounded-full bg-gold-100 px-2.5 py-1 text-xs font-medium text-gold-700">
             ⚠ Same date &amp; moment as another experience
           </p>
         ) : null}

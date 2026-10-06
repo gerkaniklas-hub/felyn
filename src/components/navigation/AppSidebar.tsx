@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 import { logout } from "@/app/home/actions";
 import { Logo } from "@/components/ui/logo";
+import { navItemClass, navUtilityClass } from "./nav-styles";
 import {
   CalendarCheckIcon,
   CalendarIcon,
@@ -82,20 +83,16 @@ export function AppSidebar({
     </span>
   );
 
-  const logoutForm = (compact: boolean) => (
+  const logoutForm = (
     <form action={logout}>
       <button
         type="submit"
         aria-label="Log out"
         title="Log out"
-        className={
-          compact
-            ? "inline-flex h-9 w-9 items-center justify-center rounded-full text-navy-500 hover:bg-ivory-200 hover:text-navy-900"
-            : "flex h-10 w-full items-center justify-center gap-3 rounded-xl px-3 text-sm font-medium text-navy-500 transition-colors hover:bg-ivory-200 hover:text-navy-900 lg:justify-start"
-        }
+        className={navUtilityClass()}
       >
         <LogOutIcon className="h-5 w-5 shrink-0" />
-        {compact ? null : <span className="hidden lg:inline">Log out</span>}
+        <span className="hidden lg:inline">Log out</span>
       </button>
     </form>
   );
@@ -112,13 +109,13 @@ export function AppSidebar({
   return (
     <div data-app-nav="">
       {/* Tablet rail + desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-20 flex-col border-r border-ivory-300 bg-ivory-50 px-3 py-7 md:flex lg:w-64 lg:px-5">
-        <div className="flex justify-center px-0 lg:justify-start lg:px-3">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-20 flex-col border-r border-ivory-300 bg-ivory-50 px-3 py-6 md:flex lg:w-64 lg:px-4">
+        <div className="flex h-11 items-center justify-center px-0 lg:justify-start lg:px-3">
           <span className="hidden lg:inline">{logoBlock(fullLogo)}</span>
           <span className="lg:hidden">{logoBlock(railLogo)}</span>
         </div>
 
-        <nav aria-label={ariaLabel} className="mt-10 flex flex-col gap-1.5">
+        <nav aria-label={ariaLabel} className="mt-8 flex flex-col gap-1">
           {items.map((item) => {
             const Icon = ICONS[item.icon];
             const active = isActive(item, pathname);
@@ -128,9 +125,7 @@ export function AppSidebar({
                 href={item.href}
                 title={item.label}
                 aria-current={active ? "page" : undefined}
-                className={`flex h-11 items-center justify-center gap-3 rounded-xl px-3 text-[15px] font-medium transition-colors lg:justify-start ${
-                  active ? "bg-sky-50 text-sky-700" : "text-navy-600 hover:bg-ivory-200 hover:text-navy-950"
-                }`}
+                className={navItemClass(active)}
               >
                 <Icon className="h-5 w-5 shrink-0" />
                 <span className="sr-only lg:not-sr-only">{item.label}</span>
@@ -139,9 +134,9 @@ export function AppSidebar({
           })}
         </nav>
 
-        <div className="mt-auto flex flex-col items-center gap-1.5 border-t border-ivory-300 pt-4 lg:items-stretch">
+        <div className="mt-auto flex flex-col items-center gap-1 border-t border-ivory-300 pt-4 lg:items-stretch">
           {utilities}
-          {logoutForm(false)}
+          {logoutForm}
         </div>
       </aside>
 
@@ -151,7 +146,7 @@ export function AppSidebar({
           {logoBlock(<Logo size="sm" />)}
           <div className="flex items-center gap-1">
             {utilities}
-            {logoutForm(true)}
+            {logoutForm}
           </div>
         </div>
         <nav aria-label={ariaLabel} className={`flex justify-around pt-1 pb-2 ${items.length > 5 ? "px-1" : "gap-1 px-2"}`}>

@@ -7,6 +7,7 @@ import { ExperienceGallery } from "@/components/planner/ExperienceGallery";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
+import { Eyebrow, PageContainer, textLinkClass } from "@/components/ui/page";
 import { formatCurrency } from "@/lib/format";
 import {
   getCancelReasonLabel,
@@ -54,15 +55,15 @@ export default async function GuestExperienceDetailPage({
     return (
       <div className="flex flex-1 flex-col">
         <GuestNav notifications={<NotificationBell />} />
-        <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-          <Card className="mx-auto max-w-md text-center">
+        <PageContainer measure="reading">
+          <Card className="max-w-md">
             <Heading level={2}>Booking not found</Heading>
             <p className="mt-2 text-navy-500">This booking doesn&apos;t exist, or isn&apos;t yours to view.</p>
-            <Link href="/experiences" className="mt-3 inline-block text-sm font-medium text-sky-600 hover:text-sky-700">
+            <Link href="/experiences" className={`mt-4 inline-block ${textLinkClass}`}>
               ← Back to your experiences
             </Link>
           </Card>
-        </div>
+        </PageContainer>
       </div>
     );
   }
@@ -74,51 +75,58 @@ export default async function GuestExperienceDetailPage({
   return (
     <div className="flex flex-1 flex-col">
       <GuestNav notifications={<NotificationBell />} />
-      <div className="mx-auto w-full max-w-2xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        <Link href="/experiences" className="text-sm font-medium text-sky-600 hover:text-sky-700">
+      <PageContainer measure="reading">
+        <Link href="/experiences" className={`self-start ${textLinkClass}`}>
           ← Back to your experiences
         </Link>
 
-        <div className="mt-4 flex flex-col gap-6">
-          <ExperienceGallery images={item.experience?.gallery ?? []} title={item.experienceTitle} />
+        <div className="mt-6 flex flex-col gap-8">
+          {/* A container, so the photo frame widens with the reading column like it does in the detail panel. */}
+          <div className="@container">
+            <ExperienceGallery images={item.experience?.gallery ?? []} title={item.experienceTitle} />
+          </div>
 
           <div>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <Heading level={1}>{item.experienceTitle}</Heading>
-              <Badge tone={getItemStatusTone(item.status)}>{getItemStatusLabel(item.status)}</Badge>
+              <Badge tone={getItemStatusTone(item.status)} className="mt-2">
+                {getItemStatusLabel(item.status)}
+              </Badge>
             </div>
-            <p className="mt-1 text-navy-600">
+            <p className="mt-3 text-[15px] text-navy-600">
               Hosted by {item.providerDisplayName}
               {item.experience ? ` · ${humanizeCategory(item.experience.category)}` : ""}
             </p>
           </div>
 
           <Card>
-            <div className="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
               <div>
-                <p className="text-xs font-medium tracking-wide text-navy-300">DATE</p>
-                <p className="mt-1 text-navy-900">{formatDayLabel(item.plannedDate)}</p>
+                <Eyebrow>Date</Eyebrow>
+                <p className="mt-1.5 text-[15px] font-medium text-navy-900">{formatDayLabel(item.plannedDate)}</p>
               </div>
               <div>
-                <p className="text-xs font-medium tracking-wide text-navy-300">TIME</p>
-                <p className="mt-1 text-navy-900">{timeLabel}</p>
+                <Eyebrow>Time</Eyebrow>
+                <p className="mt-1.5 text-[15px] font-medium text-navy-900">{timeLabel}</p>
               </div>
               <div>
-                <p className="text-xs font-medium tracking-wide text-navy-300">GUESTS</p>
-                <p className="mt-1 text-navy-900">{item.guestCount}</p>
+                <Eyebrow>Guests</Eyebrow>
+                <p className="mt-1.5 text-[15px] font-medium text-navy-900">{item.guestCount}</p>
               </div>
               <div>
-                <p className="text-xs font-medium tracking-wide text-navy-300">
-                  {item.status === "CONFIRMED" ? "TOTAL" : "ESTIMATED TOTAL"}
-                </p>
-                <p className="mt-1 text-navy-900">{formatCurrency(total, item.currency)}</p>
+                <Eyebrow>{item.status === "CONFIRMED" ? "Total" : "Estimated total"}</Eyebrow>
+                <p className="mt-1.5 text-[15px] font-medium text-navy-900">{formatCurrency(total, item.currency)}</p>
               </div>
             </div>
-            <p className="mt-3 text-xs text-navy-400">{item.stayPropertyName ?? NO_TRIP_LINKED_LABEL}</p>
+            <p className="mt-5 border-t border-ivory-300 pt-4 text-sm text-navy-500">
+              {item.stayPropertyName ?? NO_TRIP_LINKED_LABEL}
+            </p>
           </Card>
 
           {item.experience?.description || item.experience?.shortDescription ? (
-            <p className="text-navy-700">{item.experience.description ?? item.experience.shortDescription}</p>
+            <p className="text-base leading-relaxed text-navy-700">
+              {item.experience.description ?? item.experience.shortDescription}
+            </p>
           ) : !item.experience ? (
             <p className="text-sm text-navy-400">
               This experience&apos;s full details are no longer available, but your booking record is preserved above.
@@ -159,7 +167,7 @@ export default async function GuestExperienceDetailPage({
 
           {item.status === "CONFIRMED" ? <CancelExperienceButton itemId={item.id} stayId={item.stayId ?? undefined} /> : null}
         </div>
-      </div>
+      </PageContainer>
     </div>
   );
 }

@@ -246,7 +246,7 @@ export function PhoneInput({
   const numberInvalid = Boolean(error) && errorField !== "country";
   const describedBy = message ? ids.message : undefined;
   const fieldClass =
-    "h-11 rounded-xl border bg-ivory-50 text-base text-navy-900 outline-none transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:opacity-50";
+    "h-11 rounded-full border bg-ivory-50 text-base text-navy-900 outline-none transition-colors focus:border-sky-500 focus:ring-2 focus:ring-sky-100 disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
     <div ref={containerRef} role="group" aria-labelledby={ids.label} className="flex flex-col gap-1.5">
@@ -268,7 +268,7 @@ export function PhoneInput({
             aria-controls={open ? ids.list : undefined}
             aria-label={selected ? `Country: ${selected.name}, +${selected.callingCode}. Change country` : "Choose your country"}
             aria-describedby={describedBy}
-            className={`${fieldClass} flex w-full shrink-0 items-center gap-2.5 px-3 text-left @md:w-60 ${
+            className={`${fieldClass} flex w-full shrink-0 items-center gap-2.5 px-4 text-left @md:w-60 ${
               countryInvalid ? "border-red-400" : "border-ivory-400"
             }`}
           >

@@ -50,17 +50,38 @@ export function PlanStatus({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-      <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-navy-500">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      {/* A small stepper: filled = done, ringed = where the plan is now, outlined = still to come. */}
+      <ol className="flex items-center gap-2 text-xs font-medium">
         {STEP_LABELS.map((label, i) => (
-          <span key={label} className="flex items-center gap-2">
-            {i > 0 ? <span className="text-navy-200">—</span> : null}
-            <span className={markers[i] === "pending" ? "text-navy-300" : "text-navy-900"}>
-              {markers[i] === "done" ? "✓" : markers[i] === "current" ? "●" : "○"} {label}
+          <li key={label} className="flex items-center gap-2">
+            {i > 0 ? (
+              <span
+                aria-hidden="true"
+                className={`h-px w-6 ${markers[i] === "pending" ? "bg-ivory-400" : "bg-navy-300"}`}
+              />
+            ) : null}
+            <span
+              aria-hidden="true"
+              className={`flex h-4 w-4 items-center justify-center rounded-full text-[9px] leading-none ${
+                markers[i] === "done"
+                  ? "bg-navy-900 text-ivory-50"
+                  : markers[i] === "current"
+                    ? "border-[1.5px] border-sky-600 bg-ivory-50"
+                    : "border border-ivory-400 bg-ivory-50"
+              }`}
+            >
+              {markers[i] === "done" ? "✓" : markers[i] === "current" ? <span className="h-1.5 w-1.5 rounded-full bg-sky-600" /> : null}
             </span>
-          </span>
+            <span className={markers[i] === "pending" ? "text-navy-400" : "text-navy-900"}>
+              {label}
+              <span className="sr-only">
+                {markers[i] === "done" ? " (done)" : markers[i] === "current" ? " (current step)" : ""}
+              </span>
+            </span>
+          </li>
         ))}
-      </div>
+      </ol>
       {caption ? <Badge tone={tone}>{caption}</Badge> : null}
     </div>
   );

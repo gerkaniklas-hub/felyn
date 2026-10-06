@@ -1,4 +1,5 @@
 import type { MatchedExperience } from "@/lib/matching/hard-filter";
+import { Eyebrow } from "@/components/ui/page";
 import { MarketplaceResultCard } from "./MarketplaceResultCard";
 
 export type ResultCardData = {
@@ -30,10 +31,10 @@ export function ExperienceResultList({
   if (recommended.length === 0 && moreIdeas.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-8">
       {recommended.length > 0 ? (
         <div className="flex flex-col gap-3">
-          <p className="text-xs font-medium tracking-wide text-navy-300">RECOMMENDED FOR YOU</p>
+          <Eyebrow>Recommended for you</Eyebrow>
           {recommended.map((card) => (
             <MarketplaceResultCard
               key={card.key}
@@ -50,7 +51,7 @@ export function ExperienceResultList({
 
       {moreIdeas.length > 0 ? (
         <div className="flex flex-col gap-3">
-          <p className="text-xs font-medium tracking-wide text-navy-300">MORE EXPERIENCES</p>
+          <Eyebrow>More experiences</Eyebrow>
           {moreIdeas.map((card) => (
             <MarketplaceResultCard
               key={card.key}

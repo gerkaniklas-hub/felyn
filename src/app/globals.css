@@ -18,9 +18,13 @@
   /* Navy — primary text and UI surfaces (~25-30%) */
   --color-navy-50: #eef1f5;
   --color-navy-100: #e3e7ed;
+  --color-navy-200: #c4ccd8;
   --color-navy-300: #9aa5b8;
+  --color-navy-400: #7a879e;
   --color-navy-500: #5c6b87;
+  --color-navy-600: #475570;
   --color-navy-700: #33415c;
+  --color-navy-800: #233049;
   --color-navy-900: #16233d;
   --color-navy-950: #0d1626;
 
@@ -44,6 +48,19 @@
   --color-gold-500: #d9a441;
   --color-gold-600: #b8813a;
   --color-gold-700: #96652f;
+
+  /* Shape — one small radius hierarchy for the whole app:
+     panel (page-level containers, hero, inbox frame) 24px > card 20px >
+     media/rows nested inside a padded card (Tailwind's rounded-xl, 12px).
+     Buttons, inputs, badges and avatars are always fully round. */
+  --radius-panel: 1.5rem;
+  --radius-card: 1.25rem;
+
+  /* Elevation — deliberately quiet. "card" barely lifts a surface off the
+     ivory page; "float" is for things that sit above it (popovers, sticky
+     bars, a hovered photo card). Modals keep shadow-xl. */
+  --shadow-card: 0 1px 2px rgb(22 35 61 / 0.04), 0 1px 1px rgb(22 35 61 / 0.02);
+  --shadow-float: 0 12px 32px -12px rgb(22 35 61 / 0.18), 0 2px 6px rgb(22 35 61 / 0.05);
 }
 
 /* Fonts are loaded via next/font/google in layout.tsx, which sets these as

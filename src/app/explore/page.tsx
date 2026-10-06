@@ -1,7 +1,7 @@
 import { ExploreView } from "@/components/explore/ExploreView";
 import { GuestNav } from "@/components/navigation/GuestNav";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { Heading } from "@/components/ui/heading";
+import { PageContainer, PageHeader } from "@/components/ui/page";
 import {
   getCanonicalLocations,
   getGuestStayOptions,
@@ -37,12 +37,12 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   return (
     <div className="flex flex-1 flex-col">
       <GuestNav notifications={<NotificationBell />} />
-      <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 md:py-12 lg:px-10">
-        <Heading level={1}>Explore experiences</Heading>
-        <p className="mt-2 max-w-xl text-navy-500">
-          Browse experiences from Felyn&apos;s hosts. Add a stay when you&apos;re ready to bring one to your trip.
-        </p>
-        <div className="mt-8">
+      <PageContainer>
+        <PageHeader
+          title="Explore experiences"
+          description={<>Browse experiences from Felyn&apos;s hosts. Add a stay when you&apos;re ready to bring one to your trip.</>}
+        />
+        <div className="mt-8 md:mt-10">
           <ExploreView
             experiences={experiences}
             serviceLocationsByProvider={serviceLocationsByProvider}
@@ -51,7 +51,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             initialLocationId={locations.some((location) => location.id === requestedLocationId) ? requestedLocationId : undefined}
           />
         </div>
-      </div>
+      </PageContainer>
     </div>
   );
 }

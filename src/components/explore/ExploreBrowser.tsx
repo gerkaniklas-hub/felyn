@@ -5,6 +5,7 @@ import { RequestExperienceModal } from "@/components/booking/RequestExperienceMo
 import { ExperienceCard } from "@/components/planner/ExperienceCard";
 import { ExperienceFocus } from "@/components/planner/ExperienceFocus";
 import { ProviderFocus } from "@/components/planner/ProviderFocus";
+import { EmptyState } from "@/components/ui/page";
 import { getProviderProfileAction } from "@/lib/matching/actions";
 import type { GuestStayOption } from "@/lib/matching/explore";
 import type { MatchedExperience } from "@/lib/matching/hard-filter";
@@ -57,12 +58,12 @@ export function ExploreBrowser({
   }
 
   if (experiences.length === 0) {
-    return <p className="text-navy-700">No experiences are available to browse yet.</p>;
+    return <EmptyState>No experiences are available to browse yet.</EmptyState>;
   }
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {experiences.map((experience) => (
           <ExperienceCard
             key={experience.id}
@@ -77,31 +78,35 @@ export function ExploreBrowser({
       </div>
 
       {focus.type !== "none" && focusedExperience ? (
-        <div className="fixed inset-0 z-40 overflow-y-auto bg-ivory-100 p-4">
-          <ExperienceFocus
-            recommendation={{ experience: focusedExperience, reason: "" }}
-            selected={false}
-            compact={focus.type === "provider"}
-            suggestedLabel={null}
-            plannedSlot={null}
-            plannableDates={[]}
-            locked
-            onChangeSlot={() => {}}
-            onToggleSelect={() => {}}
-            onOpenProvider={() => openProvider(focusedExperience.provider_id, focus.experienceId)}
-            onRequest={() => setRequestingId(focusedExperience.id)}
-            onClose={() => setFocus({ type: "none" })}
-          />
+        <div className="fixed inset-0 z-40 overflow-y-auto bg-ivory-100 p-4 sm:p-6 lg:p-10">
+          <div className="mx-auto max-w-6xl">
+            <ExperienceFocus
+              recommendation={{ experience: focusedExperience, reason: "" }}
+              selected={false}
+              compact={focus.type === "provider"}
+              suggestedLabel={null}
+              plannedSlot={null}
+              plannableDates={[]}
+              locked
+              onChangeSlot={() => {}}
+              onToggleSelect={() => {}}
+              onOpenProvider={() => openProvider(focusedExperience.provider_id, focus.experienceId)}
+              onRequest={() => setRequestingId(focusedExperience.id)}
+              onClose={() => setFocus({ type: "none" })}
+            />
+          </div>
         </div>
       ) : null}
 
       {focus.type === "provider" ? (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-ivory-100 p-4">
-          <ProviderFocus
-            profile={providerProfiles[focus.providerId] ?? "loading"}
-            providerName={focusedExperience?.provider.display_name ?? ""}
-            onClose={closeProvider}
-          />
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-ivory-100 p-4 sm:p-6 lg:p-10">
+          <div className="mx-auto max-w-3xl">
+            <ProviderFocus
+              profile={providerProfiles[focus.providerId] ?? "loading"}
+              providerName={focusedExperience?.provider.display_name ?? ""}
+              onClose={closeProvider}
+            />
+          </div>
         </div>
       ) : null}
       {requestingExperience ? (

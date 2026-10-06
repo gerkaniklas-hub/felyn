@@ -9,7 +9,9 @@ import { ContactPhoneForm } from "@/components/profile/ContactPhoneForm";
 import { EmailChangeForm } from "@/components/profile/EmailChangeForm";
 import { PasswordChangeForm } from "@/components/profile/PasswordChangeForm";
 import { ProfileDetailsForm } from "@/components/profile/ProfileDetailsForm";
+import { cardSurface } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
+import { PageContainer, PageHeader } from "@/components/ui/page";
 import { getContactDetails } from "@/lib/contact/queries";
 import { formatPhoneNational } from "@/lib/phone";
 import { isFelynStaff } from "@/lib/support/staff";
@@ -66,20 +68,20 @@ export default async function GuestProfilePage() {
   return (
     <div className="flex flex-1 flex-col">
       <GuestNav notifications={<NotificationBell />} />
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 md:py-12 lg:px-10">
-        <Heading level={1}>Profile</Heading>
+      <PageContainer className="gap-8">
+        <PageHeader title="Profile" />
 
-        <div className="grid items-start gap-6 lg:grid-cols-[20rem_1fr]">
-          <aside className="flex flex-col gap-4 lg:sticky lg:top-8">
-            <div className="flex flex-col gap-5 rounded-3xl border border-ivory-300 bg-ivory-50 p-6 shadow-sm">
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,35fr)_minmax(0,65fr)] lg:gap-8">
+          <aside className="flex flex-col gap-4 lg:sticky lg:top-12">
+            <div className={`${cardSurface} flex flex-col gap-5 p-6`}>
               <AvatarEditor userId={user.id} initialSignedUrl={signedAvatarUrl} />
-              <div className="border-t border-ivory-300 pt-4">
-                <p className="font-display text-2xl text-navy-950">{fullName || "Your profile"}</p>
+              <div className="border-t border-ivory-300 pt-5">
+                <p className="font-display text-2xl leading-tight text-navy-950">{fullName || "Your profile"}</p>
                 {user.email ? <p className="mt-0.5 truncate text-sm text-navy-500">{user.email}</p> : null}
                 {completedCountError ? (
                   <p className="mt-3 text-sm text-navy-500">Completed experiences: unavailable right now.</p>
                 ) : (
-                  <p className="mt-3 flex items-center gap-1.5 text-sm font-medium text-navy-700">
+                  <p className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1.5 text-sm font-medium text-sky-700">
                     <span aria-hidden="true" className="text-sky-600">
                       ✓
                     </span>
@@ -91,7 +93,7 @@ export default async function GuestProfilePage() {
 
             <Link
               href="/trips"
-              className="flex items-center gap-3 rounded-3xl border border-ivory-300 bg-ivory-50 p-4 shadow-sm transition-colors hover:border-sky-300"
+              className={`${cardSurface} flex items-center gap-3 p-4 transition-[border-color,box-shadow] hover:border-ivory-400 hover:shadow-float`}
             >
               <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-600">
                 <SuitcaseIcon className="h-5 w-5" />
@@ -109,7 +111,7 @@ export default async function GuestProfilePage() {
             {isStaff ? (
               <Link
                 href="/admin/support"
-                className="flex items-center gap-3 rounded-3xl border border-ivory-300 bg-ivory-50 p-4 shadow-sm transition-colors hover:border-sky-300"
+                className={`${cardSurface} flex items-center gap-3 p-4 transition-[border-color,box-shadow] hover:border-ivory-400 hover:shadow-float`}
               >
                 <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy-900 font-display text-base text-ivory-50">
                   F<span className="text-gold-500">.</span>
@@ -151,16 +153,18 @@ export default async function GuestProfilePage() {
             </ProfileSection>
           </div>
         </div>
-      </div>
+      </PageContainer>
     </div>
   );
 }
 
 function ProfileSection({ title, description, children }: { title: string; description: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-5 rounded-3xl border border-ivory-300 bg-ivory-50 p-6 shadow-sm sm:p-8">
+    <section className={`${cardSurface} flex flex-col gap-6 p-6 sm:p-8`}>
       <div>
-        <h2 className="font-display text-xl font-medium tracking-tight text-navy-950">{title}</h2>
+        <Heading level={3} as="h2">
+          {title}
+        </Heading>
         <p className="mt-1 text-sm text-navy-500">{description}</p>
       </div>
       {children}

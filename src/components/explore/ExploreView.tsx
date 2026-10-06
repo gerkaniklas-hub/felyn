@@ -5,6 +5,7 @@ import { SearchIcon } from "@/components/navigation/icons";
 import { type Location, matchesLocation, normalizeText } from "@/lib/locations";
 import type { GuestStayOption } from "@/lib/matching/explore";
 import type { ExperienceCategory, MatchedExperience } from "@/lib/matching/hard-filter";
+import { EmptyState } from "@/components/ui/page";
 import { ExploreBrowser } from "./ExploreBrowser";
 import { LocationPicker } from "./LocationPicker";
 
@@ -82,7 +83,7 @@ export function ExploreView({
       {/* Phone: two stacked fields. Wider: one rounded bar split into "what" and "where". */}
       <div
         role="search"
-        className="flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center sm:gap-0 sm:rounded-full sm:border sm:border-ivory-300 sm:bg-ivory-50 sm:shadow-sm sm:focus-within:border-sky-300"
+        className="flex max-w-3xl flex-col gap-3 sm:flex-row sm:items-center sm:gap-0 sm:rounded-full sm:border sm:border-ivory-300 sm:bg-ivory-50 sm:shadow-card sm:transition-shadow sm:focus-within:border-sky-300 sm:focus-within:shadow-float"
       >
         <label className="relative block sm:flex-[1.4]">
           <span className="sr-only">Search experiences</span>
@@ -118,7 +119,7 @@ export function ExploreView({
               className={`h-10 shrink-0 rounded-full border px-4 text-sm font-medium transition-colors ${
                 active
                   ? "border-navy-900 bg-navy-900 text-ivory-50"
-                  : "border-ivory-300 bg-ivory-50 text-navy-700 hover:border-navy-300"
+                  : "border-ivory-300 bg-ivory-50 text-navy-700 hover:border-navy-200 hover:bg-ivory-200"
               }`}
             >
               {item.label}
@@ -140,9 +141,7 @@ export function ExploreView({
       </div>
 
       {filtered.length === 0 && experiences.length > 0 ? (
-        <p className="rounded-3xl border border-dashed border-ivory-400 bg-ivory-50 px-6 py-10 text-center text-sm text-navy-500">
-          No experiences match your search. Try a different place or clear a filter.
-        </p>
+        <EmptyState>No experiences match your search. Try a different place or clear a filter.</EmptyState>
       ) : (
         <ExploreBrowser experiences={filtered} stays={stays} />
       )}

@@ -180,22 +180,22 @@ export function GuestInbox({
   const anySelected = Boolean(selected || selectedSupport);
 
   return (
-    <div className="flex h-[calc(100dvh-6.75rem)] min-h-[26rem] overflow-hidden border-ivory-300 bg-ivory-50 md:h-[calc(100dvh-3rem)] md:rounded-3xl md:border md:shadow-sm">
+    <div className="flex h-[calc(100dvh-6.75rem)] min-h-[26rem] overflow-hidden border-ivory-300 bg-ivory-50 md:h-[min(calc(100dvh-4rem),46rem)] md:rounded-panel md:border md:shadow-card">
       {/* Conversation list */}
       <div
         className={`${anySelected ? "hidden md:flex" : "flex"} w-full min-w-0 flex-col border-ivory-300 md:w-72 md:shrink-0 md:border-r lg:w-96`}
       >
-        <div className="flex flex-col gap-4 px-4 pt-5 pb-3 sm:px-5">
-          <h1 className="font-display text-3xl font-medium tracking-tight text-navy-950">Messages</h1>
+        <div className="flex flex-col gap-4 px-4 pt-6 pb-4 sm:px-5">
+          <h1 className="font-display text-[2rem] leading-tight font-medium tracking-tight text-navy-950">Messages</h1>
           <label className="relative block">
             <span className="sr-only">Search conversations</span>
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-navy-300" />
+            <SearchIcon className="pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-navy-400" />
             <input
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search conversations"
-              className="h-10 w-full rounded-full border border-ivory-300 bg-ivory-100 pr-3 pl-10 text-sm text-navy-900 placeholder:text-navy-300 focus:border-sky-300 focus:outline-none"
+              className="h-11 w-full rounded-full border border-ivory-300 bg-ivory-100 pr-4 pl-11 text-sm text-navy-900 placeholder:text-navy-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 focus:outline-none"
             />
           </label>
         </div>
@@ -222,11 +222,11 @@ export function GuestInbox({
                         type="button"
                         onClick={() => selectSupport(s.threadId)}
                         aria-current={active ? "true" : undefined}
-                        className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors ${
-                          active ? "bg-sky-50" : "hover:bg-ivory-200"
+                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left transition-colors ${
+                          active ? "bg-sky-50 ring-1 ring-sky-100" : "hover:bg-ivory-100"
                         }`}
                       >
-                        <FelynTeamAvatar className="h-11 w-11" />
+                        <FelynTeamAvatar className="h-12 w-12 shrink-0" />
                         <span className="flex min-w-0 flex-1 flex-col">
                           <span className="flex items-baseline gap-2">
                             <span
@@ -280,14 +280,14 @@ export function GuestInbox({
                       type="button"
                       onClick={() => select(c.itemId)}
                       aria-current={active ? "true" : undefined}
-                      className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors ${
-                        active ? "bg-sky-50" : "hover:bg-ivory-200"
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left transition-colors ${
+                        active ? "bg-sky-50 ring-1 ring-sky-100" : "hover:bg-ivory-100"
                       }`}
                     >
                       <FallbackImage
                         src={c.otherParticipant.imageUrl}
                         alt={c.otherParticipant.label}
-                        className="h-11 w-11 shrink-0 rounded-full"
+                        className="h-12 w-12 shrink-0 rounded-full"
                       />
                       <span className="flex min-w-0 flex-1 flex-col">
                         <span className="flex items-baseline gap-2">
@@ -340,7 +340,7 @@ export function GuestInbox({
       <div className={`${anySelected ? "flex" : "hidden md:flex"} min-w-0 flex-1 flex-col bg-ivory-100/60`}>
         {selected && handle ? (
           <>
-            <div className="flex items-center gap-3 border-b border-ivory-300 bg-ivory-50 px-3 py-3 sm:px-5">
+            <div className="flex min-h-18 items-center gap-3 border-b border-ivory-300 bg-ivory-50 px-3 py-3 sm:px-6">
               <button
                 type="button"
                 onClick={clearSelection}
@@ -390,7 +390,7 @@ export function GuestInbox({
           </>
         ) : selectedSupport ? (
           <>
-            <div className="flex items-center gap-3 border-b border-ivory-300 bg-ivory-50 px-3 py-3 sm:px-5">
+            <div className="flex min-h-18 items-center gap-3 border-b border-ivory-300 bg-ivory-50 px-3 py-3 sm:px-6">
               <button
                 type="button"
                 onClick={clearSelection}
@@ -454,7 +454,7 @@ export function GuestInbox({
               Choose a conversation to read it and reply to your host.
             </p>
             {supportLinkUnavailable ? (
-              <p className="max-w-xs rounded-lg bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">
+              <p className="max-w-xs rounded-xl bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">
                 That conversation isn&apos;t available.
               </p>
             ) : null}

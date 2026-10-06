@@ -38,7 +38,7 @@ export function SupportConversationPanel({
       <Link href={backHref} className="text-sm font-medium text-sky-600 hover:text-sky-700">
         ← All conversations
       </Link>
-      <section className="flex h-[calc(100dvh-14rem)] min-h-[26rem] flex-col overflow-hidden rounded-3xl border border-ivory-300 bg-ivory-100/60 shadow-sm">
+      <section className="flex h-[calc(100dvh-14rem)] min-h-[26rem] flex-col overflow-hidden rounded-panel border border-ivory-300 bg-ivory-100/60 shadow-card">
         <div className="flex items-center gap-3 border-b border-ivory-300 bg-ivory-50 px-4 py-3 sm:px-5">
           <FelynTeamAvatar className="h-9 w-9 text-base" />
           <div className="flex min-w-0 flex-1 flex-col">

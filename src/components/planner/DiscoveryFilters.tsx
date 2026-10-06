@@ -119,7 +119,7 @@ export function DiscoveryFilters({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium tracking-wide text-navy-300">FILTER EXPERIENCES</p>
+        <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">FILTER EXPERIENCES</p>
         {active ? (
           <button type="button" onClick={onClear} className="text-xs font-medium text-sky-600 hover:text-sky-700">
             Clear filters

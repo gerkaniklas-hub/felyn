@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { GuestNav } from "@/components/navigation/GuestNav";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { StayPlanner } from "@/components/planner/StayPlanner";
+import { PageContainer } from "@/components/ui/page";
 import { getRecommendedExperiences, type RecommendedExperience } from "@/lib/matching/actions";
 import { getActiveBookingRequest } from "@/lib/matching/booking-requests";
 import { getHardFilteredExperiences } from "@/lib/matching/hard-filter";
@@ -99,25 +100,25 @@ export default async function RecommendationsPage({
   return (
     <div className="flex flex-1 flex-col">
       <GuestNav notifications={<NotificationBell />} />
-      <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-      <StayPlanner
-        stay={{
-          id: stay.id,
-          property_name: stay.property_name,
-          location_text: stay.location_text,
-          check_in: stay.check_in,
-          check_out: stay.check_out,
-          guest_count: stay.guest_count,
-        }}
-        recommendations={recommendations}
-        alternatives={alternatives}
-        timeline={timeline}
-        loadFailed={loadFailed}
-        activeRequest={activeRequest}
-        unreadMessageCounts={Object.fromEntries(unreadCountsByItem)}
-        exploreHref={stay.location_id ? `/explore?location=${encodeURIComponent(stay.location_id)}` : "/explore"}
-      />
-      </div>
+      <PageContainer>
+        <StayPlanner
+          stay={{
+            id: stay.id,
+            property_name: stay.property_name,
+            location_text: stay.location_text,
+            check_in: stay.check_in,
+            check_out: stay.check_out,
+            guest_count: stay.guest_count,
+          }}
+          recommendations={recommendations}
+          alternatives={alternatives}
+          timeline={timeline}
+          loadFailed={loadFailed}
+          activeRequest={activeRequest}
+          unreadMessageCounts={Object.fromEntries(unreadCountsByItem)}
+          exploreHref={stay.location_id ? `/explore?location=${encodeURIComponent(stay.location_id)}` : "/explore"}
+        />
+      </PageContainer>
     </div>
   );
 }

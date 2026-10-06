@@ -36,7 +36,8 @@ export default async function MessagesPage({
   return (
     <div className="flex flex-1 flex-col">
       <GuestNav notifications={<NotificationBell />} />
-      <div className="mx-auto w-full max-w-7xl flex-1 md:px-6 md:py-6 lg:px-8">
+      {/* Same width and gutters as PageContainer; the inbox fills the viewport height (see GuestInbox). */}
+      <div className="mx-auto w-full max-w-6xl flex-1 md:px-6 md:py-8 lg:px-12">
         <GuestInbox
           conversations={conversations}
           initialItemId={item}

@@ -39,11 +39,11 @@ export function ExperienceStatusGroups({
         const bucketItems = byStatus.get(status);
         if (!bucketItems || bucketItems.length === 0) return null;
         return (
-          <div key={status} className="flex flex-col gap-3">
-            <p className="text-xs font-medium tracking-wide text-navy-300 uppercase">
+          <div key={status} className="flex flex-col gap-4">
+            <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">
               {heading} ({bucketItems.length})
             </p>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
               {bucketItems.map((item) => (
                 <GuestExperienceRow key={item.id} item={item} showStay={showStay} />
               ))}

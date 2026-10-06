@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Eyebrow } from "@/components/ui/page";
 import { formatDateRange } from "@/lib/format";
 import { formatDayLabel, formatWeekdayShort } from "@/lib/matching/timeline";
 
@@ -113,22 +114,22 @@ export function StayDateStrip({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-          <p className="text-xs font-medium tracking-wide text-navy-300">YOUR STAY</p>
-          <p className="text-sm text-navy-700">
-            <span className="font-medium text-navy-900">{stay.location_text}</span> ·{" "}
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+        <div className="min-w-0">
+          <Eyebrow>Your stay</Eyebrow>
+          <p className="mt-1.5 font-display text-xl leading-snug text-navy-950">{stay.location_text}</p>
+          <p className="mt-0.5 text-sm text-navy-500">
             {formatDateRange(stay.check_in, stay.check_out)} · {stay.guest_count} guest
             {stay.guest_count === 1 ? "" : "s"}
           </p>
         </div>
-        <div className="flex shrink-0 gap-1.5">
+        <div className="flex shrink-0 gap-2">
           <button
             type="button"
             onClick={() => scrollByPage(-1)}
             disabled={!canScrollLeft}
             aria-label="Earlier dates"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-ivory-300 text-navy-700 hover:bg-ivory-200 disabled:cursor-not-allowed disabled:opacity-30"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-ivory-300 bg-ivory-50 text-navy-700 transition-colors hover:bg-ivory-200 disabled:cursor-not-allowed disabled:opacity-30"
           >
             ‹
           </button>
@@ -137,18 +138,19 @@ export function StayDateStrip({
             onClick={() => scrollByPage(1)}
             disabled={!canScrollRight}
             aria-label="Later dates"
-            className="flex h-8 w-8 items-center justify-center rounded-full border border-ivory-300 text-navy-700 hover:bg-ivory-200 disabled:cursor-not-allowed disabled:opacity-30"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-ivory-300 bg-ivory-50 text-navy-700 transition-colors hover:bg-ivory-200 disabled:cursor-not-allowed disabled:opacity-30"
           >
             ›
           </button>
         </div>
       </div>
 
+      {/* Bleeds to the card's edges (the planner wraps this strip in a p-5/sm:p-6 card) so chips scroll edge to edge. */}
       <div
         ref={scrollRef}
         role="group"
         aria-label="Stay dates"
-        className="no-scrollbar -mx-4 mt-3 flex snap-x gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0"
+        className="no-scrollbar -mx-5 mt-4 flex snap-x scroll-px-5 gap-2 overflow-x-auto px-5 pb-1 sm:-mx-6 sm:scroll-px-6 sm:px-6"
       >
         {dates.map((date) => {
           const isDeparture = date === lastDate && dates.length > 1;
@@ -192,7 +194,7 @@ export function StayDateStrip({
             return (
               <div
                 key={date}
-                className="w-[7.25rem] shrink-0 snap-start rounded-2xl border border-dashed border-ivory-300 bg-ivory-50/60 px-3 py-2.5"
+                className="w-[7.5rem] shrink-0 snap-start rounded-xl border border-dashed border-ivory-300 bg-ivory-100/60 px-3 py-3"
               >
                 {content}
               </div>
@@ -210,10 +212,10 @@ export function StayDateStrip({
               onClick={() => onSelect(date)}
               aria-pressed={selected}
               aria-current={selected ? "date" : undefined}
-              className={`w-[7.25rem] shrink-0 snap-start rounded-2xl border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 ${
+              className={`w-[7.5rem] shrink-0 snap-start rounded-xl border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 ${
                 selected
                   ? "border-navy-900 bg-navy-900 shadow-sm"
-                  : "border-ivory-300 bg-ivory-50 hover:border-sky-300"
+                  : "border-ivory-300 bg-ivory-50 hover:border-navy-200 hover:bg-ivory-100"
               }`}
             >
               {content}

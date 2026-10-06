@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { PageContainer } from "@/components/ui/page";
 
 /**
  * Shown while /recommendations' data (stay lookup + hard-filter + AI
@@ -8,7 +9,7 @@ import { Card } from "@/components/ui/card";
  */
 export default function RecommendationsLoading() {
   return (
-    <div className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
+    <PageContainer>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[30%_1fr]">
         <div className="flex flex-col gap-3">
           <div className="h-3 w-20 animate-pulse rounded bg-ivory-300" />
@@ -28,6 +29,6 @@ export default function RecommendationsLoading() {
           </div>
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }

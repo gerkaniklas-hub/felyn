@@ -35,7 +35,7 @@ export function CancelReasonForm({
       <select
         value={reason}
         onChange={(event) => setReason(event.target.value as CancelReason)}
-        className="h-11 rounded-xl border border-ivory-400 bg-ivory-50 px-3 text-sm text-navy-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+        className="h-11 rounded-full border border-ivory-400 bg-ivory-50 px-4 text-sm text-navy-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
       >
         {reasons.map((option) => (
           <option key={option.value} value={option.value}>
@@ -50,14 +50,14 @@ export function CancelReasonForm({
           onChange={(event) => setNote(event.target.value.slice(0, CANCELLATION_NOTE_MAX_LENGTH))}
           rows={3}
           maxLength={CANCELLATION_NOTE_MAX_LENGTH}
-          className="rounded-xl border border-ivory-400 bg-ivory-50 px-3 py-2 text-sm font-normal text-navy-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+          className="rounded-card border border-ivory-400 bg-ivory-50 px-3 py-2 text-sm font-normal text-navy-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
         />
         <span className="self-end text-xs font-normal text-navy-300">
           {note.length}/{CANCELLATION_NOTE_MAX_LENGTH}
         </span>
       </label>
       {error ? (
-        <p className="rounded-lg bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">{error}</p>
+        <p className="rounded-xl bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">{error}</p>
       ) : null}
       <div className="flex gap-2">
         <Button type="button" variant="secondary" className="flex-1" onClick={onCancel} disabled={pending}>

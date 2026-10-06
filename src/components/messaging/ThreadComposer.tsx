@@ -48,7 +48,7 @@ export function ThreadComposer({
           className={
             pane
               ? "max-h-40 min-h-11 flex-1 resize-none rounded-3xl border border-ivory-300 bg-ivory-100 px-4 py-2.5 text-sm text-navy-900 placeholder:text-navy-300 focus:border-sky-300 focus:outline-none"
-              : "flex-1 resize-none rounded-xl border border-ivory-400 bg-ivory-50 px-3 py-2 text-sm text-navy-900 placeholder:text-navy-300"
+              : "flex-1 resize-none rounded-card border border-ivory-400 bg-ivory-50 px-3 py-2 text-sm text-navy-900 placeholder:text-navy-300"
           }
         />
         <Button type="button" onClick={onSend} disabled={sending || draft.trim().length === 0}>

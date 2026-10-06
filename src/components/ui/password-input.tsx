@@ -20,12 +20,12 @@ export function PasswordInput({
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-sm font-medium text-navy-700">{label}</span>
-      <div className="flex items-center gap-2 rounded-xl border border-ivory-400 bg-ivory-50 pr-3 focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
+      <div className="flex items-center gap-2 rounded-full border border-ivory-400 bg-ivory-50 pr-4 focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
         <input
           id={inputId}
           name={name}
           type={visible ? "text" : "password"}
-          className={`h-11 flex-1 rounded-xl bg-transparent px-4 text-base text-navy-900 outline-none placeholder:text-navy-300 ${className}`}
+          className={`h-11 min-w-0 flex-1 rounded-full bg-transparent px-4 text-base text-navy-900 outline-none placeholder:text-navy-300 ${className}`}
           {...props}
         />
         <button

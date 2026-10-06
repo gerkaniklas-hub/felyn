@@ -74,10 +74,10 @@ function ReviewRow({
         <FallbackImage
           src={experience.image_url}
           alt={experience.title}
-          className={`h-16 w-16 shrink-0 rounded-lg ${isMuted ? "opacity-60" : ""}`}
+          className={`h-16 w-16 shrink-0 rounded-xl ${isMuted ? "opacity-60" : ""}`}
         />
         <div className="min-w-0">
-          <p className="text-xs font-medium tracking-wide text-navy-300">
+          <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">
             {formatDayLabel(item.slot.date)} · {getPlannedMomentLabel(item.slot.moment)}
             {item.preferredTime ? ` · prefers ${item.preferredTime}` : ""}
           </p>
@@ -97,7 +97,7 @@ function ReviewRow({
             <p className="mt-1 line-clamp-2 break-words text-sm text-navy-500">Note: {item.hostNote}</p>
           ) : null}
           {conflict ? (
-            <p className="mt-1.5 w-fit rounded-md bg-gold-100 px-2 py-1 text-xs font-medium text-gold-700">
+            <p className="mt-1.5 w-fit rounded-full bg-gold-100 px-2.5 py-1 text-xs font-medium text-gold-700">
               ⚠ Same date &amp; moment as another experience
             </p>
           ) : null}
@@ -215,7 +215,7 @@ export function PlanReview({
   if (submission.status === "success") {
     return (
       <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-navy-950/40 p-4 py-8 sm:py-12">
-        <div className="w-full max-w-lg rounded-2xl border border-ivory-300 bg-ivory-50 p-6 shadow-xl sm:p-8">
+        <div className="w-full max-w-lg rounded-card border border-ivory-300 bg-ivory-50 p-6 shadow-xl sm:p-8">
           <div className="flex flex-col items-center gap-3 py-6 text-center">
             <Heading level={2}>
               {submission.addedToExistingRequest ? "Added to your request" : "Your request is on its way"}
@@ -252,7 +252,7 @@ export function PlanReview({
   if (activeRequest && (withdraw.status === "confirming" || withdraw.status === "withdrawing" || withdraw.status === "error")) {
     return (
       <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-navy-950/40 p-4 py-8 sm:py-12">
-        <div className="w-full max-w-md rounded-2xl border border-ivory-300 bg-ivory-50 p-6 shadow-xl sm:p-8">
+        <div className="w-full max-w-md rounded-card border border-ivory-300 bg-ivory-50 p-6 shadow-xl sm:p-8">
           <div className="flex flex-col items-center gap-3 py-4 text-center">
             <Heading level={3}>Withdraw this request?</Heading>
             <p className="text-navy-500">
@@ -260,7 +260,7 @@ export function PlanReview({
               submit a new request.
             </p>
             {withdraw.status === "error" ? (
-              <p className="w-full rounded-lg bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">
+              <p className="w-full rounded-xl bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">
                 {withdraw.message}
               </p>
             ) : null}
@@ -295,10 +295,10 @@ export function PlanReview({
 
   return (
     <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-navy-950/40 p-4 py-8 sm:py-12">
-      <div className="w-full max-w-2xl rounded-2xl border border-ivory-300 bg-ivory-50 p-6 shadow-xl sm:p-8">
+      <div className="w-full max-w-2xl rounded-card border border-ivory-300 bg-ivory-50 p-6 shadow-xl sm:p-8">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-medium tracking-wide text-navy-300">YOUR FELYN PLAN</p>
+            <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">YOUR FELYN PLAN</p>
             <Heading level={2} className="mt-1">
               {stay.property_name}
             </Heading>
@@ -330,7 +330,7 @@ export function PlanReview({
 
         {drafts.length > 0 ? (
           <section className="mt-6">
-            <p className="text-xs font-medium tracking-wide text-navy-300">
+            <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">
               {activeRequest ? "NEW — NOT YET REQUESTED" : "READY TO REQUEST"}
             </p>
             <div className="mt-1 flex flex-col divide-y divide-ivory-300 border-y border-ivory-300">
@@ -355,7 +355,7 @@ export function PlanReview({
 
         {requested.length > 0 ? (
           <section className="mt-6">
-            <p className="text-xs font-medium tracking-wide text-navy-300">YOUR REQUEST</p>
+            <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">YOUR REQUEST</p>
             <div className="mt-1 flex flex-col divide-y divide-ivory-300 border-y border-ivory-300">
               {requested.map((item) => (
                 <ReviewRow key={item.selectionId} item={item} currency={currency} conflict={conflictingIds.has(item.selectionId)}>
@@ -372,7 +372,7 @@ export function PlanReview({
 
         {history.length > 0 ? (
           <section className="mt-6">
-            <p className="text-xs font-medium tracking-wide text-navy-300">DECLINED &amp; WITHDRAWN</p>
+            <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">DECLINED &amp; WITHDRAWN</p>
             <div className="mt-1 flex flex-col divide-y divide-ivory-300 border-y border-ivory-300">
               {history.map((item) => (
                 <ReviewRow key={item.selectionId} item={item} currency={currency}>
@@ -386,14 +386,14 @@ export function PlanReview({
         ) : null}
 
         {hasConflicts ? (
-          <p className="mt-4 rounded-lg bg-gold-100 px-3 py-2 text-center text-sm font-medium text-gold-700 sm:text-left">
+          <p className="mt-4 rounded-xl bg-gold-100 px-3 py-2 text-center text-sm font-medium text-gold-700 sm:text-left">
             ⚠ Two or more experiences share the same date and moment. Remove one or change its time of day before
             requesting.
           </p>
         ) : null}
 
         {submission.status === "error" ? (
-          <p className="mt-4 rounded-lg bg-gold-100 px-3 py-2 text-center text-sm font-medium text-gold-700 sm:text-left">
+          <p className="mt-4 rounded-xl bg-gold-100 px-3 py-2 text-center text-sm font-medium text-gold-700 sm:text-left">
             {submission.message}
           </p>
         ) : null}

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { BellIcon } from "@/components/navigation/icons";
+import { navUtilityClass } from "@/components/navigation/nav-styles";
 import { markAllNotificationsRead, markNotificationRead } from "@/app/notifications/actions";
 import { getNotificationHref, type Notification } from "@/lib/notifications";
 
@@ -65,7 +66,7 @@ export function NotificationBellClient({
         onClick={() => setOpen((value) => !value)}
         aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications"}
         title="Notifications"
-        className="relative inline-flex h-9 w-9 items-center justify-center gap-3 rounded-full text-navy-500 transition-colors hover:bg-ivory-200 hover:text-navy-900 md:h-10 md:rounded-xl lg:w-full lg:justify-start lg:px-3 lg:text-sm lg:font-medium"
+        className={navUtilityClass(open)}
       >
         <span className="relative shrink-0">
           <BellIcon className="h-5 w-5" />
@@ -86,9 +87,9 @@ export function NotificationBellClient({
             onClick={() => setOpen(false)}
             className="fixed inset-0 z-40 cursor-default"
           />
-          <div className="absolute right-0 z-50 mt-2 w-80 max-w-[90vw] rounded-2xl md:right-auto md:bottom-full md:left-0 md:mt-0 md:mb-2 border border-ivory-300 bg-ivory-50 p-3 shadow-xl">
+          <div className="absolute right-0 z-50 mt-2 w-80 max-w-[90vw] rounded-card border border-ivory-300 bg-ivory-50 p-3 shadow-float md:right-auto md:bottom-full md:left-0 md:mt-0 md:mb-2">
             <div className="flex items-center justify-between px-1 pb-2">
-              <p className="text-xs font-medium tracking-wide text-navy-300">NOTIFICATIONS</p>
+              <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">Notifications</p>
               {unreadCount > 0 ? (
                 <button
                   type="button"

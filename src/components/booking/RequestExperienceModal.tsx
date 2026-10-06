@@ -117,7 +117,7 @@ export function RequestExperienceModal({
       <div className="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-y-auto rounded-t-3xl bg-ivory-50 p-6 shadow-xl sm:rounded-3xl sm:p-8">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-medium tracking-wide text-navy-300 uppercase">Request experience</p>
+            <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">Request experience</p>
             <h2 id="request-title" className="mt-1 font-display text-2xl text-navy-950">
               {experience.title}
             </h2>
@@ -129,7 +129,7 @@ export function RequestExperienceModal({
         </div>
 
         {!firstAvailableDate ? (
-          <p className="mt-6 rounded-2xl bg-ivory-200 px-4 py-4 text-sm text-navy-700">
+          <p className="mt-6 rounded-xl bg-ivory-100 px-4 py-4 text-sm text-navy-700">
             This experience has no available dates right now. Please check back later.
           </p>
         ) : (
@@ -141,7 +141,7 @@ export function RequestExperienceModal({
                 min={today}
                 value={date}
                 onChange={(event) => chooseDate(event.target.value)}
-                className="h-11 rounded-xl border border-ivory-400 bg-ivory-50 px-4 text-base text-navy-900"
+                className="h-11 rounded-full border border-ivory-400 bg-ivory-50 px-4 text-base text-navy-900"
               />
               {date && !dateAvailable ? (
                 <span className="text-sm text-red-600">Not available on {formatDayLabel(date)}. Choose another date.</span>
@@ -181,7 +181,7 @@ export function RequestExperienceModal({
                 <select
                   value={preferredTime}
                   onChange={(event) => setPreferredTime(event.target.value)}
-                  className="h-11 rounded-xl border border-ivory-400 bg-ivory-50 px-3 text-sm text-navy-900"
+                  className="h-11 rounded-full border border-ivory-400 bg-ivory-50 px-4 text-sm text-navy-900"
                 >
                   <option value="">No preference</option>
                   {timeOptions.map((time) => (
@@ -202,7 +202,7 @@ export function RequestExperienceModal({
                 max={range.max}
                 value={guests}
                 onChange={(event) => setGuests(event.target.value)}
-                className="h-11 rounded-xl border border-ivory-400 bg-ivory-50 px-4 text-base text-navy-900"
+                className="h-11 rounded-full border border-ivory-400 bg-ivory-50 px-4 text-base text-navy-900"
               />
               <span className="text-xs text-navy-500">
                 {range.min === range.max ? `${range.min} guests` : `${range.min}–${range.max} guests`}
@@ -217,7 +217,7 @@ export function RequestExperienceModal({
                 onChange={(event) => setNote(event.target.value.slice(0, HOST_NOTE_MAX_LENGTH))}
                 rows={3}
                 placeholder="Anything the host should know?"
-                className="resize-none rounded-xl border border-ivory-400 bg-ivory-50 px-4 py-2.5 text-sm text-navy-900 placeholder:text-navy-300"
+                className="resize-none rounded-card border border-ivory-400 bg-ivory-50 px-4 py-2.5 text-sm text-navy-900 placeholder:text-navy-300"
               />
               <span className="self-end text-xs text-navy-300">
                 {note.length}/{HOST_NOTE_MAX_LENGTH}

@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card } from "@/components/ui/card";
+import { Card, cardSurface } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
+import { Eyebrow, textLinkClass } from "@/components/ui/page";
 import { Button } from "@/components/ui/button";
 import { getProviderProfileAction, type RecommendedExperience } from "@/lib/matching/actions";
 import {
@@ -463,8 +464,18 @@ export function StayPlanner({
 
   const focusView =
     focus.type !== "none" && focusedRecommendation ? (
-      <div className={`grid grid-cols-1 gap-6 ${focus.type === "provider" ? "lg:grid-cols-2" : "lg:mx-auto lg:max-w-3xl"}`}>
-        <div className="fixed inset-0 z-40 overflow-y-auto bg-ivory-100 p-4 lg:static lg:inset-auto lg:z-auto lg:bg-transparent lg:p-0">
+      // With a host open, the host profile is the page's subject (wide, left) and the
+      // experience that led there shrinks to a slim summary beside it (right).
+      <div
+        className={`grid grid-cols-1 gap-6 lg:mx-auto lg:w-full lg:max-w-5xl ${
+          focus.type === "provider" ? "lg:grid-cols-[minmax(0,1fr)_17rem] lg:items-start" : ""
+        }`}
+      >
+        <div
+          className={`fixed inset-0 z-40 overflow-y-auto bg-ivory-100 p-4 lg:inset-auto lg:z-auto lg:bg-transparent lg:p-0 ${
+            focus.type === "provider" ? "lg:sticky lg:top-12 lg:col-start-2 lg:row-start-1" : "lg:static"
+          }`}
+        >
           <ExperienceFocus
             recommendation={focusedRecommendation}
             compact={focus.type === "provider"}
@@ -476,7 +487,7 @@ export function StayPlanner({
           />
         </div>
         {focus.type === "provider" ? (
-          <div className="fixed inset-0 z-50 overflow-y-auto bg-ivory-100 p-4 lg:static lg:inset-auto lg:z-auto lg:bg-transparent lg:p-0">
+          <div className="fixed inset-0 z-50 overflow-y-auto bg-ivory-100 p-4 lg:static lg:inset-auto lg:z-auto lg:col-start-1 lg:row-start-1 lg:bg-transparent lg:p-0">
             <ProviderFocus
               profile={providerProfiles[focus.providerId] ?? "loading"}
               providerName={focusedRecommendation.experience.provider.display_name}
@@ -490,26 +501,26 @@ export function StayPlanner({
   return (
     <div className="relative">
       {focusView ?? (
-        <div className="flex max-w-4xl flex-col gap-6 pb-28">
-          <div>
-            <p className="text-xs font-medium tracking-wide text-navy-300">YOUR FELYN PLAN</p>
-            <div className="mt-2">
+        <div className="flex flex-col gap-10">
+          <header>
+            <Eyebrow>Your Felyn plan</Eyebrow>
+            <div className="mt-3">
               <PlanStatus
                 stage={activeRequest?.status ?? "plan"}
                 itemStatuses={activeRequest?.items.map((item) => item.status)}
               />
             </div>
-            <Heading level={2} className="mt-3">
+            <Heading level={1} className="mt-4">
               {activeRequest ? "Your plan, and what’s next." : "Bring something special to the table."}
             </Heading>
-            <p className="mt-2 max-w-xl text-navy-500">
+            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-navy-500">
               Pick a date and a time of day, see what&apos;s available, and add experiences one at a time
               {activeRequest ? " — your requested ones stay exactly as they are." : "."}
             </p>
-            <Link href={exploreHref} className="mt-3 inline-block text-sm font-medium text-sky-600 hover:text-sky-700">
+            <Link href={exploreHref} className={`mt-4 inline-block ${textLinkClass}`}>
               Find more experiences in Explore →
             </Link>
-          </div>
+          </header>
 
           {loadFailed ? (
             <Card className="max-w-md text-center">
@@ -517,23 +528,28 @@ export function StayPlanner({
             </Card>
           ) : (
             <>
-              <StayDateStrip
-                stay={stay}
-                dates={dates}
-                selectedDate={selectedDate}
-                summaries={dateSummaries}
-                onSelect={setSelectedDate}
-              />
+              {/* Your stay → the chosen date → the chosen moment, read as one itinerary control. */}
+              <div className={`${cardSurface} flex flex-col gap-6 p-5 sm:p-6`}>
+                <StayDateStrip
+                  stay={stay}
+                  dates={dates}
+                  selectedDate={selectedDate}
+                  summaries={dateSummaries}
+                  onSelect={setSelectedDate}
+                />
 
-              <MomentTabs
-                date={selectedDate}
-                selected={selectedMoment}
-                occupied={occupiedMoments}
-                onSelect={setSelectedMoment}
-              />
+                <div className="border-t border-ivory-300 pt-6">
+                  <MomentTabs
+                    date={selectedDate}
+                    selected={selectedMoment}
+                    occupied={occupiedMoments}
+                    onSelect={setSelectedMoment}
+                  />
+                </div>
+              </div>
 
               <section id="slot-plan" aria-label={`Your plan for ${slotLabel}`} className="scroll-mt-6">
-                <p className="mb-2 text-xs font-medium tracking-wide text-navy-300">YOUR PLAN · {slotLabel.toUpperCase()}</p>
+                <Eyebrow className="mb-3">Your plan · {slotLabel}</Eyebrow>
                 <div className="flex flex-col gap-3">
                   {[...slotOccupying, ...slotDeclined].map((item) => (
                     <RequestedItemCard
@@ -561,12 +577,12 @@ export function StayPlanner({
                     />
                   ))}
                   {slotOccupying.length === 0 && slotDeclined.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-ivory-300 bg-ivory-50/60 px-5 py-5 text-center">
-                      <p className="text-navy-500">Nothing planned yet.</p>
+                    <div className="flex flex-col items-center gap-1 rounded-card border border-dashed border-ivory-400 bg-ivory-50/70 px-5 py-6 text-center sm:flex-row sm:justify-between sm:px-6 sm:py-4 sm:text-left">
+                      <p className="text-[15px] text-navy-500">Nothing planned yet.</p>
                       <button
                         type="button"
                         onClick={() => exploreSlot(selectedDate, selectedMoment)}
-                        className="mt-1 h-11 text-sm font-medium text-sky-600 hover:text-sky-700"
+                        className="h-11 text-sm font-medium text-sky-600 hover:text-sky-700"
                       >
                         Explore experiences →
                       </button>
@@ -576,10 +592,8 @@ export function StayPlanner({
               </section>
 
               <section id="discover-results" aria-label={`Experiences for ${slotLabel}`} className="scroll-mt-6">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-xs font-medium tracking-wide text-navy-300">
-                    EXPERIENCES FOR {slotLabel.toUpperCase()}
-                  </p>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <Eyebrow>Experiences for {slotLabel}</Eyebrow>
                   <FilterDrawer
                     filters={filters}
                     onFiltersChange={setFilters}
@@ -699,7 +713,7 @@ export function StayPlanner({
 
       {slotConflict ? (
         <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-navy-950/40 p-4 py-16">
-          <div className="w-full max-w-sm rounded-2xl border border-ivory-300 bg-ivory-50 p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-card border border-ivory-300 bg-ivory-50 p-6 shadow-xl">
             <Heading level={3}>You already have something planned</Heading>
             <p className="mt-2 text-navy-700">
               You already have {slotConflict.occupyingTitle} planned for {formatDayLabel(slotConflict.date)} in the{" "}
@@ -727,7 +741,7 @@ export function StayPlanner({
 
       {withdrawItemState.status !== "idle" ? (
         <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-navy-950/40 p-4 py-16">
-          <div className="w-full max-w-sm rounded-2xl border border-ivory-300 bg-ivory-50 p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-card border border-ivory-300 bg-ivory-50 p-6 shadow-xl">
             <Heading level={3}>Withdraw this request?</Heading>
             {withdrawingItem ? (
               <div className="mt-3 rounded-xl border border-ivory-300 bg-ivory-100 p-3 text-sm">
@@ -741,7 +755,7 @@ export function StayPlanner({
               This experience will be withdrawn, and you can choose something else for that time.
             </p>
             {withdrawItemState.status === "error" ? (
-              <p className="mt-3 rounded-lg bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">
+              <p className="mt-3 rounded-xl bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">
                 {withdrawItemState.message}
               </p>
             ) : null}

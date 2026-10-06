@@ -45,7 +45,7 @@ export function CancelExperienceButton({ itemId, stayId }: { itemId: string; sta
   if (state.status === "success") {
     return (
       <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-navy-950/40 p-4 py-16">
-        <div className="w-full max-w-sm rounded-2xl border border-ivory-300 bg-ivory-50 p-6 text-center shadow-xl">
+        <div className="w-full max-w-sm rounded-card border border-ivory-300 bg-ivory-50 p-6 text-center shadow-xl">
           <Heading level={3}>Your cancellation is confirmed.</Heading>
           <p className="mt-3 text-sm text-navy-600">
             Your experience has been cancelled. You can explore other experiences for your stay.

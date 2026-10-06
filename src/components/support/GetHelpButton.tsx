@@ -59,7 +59,7 @@ export function GetHelpButton({
           <div className="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-y-auto rounded-t-3xl bg-ivory-50 p-6 shadow-xl sm:rounded-3xl sm:p-8">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-medium tracking-wide text-navy-300 uppercase">Talk to Felyn</p>
+                <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">Talk to Felyn</p>
                 <h2 id="get-help-title" className="mt-1 font-display text-2xl text-navy-950">
                   Get help with this booking
                 </h2>
@@ -76,7 +76,7 @@ export function GetHelpButton({
               </button>
             </div>
 
-            <div className="mt-5 rounded-2xl border border-ivory-300 bg-ivory-100 px-4 py-3">
+            <div className="mt-5 rounded-xl border border-ivory-300 bg-ivory-100 px-4 py-3">
               <p className="font-medium text-navy-900">{booking.experienceTitle}</p>
               <p className="mt-0.5 text-sm text-navy-500">
                 {booking.dateLabel} · {booking.timeLabel} · {booking.guestCount}{" "}

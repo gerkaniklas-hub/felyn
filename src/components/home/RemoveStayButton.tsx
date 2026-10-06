@@ -44,7 +44,7 @@ export function RemoveStayButton({
 
       {state.status !== "idle" ? (
         <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-navy-950/40 p-4 py-16">
-          <div className="w-full max-w-sm rounded-2xl border border-ivory-300 bg-ivory-50 p-6 shadow-xl">
+          <div className="w-full max-w-sm rounded-card border border-ivory-300 bg-ivory-50 p-6 shadow-xl">
             <Heading level={3}>Remove this stay?</Heading>
             <div className="mt-3 rounded-xl border border-ivory-300 bg-ivory-100 p-3 text-sm">
               <p className="font-display text-base text-navy-950">{stay.property_name}</p>
@@ -57,7 +57,7 @@ export function RemoveStayButton({
               This will remove this stay and its saved preferences.
             </p>
             {state.status === "error" ? (
-              <p className="mt-3 rounded-lg bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">
+              <p className="mt-3 rounded-xl bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">
                 {state.message}
               </p>
             ) : null}

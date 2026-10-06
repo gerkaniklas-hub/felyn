@@ -112,11 +112,11 @@ export function ExperienceConfigModal({
         role="dialog"
         aria-modal="true"
         aria-label={`Configure ${experience.title}`}
-        className="flex max-h-[94dvh] w-full max-w-lg flex-col rounded-t-3xl border border-ivory-300 bg-ivory-50 shadow-xl sm:max-h-[90dvh] sm:rounded-2xl"
+        className="flex max-h-[94dvh] w-full max-w-lg flex-col rounded-t-3xl border border-ivory-300 bg-ivory-50 shadow-xl sm:max-h-[90dvh] sm:rounded-panel"
       >
         <div className="flex items-start justify-between gap-4 border-b border-ivory-300 px-5 py-4 sm:px-6">
           <div className="min-w-0">
-            <p className="text-xs font-medium tracking-wide text-navy-300">
+            <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">
               {mode === "edit" ? "EDIT YOUR PLAN" : "ADD TO YOUR PLAN"}
             </p>
             <Heading level={3} className="mt-1">
@@ -137,7 +137,7 @@ export function ExperienceConfigModal({
 
         <div className="flex flex-1 flex-col gap-5 overflow-y-auto px-5 py-5 sm:px-6">
           {bookableDates.length === 0 ? (
-            <p className="rounded-lg bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">
+            <p className="rounded-xl bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">
               This experience isn&apos;t available on any date of your stay.
             </p>
           ) : null}
@@ -150,7 +150,7 @@ export function ExperienceConfigModal({
               id="config-date"
               value={config.date}
               onChange={(event) => changeDate(event.target.value)}
-              className="h-11 w-full rounded-xl border border-ivory-400 bg-ivory-50 px-3 text-base text-navy-900"
+              className="h-11 w-full rounded-full border border-ivory-400 bg-ivory-50 px-4 text-base text-navy-900"
             >
               {bookableDates.map((date) => (
                 <option key={date} value={date}>
@@ -209,7 +209,7 @@ export function ExperienceConfigModal({
               onChange={(event) =>
                 setConfig((prev) => ({ ...prev, preferredTime: event.target.value === "" ? null : event.target.value }))
               }
-              className="h-11 w-full rounded-xl border border-ivory-400 bg-ivory-50 px-3 text-base text-navy-900"
+              className="h-11 w-full rounded-full border border-ivory-400 bg-ivory-50 px-4 text-base text-navy-900"
             >
               <option value="">No preference</option>
               {(timeOptions ?? []).map((time) => (
@@ -265,7 +265,7 @@ export function ExperienceConfigModal({
               rows={3}
               onChange={(event) => setConfig((prev) => ({ ...prev, hostNote: event.target.value }))}
               placeholder="Anything the host should know? Dietary details, preferences or special requests..."
-              className="w-full resize-none rounded-xl border border-ivory-400 bg-ivory-50 px-3 py-2.5 text-base text-navy-900 placeholder:text-navy-300"
+              className="w-full resize-none rounded-card border border-ivory-400 bg-ivory-50 px-3 py-2.5 text-base text-navy-900 placeholder:text-navy-300"
             />
             <p className="mt-1 flex justify-between text-xs text-navy-500">
               <span>Only this host will see it.</span>

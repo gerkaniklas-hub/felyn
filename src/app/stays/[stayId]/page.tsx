@@ -5,8 +5,9 @@ import { GuestNav } from "@/components/navigation/GuestNav";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { FallbackImage } from "@/components/planner/FallbackImage";
 import { Badge } from "@/components/ui/badge";
+import { buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Heading } from "@/components/ui/heading";
+import { EmptyState, PageContainer, PageHeader } from "@/components/ui/page";
 import { formatCurrency, formatDateRange } from "@/lib/format";
 import { getActiveBookingRequest } from "@/lib/matching/booking-requests";
 import {
@@ -61,14 +62,13 @@ export default async function StayOverviewPage({
   return (
     <div className="flex flex-1 flex-col">
       <GuestNav notifications={<NotificationBell />} />
-      <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
-        <Card className="flex flex-col gap-4">
+      <PageContainer measure="reading" className="gap-8">
+        <PageHeader title={stay.property_name} description={stay.location_text} />
+        <Card className="flex flex-col gap-5">
           <div className="flex items-center gap-4">
             <FallbackImage src={null} alt={stay.property_name} className="h-20 w-20 shrink-0 rounded-xl" />
             <div className="min-w-0 flex-1">
-              <Heading level={2}>{stay.property_name}</Heading>
-              <p className="text-navy-600">{stay.location_text}</p>
-              <p className="text-sm text-navy-600">
+              <p className="text-[15px] font-medium text-navy-900">
                 {formatDateRange(stay.check_in, stay.check_out)} · {stay.guest_count} guest
                 {stay.guest_count === 1 ? "" : "s"}
               </p>
@@ -89,32 +89,32 @@ export default async function StayOverviewPage({
             <p className="text-sm text-navy-500">No experiences requested yet for this stay.</p>
           )}
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3 border-t border-ivory-300 pt-5">
             <Link
               href="/explore"
-              className="inline-flex h-9 items-center justify-center rounded-full bg-navy-900 px-4 text-sm font-medium text-ivory-50 hover:bg-navy-950"
+              className={buttonClasses({ size: "sm" })}
             >
               Discover experiences
             </Link>
             <Link
               href={`/recommendations?stay=${stay.id}`}
-              className="inline-flex h-9 items-center justify-center rounded-full border border-navy-300 px-4 text-sm font-medium text-navy-900 hover:bg-ivory-200"
+              className={buttonClasses({ variant: "secondary", size: "sm" })}
             >
               {activeRequest ? "Continue in planner" : "Open planner"}
             </Link>
           </div>
         </Card>
 
-        <div className="mt-8">
+        <div className="mt-2">
           {experiences.length === 0 ? (
-            <p className="text-sm text-navy-500">
+            <EmptyState>
               Nothing requested for this stay yet — discover experiences or open the planner above to get started.
-            </p>
+            </EmptyState>
           ) : (
             <ExperienceStatusGroups items={experiences} showStay={false} />
           )}
         </div>
-      </div>
+      </PageContainer>
     </div>
   );
 }

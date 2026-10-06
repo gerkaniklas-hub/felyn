@@ -72,7 +72,7 @@ export function ExperienceForm({ experience }: { experience: ExperienceFormValue
             name="category"
             defaultValue={experience?.category ?? ""}
             required
-            className="h-11 rounded-xl border border-ivory-400 bg-ivory-50 px-4 text-base text-navy-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+            className="h-11 rounded-full border border-ivory-400 bg-ivory-50 px-4 text-base text-navy-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
           >
             <option value="" disabled>
               Choose one

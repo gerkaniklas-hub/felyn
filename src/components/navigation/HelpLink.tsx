@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { HelpIcon } from "./icons";
+import { navUtilityClass } from "./nav-styles";
 
 /**
  * Help (Contact Felyn) in the navigation utilities, next to Log out — shared by the
@@ -17,9 +18,7 @@ export function HelpLink({ href }: { href: string }) {
       aria-label="Help"
       title="Help"
       aria-current={active ? "page" : undefined}
-      className={`inline-flex h-9 w-9 items-center justify-center gap-3 rounded-full transition-colors md:h-10 md:rounded-xl lg:w-full lg:justify-start lg:px-3 lg:text-sm lg:font-medium ${
-        active ? "bg-sky-50 text-sky-700" : "text-navy-500 hover:bg-ivory-200 hover:text-navy-900"
-      }`}
+      className={navUtilityClass(active)}
     >
       <HelpIcon className="h-5 w-5 shrink-0" />
       <span className="hidden lg:inline">Help</span>

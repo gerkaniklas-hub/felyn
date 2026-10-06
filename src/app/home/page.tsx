@@ -5,6 +5,9 @@ import { GuestNav } from "@/components/navigation/GuestNav";
 import { PlusIcon, SearchIcon } from "@/components/navigation/icons";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { FallbackImage } from "@/components/planner/FallbackImage";
+import { buttonClasses } from "@/components/ui/button";
+import { Heading } from "@/components/ui/heading";
+import { PageContainer, textLinkClass } from "@/components/ui/page";
 import { getGuestStayOptions, getPublishedExperiences } from "@/lib/matching/explore";
 import { isFelynStaff } from "@/lib/support/staff";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -47,26 +50,20 @@ export default async function HomePage() {
   return (
     <div className="flex flex-1 flex-col">
       <GuestNav notifications={<NotificationBell />} />
-      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-12 px-4 py-6 sm:px-6 md:py-10 lg:px-10">
-        <section className="relative overflow-hidden rounded-[2rem] border border-ivory-300 bg-gradient-to-br from-ivory-50 via-ivory-50 to-sky-50">
-          <div className="grid items-center gap-8 p-6 sm:p-10 lg:grid-cols-[1.1fr_0.9fr] lg:p-12">
-            <div className="flex flex-col gap-5">
-              <h1 className="font-display text-4xl leading-tight font-medium tracking-tight text-navy-950 sm:text-5xl">
+      <PageContainer className="gap-12 md:gap-16">
+        <section className="relative overflow-hidden rounded-panel border border-ivory-300 bg-gradient-to-br from-ivory-50 via-ivory-50 to-sky-50">
+          <div className="grid items-center gap-10 p-6 sm:p-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:p-14">
+            <div className="flex flex-col gap-6">
+              <Heading level="display">
                 {firstName ? `Good to see you again, ${firstName}` : "Good to see you again"}
-              </h1>
-              <p className="text-lg text-navy-500">Make more of the time together.</p>
+              </Heading>
+              <p className="max-w-md text-lg leading-relaxed text-navy-500">Make more of the time together.</p>
               <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-                <Link
-                  href="/explore"
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-navy-900 px-6 text-base font-medium text-ivory-50 transition-colors hover:bg-navy-950"
-                >
+                <Link href="/explore" className={buttonClasses({ size: "lg" })}>
                   <SearchIcon className="h-5 w-5" />
                   Find an experience
                 </Link>
-                <Link
-                  href="/onboarding/add-stay"
-                  className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-navy-300 bg-ivory-50 px-6 text-base font-medium text-navy-900 transition-colors hover:bg-ivory-200"
-                >
+                <Link href="/onboarding/add-stay" className={buttonClasses({ variant: "secondary", size: "lg" })}>
                   <PlusIcon className="h-5 w-5" />
                   Add a stay
                 </Link>
@@ -74,17 +71,17 @@ export default async function HomePage() {
             </div>
 
             {heroImages.length > 0 ? (
-              <div className="relative hidden h-72 lg:block" aria-hidden="true">
+              <div className="relative hidden aspect-[5/4] lg:block" aria-hidden="true">
                 <FallbackImage
                   src={heroImages[0]}
                   alt=""
-                  className="absolute top-0 right-0 h-60 w-[78%] rounded-3xl shadow-lg"
+                  className="absolute top-0 right-0 h-[82%] w-[80%] rounded-card shadow-float"
                 />
                 {heroImages[1] ? (
                   <FallbackImage
                     src={heroImages[1]}
                     alt=""
-                    className="absolute bottom-0 left-0 h-40 w-[48%] rounded-3xl border-4 border-ivory-50 shadow-lg"
+                    className="absolute bottom-0 left-0 aspect-[4/3] w-[46%] rounded-card border-4 border-ivory-50 shadow-float"
                   />
                 ) : null}
               </div>
@@ -92,21 +89,21 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section className="flex flex-col gap-5">
+        <section className="flex flex-col gap-6" aria-labelledby="home-discover">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <h2 className="font-display text-2xl font-medium tracking-tight text-navy-950 sm:text-3xl">
+              <Heading level={2} id="home-discover">
                 Experiences to discover
-              </h2>
-              <p className="mt-1 text-sm text-navy-500">Food and drink experiences from Felyn&apos;s hosts.</p>
+              </Heading>
+              <p className="mt-2 text-[15px] text-navy-500">Food and drink experiences from Felyn&apos;s hosts.</p>
             </div>
-            <Link href="/explore" className="shrink-0 text-sm font-medium text-sky-600 hover:text-sky-700">
+            <Link href="/explore" className={`shrink-0 ${textLinkClass}`}>
               See all →
             </Link>
           </div>
           <ExploreBrowser experiences={featured} stays={stays} />
         </section>
-      </div>
+      </PageContainer>
     </div>
   );
 }

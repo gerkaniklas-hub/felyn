@@ -86,7 +86,7 @@ export function FloatingChatWindow() {
       <div
         className={`${
           panelState === "open" ? "flex" : "hidden"
-        } h-full flex-col overflow-hidden border-ivory-300 bg-ivory-50 shadow-xl sm:h-[32rem] sm:rounded-2xl sm:border`}
+        } h-full flex-col overflow-hidden border-ivory-300 bg-ivory-50 shadow-xl sm:h-[32rem] sm:rounded-card sm:border`}
       >
         <div className="flex items-center gap-3 border-b border-ivory-300 bg-ivory-100 px-4 py-3">
           <div className="min-w-0 flex-1">

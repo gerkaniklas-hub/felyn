@@ -18,7 +18,7 @@ export function SupportConversationLinks({
   requesterRole: SupportRequesterRole;
 }) {
   return (
-    <ul className="flex flex-col divide-y divide-ivory-300 overflow-hidden rounded-2xl border border-ivory-300 bg-ivory-50">
+    <ul className="flex flex-col divide-y divide-ivory-300 overflow-hidden rounded-card border border-ivory-300 bg-ivory-50">
       {conversations.map((c) => {
         const unread = c.unreadCount > 0;
         const statusNote = getSupportStatusNote(c.status);

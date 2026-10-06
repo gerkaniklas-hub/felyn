@@ -33,9 +33,9 @@ export type PlanItem = {
 };
 
 /**
- * Persistent "Your Felyn plan" summary — stays on screen (bottom-right on
- * desktop, full-width on mobile) while the guest browses, so their plan is
- * never lost from view. Counts only items that still hold a slot
+ * "Your Felyn plan" summary at the end of the planner — counts what the guest
+ * has planned and opens the review. Sits in the page flow (never floating),
+ * so it never covers planner controls or experience cards. Counts only items that still hold a slot
  * (drafts, awaiting, confirmed) — declined/withdrawn ones are history.
  */
 export function PlanSummary({
@@ -56,16 +56,25 @@ export function PlanSummary({
   const active = items.filter((item) => isSlotOccupyingStatus(item.status));
   const draftCount = active.filter((item) => item.status === "DRAFT").length;
 
+  // Always in the normal page flow at the end of the planner, at every width:
+  // never docked or floating, so it can never sit over the date strip, the
+  // time-of-day control, a planned item's actions or an experience card.
+  // Once the plan holds anything it gets the raised (populated) surface.
+  const docked = items.length > 0;
+
   return (
-    <div className="fixed right-4 bottom-4 left-4 z-30 sm:right-6 sm:left-auto sm:w-80">
-      <div className="rounded-2xl border border-ivory-300 bg-ivory-50/95 shadow-lg backdrop-blur">
+    <div className="mt-8">
+      <div
+        className={`mx-auto max-w-3xl rounded-card border border-ivory-300 ${
+          docked ? "bg-ivory-50/95 shadow-float backdrop-blur" : "bg-ivory-50/70"
+        }`}
+      >
         {active.length > 0 && expanded ? (
-          <div className="max-h-64 overflow-y-auto border-b border-ivory-300 p-4">
-            <p className="mb-3 text-xs font-medium tracking-wide text-navy-300">YOUR FELYN PLAN</p>
+          <div className="max-h-64 overflow-y-auto border-b border-ivory-300 px-5 py-4">
             <ul className="flex flex-col gap-3">
               {active.map(({ selectionId, recommendation, slot, status, guestCount }) => (
                 <li key={selectionId}>
-                  <p className="text-xs text-navy-300">
+                  <p className="text-xs text-navy-400">
                     {formatDayLabel(slot.date)} · {getPlannedMomentLabel(slot.moment)} · {guestCount} guest
                     {guestCount === 1 ? "" : "s"}
                   </p>
@@ -79,31 +88,42 @@ export function PlanSummary({
           </div>
         ) : null}
 
-        <button
-          type="button"
-          onClick={() => active.length > 0 && setExpanded((v) => !v)}
-          className="flex w-full items-center justify-between gap-3 px-5 py-3.5 text-left"
-        >
-          <span className="text-sm text-navy-700">
-            {active.length === 0
-              ? "Add experiences to build your plan"
-              : `${active.length} experience${active.length === 1 ? "" : "s"} · ${formatCurrency(
-                  estimatedTotal,
-                  currency,
-                )} estimated total`}
-          </span>
-          {active.length > 0 ? <span className="shrink-0 text-navy-300">{expanded ? "▾" : "▴"}</span> : null}
-        </button>
+        {/* One compact row wherever the summary and button fit side by side; on a narrow
+            phone the button wraps under the summary instead of squeezing it. */}
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 sm:gap-6 sm:px-5 sm:py-4">
+          <button
+            type="button"
+            onClick={() => active.length > 0 && setExpanded((v) => !v)}
+            className={`flex min-w-0 flex-1 basis-56 items-center justify-between gap-3 text-left ${
+              active.length > 0 ? "" : "cursor-default"
+            }`}
+          >
+            <span className="min-w-0">
+              <span className="hidden text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase sm:block">
+                Your Felyn plan
+              </span>
+              <span className="block text-sm text-navy-700 sm:mt-0.5">
+                {active.length === 0
+                  ? "Add experiences to build your plan"
+                  : `${active.length} experience${active.length === 1 ? "" : "s"} · ${formatCurrency(
+                      estimatedTotal,
+                      currency,
+                    )} estimated total`}
+              </span>
+            </span>
+            {active.length > 0 ? <span className="shrink-0 text-navy-400">{expanded ? "▾" : "▴"}</span> : null}
+          </button>
 
-        {items.length > 0 ? (
-          <div className="flex flex-col gap-2 px-5 pb-4">
-            {hasConflicts ? (
-              <p className="text-xs font-medium text-gold-700">⚠ A scheduling conflict needs to be resolved</p>
-            ) : null}
-            <Button type="button" size="md" className="w-full" onClick={onReview}>
+          {items.length > 0 ? (
+            <Button type="button" size="sm" className="w-full shrink-0 min-[30rem]:w-auto" onClick={onReview}>
               {draftCount > 0 ? `Review & request (${draftCount} new)` : "View your plan"}
             </Button>
-          </div>
+          ) : null}
+        </div>
+        {items.length > 0 && hasConflicts ? (
+          <p className="-mt-1 px-4 pb-3 text-xs font-medium text-gold-700 sm:px-5">
+            ⚠ A scheduling conflict needs to be resolved
+          </p>
         ) : null}
       </div>
     </div>

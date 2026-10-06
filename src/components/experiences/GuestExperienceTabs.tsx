@@ -2,6 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  EmptyState,
+  segmentedCountClass,
+  segmentedTabClass,
+  segmentedTrackClass,
+} from "@/components/ui/page";
 import type { GuestExperienceItem } from "@/lib/matching/guest-experiences";
 import { GuestExperienceRow } from "./GuestExperienceRow";
 
@@ -65,11 +71,11 @@ export function GuestExperienceTabs({ items }: { items: GuestExperienceItem[] })
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <div
         role="tablist"
         aria-label="Your experiences"
-        className="inline-flex flex-wrap gap-1 self-start rounded-full border border-ivory-300 bg-ivory-50 p-1"
+        className={segmentedTrackClass}
       >
         {tabs.map((tab) => (
           <button
@@ -78,12 +84,10 @@ export function GuestExperienceTabs({ items }: { items: GuestExperienceItem[] })
             role="tab"
             aria-selected={activeTab === tab.key}
             onClick={() => selectTab(tab.key)}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              activeTab === tab.key ? "bg-navy-900 text-ivory-50" : "text-navy-500 hover:text-navy-900"
-            }`}
+            className={segmentedTabClass(activeTab === tab.key)}
           >
             {tab.label}
-            <span className={`ml-1.5 text-xs ${activeTab === tab.key ? "text-ivory-200" : "text-navy-300"}`}>
+            <span className={segmentedCountClass(activeTab === tab.key)}>
               {tab.items.length}
             </span>
           </button>
@@ -91,16 +95,17 @@ export function GuestExperienceTabs({ items }: { items: GuestExperienceItem[] })
       </div>
 
       {active.items.length === 0 ? (
-        <p className="rounded-3xl border border-dashed border-ivory-400 bg-ivory-50 px-6 py-10 text-center text-sm text-navy-400">
+        <EmptyState>
           {activeTab === "upcoming"
             ? "Nothing upcoming yet."
             : activeTab === "past"
               ? "No past experiences yet."
               : "Nothing cancelled or declined."}
-        </p>
+        </EmptyState>
       ) : (
         <>
-          <div className="flex flex-col gap-3">
+          {/* Capped so the horizontal cards keep a comfortable density on wide screens. */}
+          <div className="flex max-w-4xl flex-col gap-4">
             {visibleItems.map((item) => (
               <GuestExperienceRow key={item.id} item={item} />
             ))}
@@ -110,7 +115,7 @@ export function GuestExperienceTabs({ items }: { items: GuestExperienceItem[] })
               type="button"
               variant="secondary"
               size="sm"
-              className="self-center"
+              className="self-start"
               onClick={() => setVisibleCount((v) => v + PAGE_SIZE)}
             >
               Show more ({active.items.length - visibleCount} more)

@@ -99,14 +99,14 @@ export function ContactFelynForm({
           }}
           rows={5}
           placeholder="Tell us what's going on — we'll reply here in Felyn."
-          className="resize-none rounded-xl border border-ivory-400 bg-ivory-50 px-4 py-3 text-sm text-navy-900 outline-none placeholder:text-navy-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+          className="resize-none rounded-card border border-ivory-400 bg-ivory-50 px-4 py-3 text-sm text-navy-900 outline-none placeholder:text-navy-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
         />
         <span className="self-end text-xs text-navy-300">
           {body.length}/{SUPPORT_MESSAGE_MAX_LENGTH}
         </span>
       </label>
 
-      {error ? <p className="rounded-lg bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">{error}</p> : null}
+      {error ? <p className="rounded-xl bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">{error}</p> : null}
 
       <div className="flex flex-col gap-2 sm:flex-row-reverse">
         <Button type="button" onClick={submit} disabled={sending} className="sm:flex-1">

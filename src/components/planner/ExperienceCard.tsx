@@ -52,7 +52,7 @@ export function ExperienceCard({
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={handleKeyDown}
-      className={`flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border bg-ivory-200 text-left shadow-sm transition-colors hover:border-sky-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 ${
+      className={`group flex h-full cursor-pointer flex-col overflow-hidden rounded-card border bg-ivory-50 text-left shadow-card transition-[border-color,box-shadow] duration-200 hover:border-ivory-400 hover:shadow-float focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 ${
         selected ? "border-sky-500 ring-1 ring-sky-500" : "border-ivory-300"
       }`}
     >
@@ -60,7 +60,11 @@ export function ExperienceCard({
           object-cover, so its own dimensions can never stretch the frame — as an in-flow flex child, a tall
           upload's intrinsic height used to push this box past 4:3. */}
       <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden">
-        <FallbackImage src={experience.image_url} alt={experience.title} className="absolute inset-0 h-full w-full" />
+        <FallbackImage
+          src={experience.image_url}
+          alt={experience.title}
+          className="absolute inset-0 h-full w-full transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+        />
         {!locked ? (
           <button
             type="button"
@@ -87,26 +91,30 @@ export function ExperienceCard({
           </span>
         ) : null}
       </div>
-      <div className={`flex flex-1 flex-col gap-2 ${compact ? "p-3.5" : "p-5"}`}>
+      <div className={`flex flex-1 flex-col ${compact ? "gap-2 p-3.5" : "gap-3 p-5"}`}>
         <div>
           {compact ? (
-            <p className="text-[11px] font-medium tracking-wide text-navy-300 uppercase">Other idea</p>
+            <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">Other idea</p>
           ) : null}
-          <p className={`font-display text-navy-950 ${compact ? "text-base" : "text-lg"}`}>
+          <p className={`font-display leading-snug text-navy-950 ${compact ? "text-base" : "text-xl"}`}>
             {experience.title}
           </p>
-          <p className={`text-navy-500 ${compact ? "text-xs" : "text-sm"}`}>
+          <p className={`mt-1 text-navy-500 ${compact ? "text-xs" : "text-sm"}`}>
             {experience.provider.display_name}
           </p>
         </div>
-        <p className={`font-medium text-navy-900 ${compact ? "text-xs" : "text-sm"}`}>
+        {!compact && experience.short_description ? (
+          <p className="line-clamp-2 min-h-[3.25em] text-sm leading-relaxed text-navy-600">{experience.short_description}</p>
+        ) : null}
+        <p
+          className={`font-medium text-navy-900 ${
+            compact ? "text-xs" : "mt-auto border-t border-ivory-200 pt-3 text-sm"
+          }`}
+        >
           {formatPrice(experience.price_per_person, experience.currency)}
         </p>
-        {!compact && experience.short_description ? (
-          <p className="line-clamp-2 text-sm text-navy-500">{experience.short_description}</p>
-        ) : null}
         {selected && conflict ? (
-          <p className="mt-auto rounded-md bg-gold-100 px-2 py-1 text-xs font-medium text-gold-700">
+          <p className="mt-auto rounded-full bg-gold-100 px-2.5 py-1 text-xs font-medium text-gold-700">
             ⚠ Scheduling conflict
           </p>
         ) : selected && plannedLabel ? (

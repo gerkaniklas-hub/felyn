@@ -135,7 +135,7 @@ export function LocationPicker({
           id={listId}
           role="listbox"
           aria-label="Locations"
-          className={`absolute top-full right-0 left-0 z-20 mt-2 max-h-80 overflow-y-auto rounded-2xl border border-ivory-300 bg-ivory-50 p-1.5 shadow-lg ${
+          className={`absolute top-full right-0 left-0 z-20 mt-2 max-h-80 overflow-y-auto rounded-card border border-ivory-300 bg-ivory-50 p-1.5 shadow-float ${
             stretchList ? "" : "sm:left-auto sm:w-[22rem]"
           }`}
         >
