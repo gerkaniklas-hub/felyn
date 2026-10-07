@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
+import { PageHeader, textLinkClass } from "@/components/ui/page";
 import { ProviderBookingCard } from "@/components/provider/ProviderBookingCard";
 import { RequestItemActions } from "@/components/provider/RequestItemActions";
 import { MessageLauncherButton } from "@/components/messaging/MessageLauncherButton";
@@ -65,10 +67,7 @@ export default async function ProviderRequestItemPage({
     return (
       <Card className="mx-auto max-w-md text-center">
         <p className="text-navy-700">This request doesn&apos;t exist, or it isn&apos;t one of your own experiences.</p>
-        <Link
-          href="/provider/requests"
-          className="mt-3 inline-block text-sm font-medium text-sky-600 hover:text-sky-700"
-        >
+        <Link href="/provider/requests" className={`mt-3 inline-block ${textLinkClass}`}>
           ← Back to requests
         </Link>
       </Card>
@@ -82,14 +81,15 @@ export default async function ProviderRequestItemPage({
   const messagingWindow = getMessagingWindowState(item.status, item.decidedAt, item.cancelledAt);
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
-      <Link href="/provider/requests" className="text-sm font-medium text-sky-600 hover:text-sky-700">
+    <div className="flex w-full max-w-3xl flex-col gap-6">
+      <Link href="/provider/requests" className={`self-start ${textLinkClass}`}>
         ← Back to requests
       </Link>
-      <Card className="flex flex-col gap-4">
+      <PageHeader eyebrow="Request" title={item.experienceTitle} />
+      <Card className="flex flex-col gap-5">
         <ProviderBookingCard item={item} linkable={false} bare />
         <p className="text-sm text-navy-400">Requested {formatDayLabel(item.requestedAt.slice(0, 10))}</p>
-        <div className="border-t border-ivory-300 pt-4">
+        <div className="border-t border-ivory-300 pt-5">
           <RequestItemActions
             itemId={item.itemId}
             status={item.status}
@@ -105,51 +105,57 @@ export default async function ProviderRequestItemPage({
         </div>
       </Card>
 
-      <Card className="flex items-center justify-between gap-3">
-        <div>
-          <Heading level={3}>Conversation</Heading>
-          <p className="mt-1 text-sm text-navy-500">Message the guest about this booking.</p>
-        </div>
-        <MessageLauncherButton
-          label={`Message ${item.guestFirstName ?? "guest"}`}
-          unreadCount={unreadCount}
-          className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-navy-900 px-5 text-sm font-medium text-ivory-50 hover:bg-navy-950"
-          handle={{
-            itemId: item.itemId,
-            otherParticipant: { label: item.guestFirstName ?? "Guest", imageUrl: null, providerId: null },
-            experienceTitle: item.experienceTitle,
-            experienceImageUrl: item.experienceImageUrl,
-            bookingHref: `/provider/requests/${item.itemId}`,
-            canSend: messagingWindow.canSend,
-            // A provider never sees a WITHDRAWN item at all (see
-            // getProviderRequestItems) — DECLINED and CANCELLED are the
-            // only closed statuses reachable here, each with its own
-            // 30-day reply window (Stage 2c-B) rather than closing
-            // immediately.
-            closedLabel: getMessagingClosedLabel(item.status, messagingWindow),
-            openCaption: getMessagingOpenCaption(messagingWindow),
-          }}
-        />
-      </Card>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="flex flex-col justify-between gap-4">
+          <div>
+            <Heading level={3} as="h2">
+              Conversation
+            </Heading>
+            <p className="mt-1 text-sm text-navy-500">Message the guest about this booking.</p>
+          </div>
+          <MessageLauncherButton
+            label={`Message ${item.guestFirstName ?? "guest"}`}
+            unreadCount={unreadCount}
+            className={buttonClasses({ className: "self-start" })}
+            handle={{
+              itemId: item.itemId,
+              otherParticipant: { label: item.guestFirstName ?? "Guest", imageUrl: null, providerId: null },
+              experienceTitle: item.experienceTitle,
+              experienceImageUrl: item.experienceImageUrl,
+              bookingHref: `/provider/requests/${item.itemId}`,
+              canSend: messagingWindow.canSend,
+              // A provider never sees a WITHDRAWN item at all (see
+              // getProviderRequestItems) — DECLINED and CANCELLED are the
+              // only closed statuses reachable here, each with its own
+              // 30-day reply window (Stage 2c-B) rather than closing
+              // immediately.
+              closedLabel: getMessagingClosedLabel(item.status, messagingWindow),
+              openCaption: getMessagingOpenCaption(messagingWindow),
+            }}
+          />
+        </Card>
 
-      <Card className="flex flex-col gap-3">
-        <div>
-          <Heading level={3}>Need help?</Heading>
-          <p className="mt-1 text-sm text-navy-500">Questions or a problem with this booking? The Felyn Team is here to help.</p>
-        </div>
-        <GetHelpButton
-          bookingItemId={item.itemId}
-          booking={{
-            experienceTitle: item.experienceTitle,
-            dateLabel: formatDayLabel(item.plannedDate),
-            timeLabel: getBookingTimeLabel(item.plannedMoment, item.preferredTime),
-            guestCount: item.guestCount,
-          }}
-          existingThreadId={openSupportThreadId}
-          initialOpen={help === "1"}
-          requesterRole="host"
-        />
-      </Card>
+        <Card className="flex flex-col gap-3">
+          <div>
+            <Heading level={3} as="h2">
+              Need help?
+            </Heading>
+            <p className="mt-1 text-sm text-navy-500">Questions or a problem with this booking? The Felyn Team is here to help.</p>
+          </div>
+          <GetHelpButton
+            bookingItemId={item.itemId}
+            booking={{
+              experienceTitle: item.experienceTitle,
+              dateLabel: formatDayLabel(item.plannedDate),
+              timeLabel: getBookingTimeLabel(item.plannedMoment, item.preferredTime),
+              guestCount: item.guestCount,
+            }}
+            existingThreadId={openSupportThreadId}
+            initialOpen={help === "1"}
+            requesterRole="host"
+          />
+        </Card>
+      </div>
     </div>
   );
 }

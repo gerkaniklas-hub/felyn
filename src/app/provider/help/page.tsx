@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { ContactFelynForm } from "@/components/support/ContactFelynForm";
 import { FelynTeamAvatar } from "@/components/support/FelynTeamAvatar";
+import { buttonClasses } from "@/components/ui/button";
+import { cardSurface } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
+import { Eyebrow } from "@/components/ui/page";
 import { getSupportConversationHref } from "@/lib/support/inbox";
 import { getOpenSupportThreadId } from "@/lib/support/queries";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -19,35 +22,37 @@ export default async function ProviderHelpPage() {
   const openThreadId = await getOpenSupportThreadId(supabase, "host", null);
 
   return (
-    <div className="mx-auto w-full max-w-2xl">
-      <p className="text-xs font-medium tracking-wide text-navy-300">HELP</p>
-      <Heading level={1} className="mt-2">
+    <div className="w-full max-w-3xl">
+      <Eyebrow>Help</Eyebrow>
+      <Heading level={1} className="mt-3">
         Talk to Felyn
       </Heading>
-      <p className="mt-3 max-w-xl text-navy-600">
+      <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-navy-600">
         Questions about a booking, payouts, your experiences or your account? Send us a message — the Felyn Team replies
         right here in your Messages.
       </p>
 
-      <section className="mt-8 rounded-3xl border border-ivory-300 bg-ivory-50 p-6 shadow-sm sm:p-8">
+      <section className={`mt-10 ${cardSurface} p-6 sm:p-8`}>
         <div className="flex items-center gap-3">
           <FelynTeamAvatar className="h-11 w-11" />
           <div>
-            <h2 className="font-display text-xl text-navy-950">Contact Felyn</h2>
+            <Heading level={3} as="h2">
+              Contact Felyn
+            </Heading>
             <p className="text-sm text-navy-500">Usually the quickest way to reach us.</p>
           </div>
         </div>
 
         <div className="mt-6">
           {openThreadId ? (
-            <div className="flex flex-col items-start gap-3 rounded-2xl bg-ivory-100 px-5 py-4">
+            <div className="flex flex-col items-start gap-3 rounded-xl bg-ivory-100 px-5 py-4">
               <p className="text-sm text-navy-700">
                 You already have a conversation with the Felyn Team. Continue it there — we&apos;ll see everything in one
                 place.
               </p>
               <Link
                 href={getSupportConversationHref(openThreadId, "host")}
-                className="inline-flex h-11 items-center justify-center rounded-full bg-navy-900 px-6 text-base font-medium text-ivory-50 transition-colors hover:bg-navy-950"
+                className={buttonClasses()}
               >
                 Open conversation
               </Link>

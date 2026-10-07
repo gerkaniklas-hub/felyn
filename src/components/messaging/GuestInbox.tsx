@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowLeftIcon, ChatIcon, SearchIcon } from "@/components/navigation/icons";
 import { FallbackImage } from "@/components/planner/FallbackImage";
 import { Badge } from "@/components/ui/badge";
 import { getItemStatusLabel, getItemStatusTone } from "@/lib/matching/booking-status";
@@ -18,17 +17,21 @@ import { SUPPORT_TEAM_NAME, type SupportStatus } from "@/lib/support/constants";
 import { getSupportStatusNote, getSupportSubtitle, matchesSupportQuery, mergeByRecency } from "@/lib/support/inbox";
 import type { SupportConversationSummary, SupportThreadState } from "@/lib/support/queries";
 import { toHandle } from "./ConversationList";
+import {
+  formatListTimestamp,
+  InboxEmptyPane,
+  InboxFrame,
+  InboxListHeader,
+  InboxListNotice,
+  InboxPaneBody,
+  InboxPaneHeader,
+  InboxPaneLoading,
+  InboxRow,
+  previewText,
+} from "./inbox-ui";
 import { MessageThread } from "./MessageThread";
 import { useMessaging } from "./MessagingProvider";
 import { ParticipantLink } from "./ParticipantLink";
-
-function formatListTimestamp(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  return date.toDateString() === now.toDateString()
-    ? date.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
-    : date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-}
 
 /**
  * The guest Messages page as a two-pane inbox: the conversation list on the
@@ -180,175 +183,82 @@ export function GuestInbox({
   const anySelected = Boolean(selected || selectedSupport);
 
   return (
-    <div className="flex h-[calc(100dvh-6.75rem)] min-h-[26rem] overflow-hidden border-ivory-300 bg-ivory-50 md:h-[min(calc(100dvh-4rem),46rem)] md:rounded-panel md:border md:shadow-card">
-      {/* Conversation list */}
-      <div
-        className={`${anySelected ? "hidden md:flex" : "flex"} w-full min-w-0 flex-col border-ivory-300 md:w-72 md:shrink-0 md:border-r lg:w-96`}
-      >
-        <div className="flex flex-col gap-4 px-4 pt-6 pb-4 sm:px-5">
-          <h1 className="font-display text-[2rem] leading-tight font-medium tracking-tight text-navy-950">Messages</h1>
-          <label className="relative block">
-            <span className="sr-only">Search conversations</span>
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-4 h-4 w-4 -translate-y-1/2 text-navy-400" />
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search conversations"
-              className="h-11 w-full rounded-full border border-ivory-300 bg-ivory-100 pr-4 pl-11 text-sm text-navy-900 placeholder:text-navy-300 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 focus:outline-none"
-            />
-          </label>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-          {conversations.length === 0 && supportConversations.length === 0 ? (
-            <p className="px-3 py-10 text-center text-sm text-navy-500">
-              No conversations yet. Message a host from one of your bookings to start one.
-            </p>
-          ) : rows.length === 0 ? (
-            <p className="px-3 py-10 text-center text-sm text-navy-500">No conversations match “{query.trim()}”.</p>
-          ) : (
-            <ul className="flex flex-col gap-0.5">
-              {rows.map((row) => {
-                if (row.kind === "support") {
-                  const s = row.value;
-                  const active = s.threadId === selectedSupportId;
-                  const unread = openedSupportIds.has(s.threadId) ? 0 : s.unreadCount;
-                  const status = supportStatusOf(s);
-                  const statusNote = getSupportStatusNote(status);
-                  return (
-                    <li key={`support:${s.threadId}`}>
-                      <button
-                        type="button"
-                        onClick={() => selectSupport(s.threadId)}
-                        aria-current={active ? "true" : undefined}
-                        className={`flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left transition-colors ${
-                          active ? "bg-sky-50 ring-1 ring-sky-100" : "hover:bg-ivory-100"
-                        }`}
-                      >
-                        <FelynTeamAvatar className="h-12 w-12 shrink-0" />
-                        <span className="flex min-w-0 flex-1 flex-col">
-                          <span className="flex items-baseline gap-2">
-                            <span
-                              className={`min-w-0 flex-1 truncate text-sm ${
-                                unread > 0 ? "font-semibold text-navy-950" : "font-medium text-navy-900"
-                              }`}
-                            >
-                              {SUPPORT_TEAM_NAME}
-                            </span>
-                            {s.lastMessage ? (
-                              <span className="shrink-0 text-xs text-navy-300">
-                                {formatListTimestamp(s.lastMessage.createdAt)}
-                              </span>
-                            ) : null}
-                          </span>
-                          <span className={`truncate text-xs ${status === "CLOSED" ? "text-navy-300" : "text-sky-700"}`}>
-                            {getSupportSubtitle(s)}
-                            {statusNote ? ` · ${statusNote}` : ""}
-                          </span>
-                          <span className="mt-0.5 flex items-center gap-2">
-                            <span
-                              className={`min-w-0 flex-1 truncate text-sm ${
-                                unread > 0 ? "font-medium text-navy-800" : "text-navy-500"
-                              }`}
-                            >
-                              {s.lastMessage
-                                ? `${s.lastMessage.isMine ? "You: " : ""}${s.lastMessage.body}`
-                                : "No messages yet"}
-                            </span>
-                            {unread > 0 ? (
-                              <span
-                                className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-gold-500 px-1.5 text-[11px] font-semibold text-ivory-50"
-                                aria-label={`${unread} unread`}
-                              >
-                                {unread > 9 ? "9+" : unread}
-                              </span>
-                            ) : null}
-                          </span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                }
-                const c = row.value;
-                const active = c.itemId === selectedId;
-                const unread = openedIds.has(c.itemId) ? 0 : c.unreadCount;
-                const isMuted = c.itemStatus === "DECLINED" || c.itemStatus === "WITHDRAWN" || c.itemStatus === "CANCELLED";
+    <InboxFrame
+      anySelected={anySelected}
+      listHeader={<InboxListHeader query={query} onQueryChange={setQuery} />}
+      list={
+        conversations.length === 0 && supportConversations.length === 0 ? (
+          <InboxListNotice>No conversations yet. Message a host from one of your bookings to start one.</InboxListNotice>
+        ) : rows.length === 0 ? (
+          <InboxListNotice>No conversations match “{query.trim()}”.</InboxListNotice>
+        ) : (
+          <ul className="flex flex-col gap-0.5">
+            {rows.map((row) => {
+              if (row.kind === "support") {
+                const s = row.value;
+                const status = supportStatusOf(s);
+                const statusNote = getSupportStatusNote(status);
                 return (
-                  <li key={c.itemId}>
-                    <button
-                      type="button"
-                      onClick={() => select(c.itemId)}
-                      aria-current={active ? "true" : undefined}
-                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-3.5 text-left transition-colors ${
-                        active ? "bg-sky-50 ring-1 ring-sky-100" : "hover:bg-ivory-100"
-                      }`}
-                    >
-                      <FallbackImage
-                        src={c.otherParticipant.imageUrl}
-                        alt={c.otherParticipant.label}
-                        className="h-12 w-12 shrink-0 rounded-full"
-                      />
-                      <span className="flex min-w-0 flex-1 flex-col">
-                        <span className="flex items-baseline gap-2">
-                          <span
-                            className={`min-w-0 flex-1 truncate text-sm ${
-                              unread > 0 ? "font-semibold text-navy-950" : "font-medium text-navy-900"
-                            }`}
-                          >
-                            {c.otherParticipant.label}
-                          </span>
-                          {c.lastMessage ? (
-                            <span className="shrink-0 text-xs text-navy-300">
-                              {formatListTimestamp(c.lastMessage.createdAt)}
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className={`truncate text-xs ${isMuted ? "text-navy-300" : "text-sky-700"}`}>
-                          {c.experienceTitle}
-                        </span>
-                        <span className="mt-0.5 flex items-center gap-2">
-                          <span
-                            className={`min-w-0 flex-1 truncate text-sm ${
-                              unread > 0 ? "font-medium text-navy-800" : "text-navy-500"
-                            }`}
-                          >
-                            {c.lastMessage
-                              ? `${c.lastMessage.isMine ? "You: " : ""}${c.lastMessage.body}`
-                              : "No messages yet"}
-                          </span>
-                          {unread > 0 ? (
-                            <span
-                              className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-gold-500 px-1.5 text-[11px] font-semibold text-ivory-50"
-                              aria-label={`${unread} unread`}
-                            >
-                              {unread > 9 ? "9+" : unread}
-                            </span>
-                          ) : null}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
+                  <InboxRow
+                    key={`support:${s.threadId}`}
+                    active={s.threadId === selectedSupportId}
+                    onSelect={() => selectSupport(s.threadId)}
+                    avatar={<FelynTeamAvatar className="h-12 w-12 shrink-0" />}
+                    name={SUPPORT_TEAM_NAME}
+                    timestamp={s.lastMessage ? formatListTimestamp(s.lastMessage.createdAt) : null}
+                    subtitle={
+                      <>
+                        {getSupportSubtitle(s)}
+                        {statusNote ? ` · ${statusNote}` : ""}
+                      </>
+                    }
+                    subtitleMuted={status === "CLOSED"}
+                    preview={previewText(s.lastMessage)}
+                    unread={openedSupportIds.has(s.threadId) ? 0 : s.unreadCount}
+                  />
                 );
-              })}
-            </ul>
-          )}
-        </div>
-      </div>
-
-      {/* Selected conversation */}
-      <div className={`${anySelected ? "flex" : "hidden md:flex"} min-w-0 flex-1 flex-col bg-ivory-100/60`}>
-        {selected && handle ? (
+              }
+              const c = row.value;
+              return (
+                <InboxRow
+                  key={c.itemId}
+                  active={c.itemId === selectedId}
+                  onSelect={() => select(c.itemId)}
+                  avatar={
+                    <FallbackImage
+                      src={c.otherParticipant.imageUrl}
+                      alt={c.otherParticipant.label}
+                      className="h-12 w-12 shrink-0 rounded-full"
+                    />
+                  }
+                  name={c.otherParticipant.label}
+                  timestamp={c.lastMessage ? formatListTimestamp(c.lastMessage.createdAt) : null}
+                  subtitle={c.experienceTitle}
+                  subtitleMuted={c.itemStatus === "DECLINED" || c.itemStatus === "WITHDRAWN" || c.itemStatus === "CANCELLED"}
+                  preview={previewText(c.lastMessage)}
+                  unread={openedIds.has(c.itemId) ? 0 : c.unreadCount}
+                />
+              );
+            })}
+          </ul>
+        )
+      }
+      pane={
+        selected && handle ? (
           <>
-            <div className="flex min-h-18 items-center gap-3 border-b border-ivory-300 bg-ivory-50 px-3 py-3 sm:px-6">
-              <button
-                type="button"
-                onClick={clearSelection}
-                aria-label="Back to conversations"
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-navy-700 hover:bg-ivory-200 md:hidden"
-              >
-                <ArrowLeftIcon className="h-5 w-5" />
-              </button>
+            <InboxPaneHeader
+              onBack={clearSelection}
+              aside={
+                <>
+                  <Badge tone={getItemStatusTone(selected.itemStatus)} className="text-[10px]">
+                    {getItemStatusLabel(selected.itemStatus)}
+                  </Badge>
+                  <Link href={selected.bookingHref} className="text-xs font-medium text-sky-600 hover:text-sky-700">
+                    View booking →
+                  </Link>
+                </>
+              }
+            >
               <div className="flex min-w-0 flex-1 flex-col">
                 <ParticipantLink
                   label={selected.otherParticipant.label}
@@ -361,19 +271,11 @@ export function GuestInbox({
                   {getPlannedMomentLabel(selected.plannedMoment)}
                 </p>
               </div>
-              <div className="hidden shrink-0 flex-col items-end gap-1 sm:flex">
-                <Badge tone={getItemStatusTone(selected.itemStatus)} className="text-[10px]">
-                  {getItemStatusLabel(selected.itemStatus)}
-                </Badge>
-                <Link href={selected.bookingHref} className="text-xs font-medium text-sky-600 hover:text-sky-700">
-                  View booking →
-                </Link>
-              </div>
-            </div>
+            </InboxPaneHeader>
 
-            <div className="min-h-0 flex-1">
+            <InboxPaneBody>
               {loadedItemId !== selected.itemId || !currentUserId ? (
-                <p className="py-10 text-center text-sm text-navy-300">Loading conversation…</p>
+                <InboxPaneLoading />
               ) : (
                 <MessageThread
                   key={selected.itemId}
@@ -386,19 +288,30 @@ export function GuestInbox({
                   appearance="pane"
                 />
               )}
-            </div>
+            </InboxPaneBody>
           </>
         ) : selectedSupport ? (
           <>
-            <div className="flex min-h-18 items-center gap-3 border-b border-ivory-300 bg-ivory-50 px-3 py-3 sm:px-6">
-              <button
-                type="button"
-                onClick={clearSelection}
-                aria-label="Back to conversations"
-                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-navy-700 hover:bg-ivory-200 md:hidden"
-              >
-                <ArrowLeftIcon className="h-5 w-5" />
-              </button>
+            <InboxPaneHeader
+              onBack={clearSelection}
+              aside={
+                <>
+                  {getSupportStatusNote(supportStatusOf(selectedSupport)) ? (
+                    <Badge tone="navy" className="text-[10px]">
+                      {getSupportStatusNote(supportStatusOf(selectedSupport))}
+                    </Badge>
+                  ) : null}
+                  {selectedSupport.bookingItemId ? (
+                    <Link
+                      href={`/bookings/${selectedSupport.bookingItemId}`}
+                      className="text-xs font-medium text-sky-600 hover:text-sky-700"
+                    >
+                      View booking →
+                    </Link>
+                  ) : null}
+                </>
+              }
+            >
               <div className="flex min-w-0 flex-1 items-center gap-3">
                 <FelynTeamAvatar className="h-9 w-9 text-base" />
                 <div className="flex min-w-0 flex-col">
@@ -406,26 +319,11 @@ export function GuestInbox({
                   <p className="mt-0.5 truncate text-xs text-navy-500">{getSupportSubtitle(selectedSupport)}</p>
                 </div>
               </div>
-              <div className="hidden shrink-0 flex-col items-end gap-1 sm:flex">
-                {getSupportStatusNote(supportStatusOf(selectedSupport)) ? (
-                  <Badge tone="navy" className="text-[10px]">
-                    {getSupportStatusNote(supportStatusOf(selectedSupport))}
-                  </Badge>
-                ) : null}
-                {selectedSupport.bookingItemId ? (
-                  <Link
-                    href={`/bookings/${selectedSupport.bookingItemId}`}
-                    className="text-xs font-medium text-sky-600 hover:text-sky-700"
-                  >
-                    View booking →
-                  </Link>
-                ) : null}
-              </div>
-            </div>
+            </InboxPaneHeader>
 
-            <div className="min-h-0 flex-1">
+            <InboxPaneBody>
               {loadedSupportId !== selectedSupport.threadId ? (
-                <p className="py-10 text-center text-sm text-navy-300">Loading conversation…</p>
+                <InboxPaneLoading />
               ) : !supportThread ? (
                 <p className="px-6 py-10 text-center text-sm text-navy-500">
                   We couldn&apos;t load this conversation. Please try again in a moment.
@@ -442,25 +340,15 @@ export function GuestInbox({
                   }
                 />
               )}
-            </div>
+            </InboxPaneBody>
           </>
         ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-            <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-sky-50 text-sky-600">
-              <ChatIcon className="h-7 w-7" />
-            </span>
-            <p className="font-display text-xl text-navy-950">Your conversations</p>
-            <p className="max-w-xs text-sm text-navy-500">
-              Choose a conversation to read it and reply to your host.
-            </p>
-            {supportLinkUnavailable ? (
-              <p className="max-w-xs rounded-xl bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">
-                That conversation isn&apos;t available.
-              </p>
-            ) : null}
-          </div>
-        )}
-      </div>
-    </div>
+          <InboxEmptyPane
+            text="Choose a conversation to read it and reply to your host."
+            notice={supportLinkUnavailable ? <>That conversation isn&apos;t available.</> : null}
+          />
+        )
+      }
+    />
   );
 }

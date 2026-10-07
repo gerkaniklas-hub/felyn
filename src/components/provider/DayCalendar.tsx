@@ -31,7 +31,7 @@ export function DayCalendar({ events }: { events: CalendarEvent[] }) {
         <Link
           key={event.itemId}
           href={`/provider/requests/${event.itemId}`}
-          className="flex items-center justify-between gap-4 rounded-lg py-4 transition-colors first:pt-0 last:pb-0 hover:bg-ivory-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
+          className="-mx-3 flex items-center justify-between gap-4 rounded-xl px-3 py-4 transition-colors hover:bg-ivory-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400"
         >
           <div className="min-w-0">
             <p className="text-sm font-medium text-navy-500">

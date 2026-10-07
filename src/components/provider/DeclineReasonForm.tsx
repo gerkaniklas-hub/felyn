@@ -47,7 +47,7 @@ export function DeclineReasonForm({
         />
       </label>
       {error ? (
-        <p className="rounded-lg bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">{error}</p>
+        <p className="rounded-xl bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">{error}</p>
       ) : null}
       <div className="flex gap-2">
         <Button type="button" variant="secondary" className="flex-1" onClick={onCancel} disabled={pending}>

@@ -2,9 +2,10 @@ import Link from "next/link";
 import { FallbackImage } from "@/components/planner/FallbackImage";
 import { ServiceLocationCard } from "@/components/provider/ServiceLocationCard";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { buttonClasses } from "@/components/ui/button";
+import { Card, cardSurface } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
+import { EmptyState, PageHeader } from "@/components/ui/page";
 import { formatPrice } from "@/lib/format";
 import { getProviderIdentity } from "@/lib/provider/dashboard";
 import { getProviderExperienceList } from "@/lib/provider/experiences";
@@ -41,35 +42,38 @@ export default async function ProviderExperiencesPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium tracking-wide text-navy-300">YOUR EXPERIENCES</p>
-          <Heading level={1} className="mt-2">
-            Manage your experiences
-          </Heading>
-        </div>
-        <Link href="/provider/experiences/new">
-          <Button type="button">New experience</Button>
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="Your experiences"
+        title="Manage your experiences"
+        actions={
+          <Link href="/provider/experiences/new" className={buttonClasses()}>
+            New experience
+          </Link>
+        }
+      />
 
       <ServiceLocationCard currentLocationText={serviceLocation?.locationText ?? null} />
 
       {experiences.length === 0 ? (
-        <Card className="text-center">
-          <p className="text-navy-500">You haven&apos;t created any experiences yet.</p>
-          <Link href="/provider/experiences/new" className="mt-3 inline-block">
-            <Button type="button">Create your first experience</Button>
-          </Link>
-        </Card>
+        <EmptyState
+          action={
+            <Link href="/provider/experiences/new" className={buttonClasses()}>
+              Create your first experience
+            </Link>
+          }
+        >
+          You haven&apos;t created any experiences yet.
+        </EmptyState>
       ) : (
         <>
-          <section className="flex flex-col gap-3">
-            <Heading level={3}>Published ({published.length})</Heading>
+          <section className="flex flex-col gap-4">
+            <Heading level={3} as="h2">
+              Published <span className="text-navy-400">({published.length})</span>
+            </Heading>
             {published.length === 0 ? (
-              <p className="text-sm text-navy-400">Nothing published yet — guests can&apos;t see any experiences until you publish one.</p>
+              <EmptyState>Nothing published yet — guests can&apos;t see any experiences until you publish one.</EmptyState>
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {published.map((experience) => (
                   <ExperienceListCard key={experience.id} experience={experience} />
                 ))}
@@ -77,12 +81,14 @@ export default async function ProviderExperiencesPage() {
             )}
           </section>
 
-          <section className="flex flex-col gap-3">
-            <Heading level={3}>Drafts ({drafts.length})</Heading>
+          <section className="flex flex-col gap-4">
+            <Heading level={3} as="h2">
+              Drafts <span className="text-navy-400">({drafts.length})</span>
+            </Heading>
             {drafts.length === 0 ? (
-              <p className="text-sm text-navy-400">No drafts.</p>
+              <p className="text-sm text-navy-500">No drafts.</p>
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {drafts.map((experience) => (
                   <ExperienceListCard key={experience.id} experience={experience} />
                 ))}
@@ -108,15 +114,26 @@ function ExperienceListCard({
   };
 }) {
   return (
-    <Link href={`/provider/experiences/${experience.id}/edit`}>
-      <Card className="flex h-full flex-col gap-3 transition-shadow hover:shadow-md">
-        <FallbackImage src={experience.primaryImageUrl} alt={experience.title} className="aspect-video w-full rounded-xl" />
-        <div className="flex items-start justify-between gap-2">
-          <p className="font-display text-lg text-navy-950">{experience.title}</p>
-          <Badge tone={experience.published ? "sky" : "navy"}>{experience.published ? "PUBLISHED" : "DRAFT"}</Badge>
-        </div>
-        <p className="text-sm text-navy-600">{formatPrice(experience.pricePerPerson, experience.currency)}</p>
-      </Card>
+    <Link
+      href={`/provider/experiences/${experience.id}/edit`}
+      className={`group ${cardSurface} flex h-full flex-col overflow-hidden transition-[border-color,box-shadow] hover:border-ivory-400 hover:shadow-float focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400`}
+    >
+      <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden">
+        <FallbackImage
+          src={experience.primaryImageUrl}
+          alt={experience.title}
+          className="absolute inset-0 h-full w-full transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+        />
+        <Badge tone={experience.published ? "sky" : "navy"} className="absolute top-3 left-3 shadow-card">
+          {experience.published ? "Published" : "Draft"}
+        </Badge>
+      </div>
+      <div className="flex flex-1 flex-col gap-3 p-5">
+        <p className="font-display text-xl leading-snug text-navy-950">{experience.title}</p>
+        <p className="mt-auto border-t border-ivory-200 pt-3 text-sm font-medium text-navy-900">
+          {formatPrice(experience.pricePerPerson, experience.currency)}
+        </p>
+      </div>
     </Link>
   );
 }

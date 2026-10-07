@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 import { logout } from "@/app/home/actions";
 import { Logo } from "@/components/ui/logo";
-import { navItemClass, navUtilityClass } from "./nav-styles";
+import { navItemClass, navUtilityClass, type NavTone } from "./nav-styles";
 import {
   CalendarCheckIcon,
   CalendarIcon,
@@ -65,6 +65,7 @@ export function AppSidebar({
   logoHref,
   logoLabel,
   utilities,
+  tone = "light",
 }: {
   items: SidebarItem[];
   ariaLabel: string;
@@ -73,12 +74,15 @@ export function AppSidebar({
   logoLabel?: string;
   /** Extra controls next to the logout button, e.g. the guest notification bell. */
   utilities?: ReactNode;
+  /** "light" (default): guest app and host application. "host": the approved host workspace's navy shell. */
+  tone?: NavTone;
 }) {
   const pathname = usePathname();
+  const host = tone === "host";
 
-  const fullLogo = <Logo size="md" />;
+  const fullLogo = <Logo size="md" variant={host ? "reverse" : "default"} />;
   const railLogo = (
-    <span className="font-display text-2xl font-medium tracking-tight text-navy-950">
+    <span className={`font-display text-2xl font-medium tracking-tight ${host ? "text-ivory-50" : "text-navy-950"}`}>
       F<span className="text-gold-500">.</span>
     </span>
   );
@@ -89,7 +93,7 @@ export function AppSidebar({
         type="submit"
         aria-label="Log out"
         title="Log out"
-        className={navUtilityClass()}
+        className={navUtilityClass(false, tone)}
       >
         <LogOutIcon className="h-5 w-5 shrink-0" />
         <span className="hidden lg:inline">Log out</span>
@@ -109,7 +113,11 @@ export function AppSidebar({
   return (
     <div data-app-nav="">
       {/* Tablet rail + desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-20 flex-col border-r border-ivory-300 bg-ivory-50 px-3 py-6 md:flex lg:w-64 lg:px-4">
+      <aside
+        className={`fixed inset-y-0 left-0 z-30 hidden w-20 flex-col border-r ${
+          host ? "border-navy-800 bg-navy-950" : "border-ivory-300 bg-ivory-50"
+        } px-3 py-6 md:flex lg:w-64 lg:px-4`}
+      >
         <div className="flex h-11 items-center justify-center px-0 lg:justify-start lg:px-3">
           <span className="hidden lg:inline">{logoBlock(fullLogo)}</span>
           <span className="lg:hidden">{logoBlock(railLogo)}</span>
@@ -125,7 +133,7 @@ export function AppSidebar({
                 href={item.href}
                 title={item.label}
                 aria-current={active ? "page" : undefined}
-                className={navItemClass(active)}
+                className={navItemClass(active, tone)}
               >
                 <Icon className="h-5 w-5 shrink-0" />
                 <span className="sr-only lg:not-sr-only">{item.label}</span>
@@ -134,16 +142,22 @@ export function AppSidebar({
           })}
         </nav>
 
-        <div className="mt-auto flex flex-col items-center gap-1 border-t border-ivory-300 pt-4 lg:items-stretch">
+        <div
+          className={`mt-auto flex flex-col items-center gap-1 border-t ${host ? "border-navy-800" : "border-ivory-300"} pt-4 lg:items-stretch`}
+        >
           {utilities}
           {logoutForm}
         </div>
       </aside>
 
       {/* Phone: compact top bar + icon tab row */}
-      <header className="sticky top-0 z-30 border-b border-ivory-300 bg-ivory-50/95 backdrop-blur md:hidden">
+      <header
+        className={`sticky top-0 z-30 border-b ${
+          host ? "border-navy-800 bg-navy-950" : "border-ivory-300 bg-ivory-50/95 backdrop-blur"
+        } md:hidden`}
+      >
         <div className="flex items-center justify-between px-4 pt-3">
-          {logoBlock(<Logo size="sm" />)}
+          {logoBlock(<Logo size="sm" variant={host ? "reverse" : "default"} />)}
           <div className="flex items-center gap-1">
             {utilities}
             {logoutForm}
@@ -161,7 +175,13 @@ export function AppSidebar({
                 className={`flex min-w-0 flex-col items-center gap-0.5 rounded-xl py-1.5 font-medium transition-colors ${
                   items.length > 5 ? "flex-auto px-0.5 text-[10px] tracking-tight" : "flex-1 px-1 text-[11px]"
                 } ${
-                  active ? "bg-sky-50 text-sky-700" : "text-navy-500 hover:text-navy-900"
+                  host
+                    ? active
+                      ? "bg-navy-800 text-ivory-50"
+                      : "text-navy-300 hover:text-ivory-50"
+                    : active
+                      ? "bg-sky-50 text-sky-700"
+                      : "text-navy-500 hover:text-navy-900"
                 }`}
               >
                 <Icon className="h-5 w-5 shrink-0" />

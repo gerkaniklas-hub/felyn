@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
+import { PageHeader, textLinkClass } from "@/components/ui/page";
 import { ExperienceForm } from "@/components/provider/ExperienceForm";
 import { getProviderIdentity } from "@/lib/provider/dashboard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -22,11 +24,11 @@ export default async function NewProviderExperiencePage() {
   }
 
   return (
-    <div className="mx-auto max-w-xl">
-      <p className="text-xs font-medium tracking-wide text-navy-300">NEW EXPERIENCE</p>
-      <Heading level={1} className="mt-2 mb-6">
-        Tell us about it
-      </Heading>
+    <div className="flex max-w-3xl flex-col gap-6">
+      <Link href="/provider/experiences" className={`self-start ${textLinkClass}`}>
+        ← All experiences
+      </Link>
+      <PageHeader eyebrow="New experience" title="Tell us about it" />
       <Card>
         <ExperienceForm experience={null} />
       </Card>

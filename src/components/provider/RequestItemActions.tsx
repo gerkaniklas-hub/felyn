@@ -175,7 +175,7 @@ export function RequestItemActions({
   return (
     <div className="flex flex-col gap-2">
       {decision.status === "error" ? (
-        <p className="rounded-lg bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">{decision.message}</p>
+        <p className="rounded-xl bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">{decision.message}</p>
       ) : null}
       <div className="flex gap-2">
         <Button

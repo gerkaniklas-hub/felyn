@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
+import { PageHeader, segmentedTabClass, segmentedTrackClass } from "@/components/ui/page";
 import { DayCalendar } from "@/components/provider/DayCalendar";
 import { MonthCalendar, type CalendarEvent } from "@/components/provider/MonthCalendar";
 import { WeekCalendar, weekStartFor } from "@/components/provider/WeekCalendar";
@@ -61,20 +63,18 @@ function ViewTabs({ view, date, month }: { view: View; date: string; month: stri
     { value: "day", label: "Day", href: `/provider/calendar?view=day&date=${date}` },
   ];
   return (
-    <div className="flex gap-1 rounded-full border border-ivory-300 bg-ivory-50 p-1">
+    <nav aria-label="Calendar view" className={segmentedTrackClass}>
       {tabs.map((tab) => (
         <Link
           key={tab.value}
           href={tab.href}
           aria-current={tab.value === view ? "page" : undefined}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-            tab.value === view ? "bg-navy-900 text-ivory-50" : "text-navy-700 hover:bg-ivory-200"
-          }`}
+          className={segmentedTabClass(tab.value === view)}
         >
           {tab.label}
         </Link>
       ))}
-    </div>
+    </nav>
   );
 }
 
@@ -130,33 +130,33 @@ export default async function ProviderCalendarPage({
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium tracking-wide text-navy-300">YOUR CALENDAR</p>
-          <Heading level={1} className="mt-2">
+      <PageHeader
+        eyebrow="Your calendar"
+        title={
+          <>
             {view === "month"
               ? MONTH_LABEL_FORMATTER.format(new Date(Date.UTC(year, month, 1)))
               : view === "week"
                 ? `Week of ${WEEK_LABEL_FORMATTER.format(new Date(`${weekStartFor(refDate)}T00:00:00Z`))}`
                 : DAY_LABEL_FORMATTER.format(new Date(`${refDate}T00:00:00Z`))}
-          </Heading>
-        </div>
-        <ViewTabs view={view} date={refDate} month={monthParamStr} />
-      </div>
+          </>
+        }
+        actions={<ViewTabs view={view} date={refDate} month={monthParamStr} />}
+      />
 
       {view === "month" ? (
         <>
           <Card>
-            <div className="mb-4 flex items-center justify-end gap-3">
+            <div className="mb-5 flex items-center justify-end gap-2">
               <Link
                 href={`/provider/calendar?view=month&month=${monthParam(year, month - 1)}`}
-                className="text-sm font-medium text-sky-600 hover:text-sky-700"
+                className={buttonClasses({ variant: "secondary", size: "sm" })}
               >
                 ← Previous
               </Link>
               <Link
                 href={`/provider/calendar?view=month&month=${monthParam(year, month + 1)}`}
-                className="text-sm font-medium text-sky-600 hover:text-sky-700"
+                className={buttonClasses({ variant: "secondary", size: "sm" })}
               >
                 Next →
               </Link>
@@ -165,7 +165,9 @@ export default async function ProviderCalendarPage({
           </Card>
 
           <Card>
-            <Heading level={3}>This month</Heading>
+            <Heading level={3} as="h2">
+              This month
+            </Heading>
             {(() => {
               const monthStart = `${year}-${pad(month + 1)}-01`;
               const monthEndExclusive = `${monthParam(year, month + 1)}-01`;
@@ -173,19 +175,19 @@ export default async function ProviderCalendarPage({
                 .filter((event) => event.date >= monthStart && event.date < monthEndExclusive)
                 .sort((a, b) => (a.date < b.date ? -1 : 1));
               if (monthItems.length === 0) {
-                return <p className="mt-3 text-navy-500">No experiences on the calendar this month.</p>;
+                return <p className="mt-3 text-[15px] text-navy-500">No experiences on the calendar this month.</p>;
               }
               return (
-                <div className="mt-4 flex flex-col divide-y divide-ivory-300">
+                <div className="mt-3 flex flex-col divide-y divide-ivory-300">
                   {monthItems.map((event) => (
                     <Link
                       key={event.itemId}
                       href={`/provider/requests/${event.itemId}`}
-                      className="flex flex-col gap-1 rounded-lg py-4 transition-colors first:pt-0 last:pb-0 hover:bg-ivory-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 sm:flex-row sm:items-center sm:justify-between"
+                      className="-mx-3 flex flex-col gap-1 rounded-xl px-3 py-4 transition-colors hover:bg-ivory-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div>
-                        <p className="text-sm font-medium text-navy-300">{formatDayLabel(event.date)}</p>
-                        <p className="font-display text-base text-navy-950">{event.title}</p>
+                        <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">{formatDayLabel(event.date)}</p>
+                        <p className="mt-0.5 font-medium text-navy-950">{event.title}</p>
                         <p className="text-sm text-navy-500">
                           {event.stayName} · {event.guestCount} guest{event.guestCount === 1 ? "" : "s"}
                         </p>
@@ -200,16 +202,16 @@ export default async function ProviderCalendarPage({
         </>
       ) : view === "week" ? (
         <Card>
-          <div className="mb-4 flex items-center justify-end gap-3">
+          <div className="mb-5 flex items-center justify-end gap-2">
             <Link
               href={`/provider/calendar?view=week&date=${addDays(weekStartFor(refDate), -7)}`}
-              className="text-sm font-medium text-sky-600 hover:text-sky-700"
+              className={buttonClasses({ variant: "secondary", size: "sm" })}
             >
               ← Previous week
             </Link>
             <Link
               href={`/provider/calendar?view=week&date=${addDays(weekStartFor(refDate), 7)}`}
-              className="text-sm font-medium text-sky-600 hover:text-sky-700"
+              className={buttonClasses({ variant: "secondary", size: "sm" })}
             >
               Next week →
             </Link>
@@ -218,16 +220,16 @@ export default async function ProviderCalendarPage({
         </Card>
       ) : (
         <Card>
-          <div className="mb-4 flex items-center justify-end gap-3">
+          <div className="mb-5 flex items-center justify-end gap-2">
             <Link
               href={`/provider/calendar?view=day&date=${addDays(refDate, -1)}`}
-              className="text-sm font-medium text-sky-600 hover:text-sky-700"
+              className={buttonClasses({ variant: "secondary", size: "sm" })}
             >
               ← Previous day
             </Link>
             <Link
               href={`/provider/calendar?view=day&date=${addDays(refDate, 1)}`}
-              className="text-sm font-medium text-sky-600 hover:text-sky-700"
+              className={buttonClasses({ variant: "secondary", size: "sm" })}
             >
               Next day →
             </Link>

@@ -30,7 +30,7 @@ export function BookingConfirmedModal({
       aria-label="Booking confirmed"
       className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-navy-950/40 p-4 py-10 sm:py-16"
     >
-      <div className="w-full max-w-sm rounded-2xl border border-ivory-300 bg-ivory-50 p-6 shadow-xl">
+      <div className="w-full max-w-sm rounded-card border border-ivory-300 bg-ivory-50 p-6 shadow-xl">
         <div className="flex flex-col items-center gap-2 text-center">
           <span className="flex h-12 w-12 items-center justify-center rounded-full bg-sky-100 text-2xl text-sky-700">
             ✓
@@ -43,7 +43,7 @@ export function BookingConfirmedModal({
         </div>
 
         <div className="mt-5 rounded-xl border border-ivory-300 bg-ivory-100 p-4 text-left">
-          <p className="text-xs font-medium tracking-wide text-navy-300">WHAT&apos;S NEXT</p>
+          <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">WHAT&apos;S NEXT</p>
           <ul className="mt-2 flex flex-col gap-1.5 text-sm text-navy-700">
             <li>• The guest has been notified.</li>
             <li>• This booking is now in your calendar and upcoming bookings.</li>

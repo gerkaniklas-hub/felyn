@@ -105,7 +105,7 @@ export function ExperienceAttributesEditor({
                   value={customInputs[type] ?? ""}
                   onChange={(e) => setCustomInputs((prev) => ({ ...prev, [type]: e.target.value }))}
                   placeholder="Add a custom tag…"
-                  className="h-9 w-48 rounded-lg border border-ivory-400 bg-ivory-50 px-3 text-sm text-navy-900 outline-none focus:border-sky-500"
+                  className="h-9 w-48 rounded-full border border-ivory-400 bg-ivory-50 px-4 text-sm text-navy-900 outline-none focus:border-sky-500"
                 />
                 <button
                   type="button"

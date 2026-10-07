@@ -65,17 +65,25 @@ test("support reads filter to one side; the guest helpers still mean the guest s
   assert.match(code, /return getOpenSupportThreadId\(supabase, "guest", bookingItemId\);/);
 });
 
-test("host pages: Help next to Log out (6 items kept), host-side reads only, panel instead of floating chat", () => {
+test("host pages: Help next to Log out (6 items kept), host-side reads only, in the host inbox pane", () => {
   const nav = read("src", "components", "provider", "ProviderNav.tsx");
   assert.equal((nav.match(/\{ href: "\/provider/g) ?? []).length, 6, "the host navigation keeps its 6 items");
-  assert.match(nav, /utilities=\{<HelpLink href="\/provider\/help" \/>\}/);
+  assert.match(nav, /utilities=\{<HelpLink href="\/provider\/help" tone="host" \/>\}/);
   assert.match(read("src", "components", "navigation", "GuestNav.tsx"), /<HelpLink href="\/help" \/>/);
 
+  // Host Messages: a two-pane inbox (HostInbox) on the host's OWN data — host-side
+  // support threads only, opened through the host action, never the guest ones.
   const messages = read("src", "app", "provider", "messages", "page.tsx");
   assert.match(messages, /getSupportConversations\(supabase, "host"\)/);
-  assert.match(messages, /getSupportThread\(supabase, support, "host"\)/);
-  assert.match(messages, /<SupportConversationPanel/);
-  assert.match(messages, /<ConversationList conversations=\{conversations\} autoOpenItemId=\{item\} \/>/, "booking list unchanged");
+  assert.match(messages, /getProviderConversations\(supabase, identity\.id\)/);
+  assert.match(messages, /<HostInbox[\s\S]*?initialItemId=\{item\}[\s\S]*?initialSupportId=\{support\}/);
+  const hostInbox = read("src", "components", "messaging", "HostInbox.tsx");
+  assert.match(hostInbox, /getHostSupportThreadAction/);
+  assert.match(hostInbox, /<SupportThread[\s\S]*?requesterRole="host"/);
+  assert.doesNotMatch(hostInbox, /@\/lib\/support\/actions"/, "never the guest support actions");
+  assert.doesNotMatch(read("src", "components", "messaging", "GuestInbox.tsx"), /host-actions/, "guest inbox never uses host actions");
+  // The shared inbox look is presentation only: no data, actions or access logic.
+  assert.doesNotMatch(read("src", "components", "messaging", "inbox-ui.tsx"), /@\/lib\//);
 
   const help = read("src", "app", "provider", "help", "page.tsx");
   assert.match(help, /getOpenSupportThreadId\(supabase, "host", null\)/);

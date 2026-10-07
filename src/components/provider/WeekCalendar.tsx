@@ -51,7 +51,7 @@ export function WeekCalendar({ weekStart, events }: { weekStart: string; events:
           const isToday = date === new Date().toISOString().slice(0, 10);
           return (
             <div key={date} className="flex flex-col gap-2">
-              <div className={`rounded-lg px-2 py-1.5 text-center ${isToday ? "bg-navy-900 text-ivory-50" : "bg-ivory-100 text-navy-700"}`}>
+              <div className={`rounded-xl px-2 py-1.5 text-center ${isToday ? "bg-navy-900 text-ivory-50" : "bg-ivory-100 text-navy-700"}`}>
                 <p className="text-[11px] font-medium tracking-wide uppercase">{WEEKDAY_LABELS[i]}</p>
                 <p className="font-display text-sm">{formatDayLabel(date)}</p>
               </div>
@@ -63,7 +63,7 @@ export function WeekCalendar({ weekStart, events }: { weekStart: string; events:
                     <Link
                       key={event.itemId}
                       href={`/provider/requests/${event.itemId}`}
-                      className={`flex flex-col gap-0.5 rounded-lg px-2 py-1.5 text-xs transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 ${eventChipClass(event.status)}`}
+                      className={`flex flex-col gap-0.5 rounded-xl px-2 py-1.5 text-xs transition-opacity hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 ${eventChipClass(event.status)}`}
                     >
                       <span className="font-medium">
                         {event.preferredTime ?? getPlannedMomentLabel(event.moment)}

@@ -23,10 +23,18 @@ export default async function ProviderLayout({ children }: { children: ReactNode
   const access = await getHostAccess(supabase, user.id);
   if (!access.providerId) redirect(access.application ? "/host/application" : "/become-a-host");
 
+  // The host workspace shell: navy page (globals.css, [data-shell="host"]) and the
+  // darker navy sidebar (ProviderNav, tone="host") frame one ivory canvas that
+  // holds every host page, so pages keep navy text on ivory cards. On phones the
+  // canvas runs edge to edge under the navy top bar.
   return (
-    <div className="flex flex-1 flex-col">
+    <div data-shell="host" className="flex flex-1 flex-col">
       <ProviderNav />
-      <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8">{children}</div>
+      <div className="flex flex-1 flex-col md:p-3 lg:p-4">
+        <main className="flex flex-1 flex-col bg-ivory-100 md:rounded-panel">
+          <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 md:py-10 lg:px-10">{children}</div>
+        </main>
+      </div>
     </div>
   );
 }

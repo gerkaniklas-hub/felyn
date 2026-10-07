@@ -72,13 +72,13 @@ export function ProviderBookingCard({
       className={
         bare
           ? "flex gap-4"
-          : `flex gap-4 rounded-2xl border p-4 transition-colors sm:p-5 ${
+          : `flex gap-4 rounded-card border p-4 shadow-card transition-[border-color,box-shadow] sm:p-5 ${
               item.status === "CONFIRMED"
                 ? "border-sky-300 bg-sky-50"
                 : item.status === "REQUESTED"
                   ? "border-gold-300 bg-ivory-50"
                   : "border-ivory-300 bg-ivory-100"
-            } ${linkable ? "hover:border-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400" : ""}`
+            } ${linkable ? "hover:shadow-float focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400" : ""}`
       }
     >
       <FallbackImage
@@ -89,7 +89,7 @@ export function ProviderBookingCard({
 
       <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="flex flex-wrap items-start justify-between gap-2">
-          <p className={`min-w-0 truncate font-display text-lg ${isMuted ? "text-navy-500" : "text-navy-950"}`}>
+          <p className={`min-w-0 truncate font-display text-xl leading-snug ${isMuted ? "text-navy-500" : "text-navy-950"}`}>
             {item.experienceTitle}
           </p>
           <Badge tone={badgeOverride?.tone ?? getItemStatusTone(item.status)} className="shrink-0">
@@ -159,7 +159,7 @@ export function ProviderBookingCard({
   if (!linkable) return body;
 
   return (
-    <Link href={`/provider/requests/${item.itemId}`} className="block rounded-2xl">
+    <Link href={`/provider/requests/${item.itemId}`} className="block rounded-card">
       {body}
     </Link>
   );

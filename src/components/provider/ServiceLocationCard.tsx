@@ -37,7 +37,7 @@ export function ServiceLocationCard({ currentLocationText }: { currentLocationTe
     return (
       <Card className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-medium tracking-wide text-navy-300">SERVICE LOCATION</p>
+          <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">SERVICE LOCATION</p>
           <p className="mt-1 text-navy-900">{currentLocationText}</p>
         </div>
         <button
@@ -53,7 +53,7 @@ export function ServiceLocationCard({ currentLocationText }: { currentLocationTe
 
   return (
     <Card className={!currentLocationText ? "border-gold-300 bg-gold-50" : undefined}>
-      <p className="text-xs font-medium tracking-wide text-navy-300">SERVICE LOCATION</p>
+      <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">SERVICE LOCATION</p>
       {!currentLocationText ? (
         <p className="mt-1 text-sm text-gold-700">
           Add where you currently offer experiences — guests planning a trip can only find your experiences here

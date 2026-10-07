@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
+import { PageHeader, textLinkClass } from "@/components/ui/page";
 import { DeleteExperienceButton } from "@/components/provider/DeleteExperienceButton";
 import { ExperienceAttributesEditor } from "@/components/provider/ExperienceAttributesEditor";
 import { ExperienceAvailabilityManager } from "@/components/provider/ExperienceAvailabilityManager";
@@ -58,19 +60,20 @@ export default async function EditProviderExperiencePage({
   const needsAvailability = !experience.published && experience.availability.length === 0;
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium tracking-wide text-navy-300">EDIT EXPERIENCE</p>
-          <Heading level={1} className="mt-2">
-            {experience.title}
-          </Heading>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <PublishToggleButton experienceId={experience.id} published={experience.published} />
-          <DeleteExperienceButton experienceId={experience.id} title={experience.title} />
-        </div>
-      </div>
+    <div className="flex max-w-3xl flex-col gap-6">
+      <Link href="/provider/experiences" className={`self-start ${textLinkClass}`}>
+        ← All experiences
+      </Link>
+      <PageHeader
+        eyebrow="Edit experience"
+        title={experience.title}
+        actions={
+          <div className="flex flex-col items-start gap-2 sm:items-end">
+            <PublishToggleButton experienceId={experience.id} published={experience.published} />
+            <DeleteExperienceButton experienceId={experience.id} title={experience.title} />
+          </div>
+        }
+      />
 
       {created ? (
         <p className="rounded-xl bg-sky-100 px-4 py-3 text-sm font-medium text-sky-700">
@@ -95,8 +98,11 @@ export default async function EditProviderExperiencePage({
       ) : null}
 
       <Card>
-        <Heading level={3}>Details</Heading>
-        <div className="mt-4">
+        <Heading level={3} as="h2">
+          Details
+        </Heading>
+        <p className="mt-1 text-sm text-navy-500">What guests read about this experience, and what it costs.</p>
+        <div className="mt-6">
           <ExperienceForm
             experience={{
               id: experience.id,
@@ -115,25 +121,33 @@ export default async function EditProviderExperiencePage({
       </Card>
 
       <Card>
-        <Heading level={3}>Photos</Heading>
-        <div className="mt-4">
+        <Heading level={3} as="h2">
+          Photos
+        </Heading>
+        <p className="mt-1 text-sm text-navy-500">Your primary photo is the one guests see first.</p>
+        <div className="mt-6">
           <ExperienceGalleryManager providerId={identity.id} experienceId={experience.id} images={experience.gallery} />
         </div>
       </Card>
 
       <Card>
-        <Heading level={3}>Tags</Heading>
+        <Heading level={3} as="h2">
+          Tags
+        </Heading>
         <p className="mt-1 text-sm text-navy-500">
           Help Felyn&apos;s matching find the right guests for this experience.
         </p>
-        <div className="mt-4">
+        <div className="mt-6">
           <ExperienceAttributesEditor experienceId={experience.id} attributes={experience.attributes} />
         </div>
       </Card>
 
-      <Card id="availability-section">
-        <Heading level={3}>Availability</Heading>
-        <div className="mt-4">
+      <Card id="availability-section" className="scroll-mt-6">
+        <Heading level={3} as="h2">
+          Availability
+        </Heading>
+        <p className="mt-1 text-sm text-navy-500">When guests can book this experience.</p>
+        <div className="mt-6">
           <ExperienceAvailabilityManager experienceId={experience.id} windows={experience.availability} />
         </div>
       </Card>

@@ -16,8 +16,16 @@ const LINKS: SidebarItem[] = [
  * The provider (approved host) navigation — same items, routes and order as
  * before, now rendered through the shared AppSidebar so hosts and guests
  * share one navigation layout and icon language. Help (Contact Felyn, /provider/help)
- * sits next to Log out rather than as a 7th item.
+ * sits next to Log out rather than as a 7th item. `tone="host"` renders it as
+ * part of the navy host workspace shell (see provider/layout.tsx).
  */
 export function ProviderNav() {
-  return <AppSidebar items={LINKS} ariaLabel="Host" utilities={<HelpLink href="/provider/help" />} />;
+  return (
+    <AppSidebar
+      items={LINKS}
+      ariaLabel="Host"
+      tone="host"
+      utilities={<HelpLink href="/provider/help" tone="host" />}
+    />
+  );
 }

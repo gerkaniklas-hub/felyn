@@ -98,14 +98,14 @@ export function MonthCalendar({
 
   return (
     <div>
-      <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium tracking-wide text-navy-300 uppercase">
+      <div className="grid grid-cols-7 gap-1 text-center text-[11px] sm:gap-1.5 font-semibold tracking-[0.12em] text-navy-400 uppercase">
         {WEEKDAY_LABELS.map((label) => (
           <span key={label}>{label}</span>
         ))}
       </div>
-      <div className="mt-1 flex flex-col gap-1">
+      <div className="mt-2 flex flex-col gap-1 sm:gap-1.5">
         {weeks.map((week, i) => (
-          <div key={i} className="grid grid-cols-7 gap-1">
+          <div key={i} className="grid grid-cols-7 gap-1 sm:gap-1.5">
             {week.map((date, j) => {
               const dayEvents = date ? (eventsByDate.get(date) ?? []) : [];
               return (
@@ -113,17 +113,17 @@ export function MonthCalendar({
                   key={j}
                   className={
                     date
-                      ? `flex ${compact ? "min-h-11" : "min-h-[108px]"} flex-col gap-1 rounded-lg border border-ivory-300 bg-ivory-50 p-1`
+                      ? `flex ${compact ? "min-h-12 p-1.5" : "min-h-[76px] p-1 sm:min-h-[112px] sm:p-1.5"} min-w-0 flex-col gap-1 rounded-xl border border-ivory-300 bg-ivory-50`
                       : ""
                   }
                 >
                   {!date ? null : compact ? (
                     <>
-                      <span className="text-[11px] text-navy-400">{Number(date.slice(-2))}</span>
+                      <span className="text-xs font-medium text-navy-600">{Number(date.slice(-2))}</span>
                       {dayEvents[0] ? (
                         <span
                           title={`${dayEvents[0].title} — ${statusLabel(dayEvents[0].status)}`}
-                          className={`truncate rounded px-1 py-0.5 text-[10px] font-medium ${eventChipClass(dayEvents[0].status)}`}
+                          className={`truncate rounded-md px-1.5 py-0.5 text-[10px] font-medium ${eventChipClass(dayEvents[0].status)}`}
                         >
                           {dayEvents[0].title}
                         </span>
@@ -134,23 +134,26 @@ export function MonthCalendar({
                     </>
                   ) : (
                     <>
-                      <span className="text-[11px] text-navy-400">{Number(date.slice(-2))}</span>
+                      <span className="text-xs font-medium text-navy-600">{Number(date.slice(-2))}</span>
                       {/* Three fixed rows, top-to-bottom = morning/afternoon/evening — positional
                           only, no literal labels (an empty slot is just a quiet blank row so
                           every day still reads as "three slots" without any text clutter). */}
                       {PLANNED_MOMENTS.map((moment) => {
                         const event = eventByDateMoment.get(`${date}|${moment.value}`);
                         if (!event) {
-                          return <div key={moment.value} className="h-[18px]" aria-hidden="true" />;
+                          return <div key={moment.value} className="h-2.5 sm:h-[18px]" aria-hidden="true" />;
                         }
                         return (
                           <Link
                             key={moment.value}
                             href={`/provider/requests/${event.itemId}`}
                             title={`${moment.label}: ${event.title} — ${statusLabel(event.status)}`}
-                            className={`block h-[18px] truncate rounded px-1 text-left text-[10px] leading-[18px] transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 ${eventChipClass(event.status)}`}
+                            className={`block h-2.5 truncate rounded-full text-left text-[10px] transition-opacity sm:h-[18px] sm:rounded-md sm:px-1.5 sm:leading-[18px] hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 ${eventChipClass(event.status)}`}
                           >
-                            {event.title}
+                            {/* Phones: a status-coloured bar in its moment's row (title in the
+                                tooltip and for screen readers; "This month" below lists them in
+                                full). From sm up: the titled chip. */}
+                            <span className="sr-only sm:not-sr-only">{event.title}</span>
                           </Link>
                         );
                       })}
@@ -163,7 +166,7 @@ export function MonthCalendar({
         ))}
       </div>
 
-      <div className="mt-3 flex items-center gap-4 text-xs text-navy-500">
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-navy-500">
         <span className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full border border-sky-300 bg-ivory-50" aria-hidden="true" />
           Requested

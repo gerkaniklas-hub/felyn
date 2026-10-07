@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
+import { EmptyState, Eyebrow, PageHeader } from "@/components/ui/page";
 import { ProviderBookingCard } from "@/components/provider/ProviderBookingCard";
 import { getProviderIdentity, getProviderRequestItems, type ProviderRequestItem } from "@/lib/provider/dashboard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -65,16 +66,16 @@ export default async function ProviderRequestsPage() {
   function section(title: string, groupedItems: ProviderRequestItem[], emptyLabel: string) {
     return (
       <section className="flex flex-col gap-3">
-        <p className="text-xs font-medium tracking-wide text-navy-300">{title}</p>
+        <Eyebrow as="h2">{title}</Eyebrow>
         {groupedItems.length === 0 ? (
-          <Card>
-            <p className="text-navy-500">{emptyLabel}</p>
-          </Card>
+          <p className="rounded-card border border-dashed border-ivory-400 bg-ivory-50/70 px-5 py-4 text-sm text-navy-500">
+            {emptyLabel}
+          </p>
         ) : (
           <div className="flex flex-col gap-5">
             {groupByStay(groupedItems).map(({ stayName, items: stayItems }) => (
               <div key={stayItems[0].requestId} className="flex flex-col gap-3">
-                <p className="text-sm font-medium text-navy-500">{stayName.toUpperCase()}</p>
+                <p className="text-sm font-medium text-navy-600">{stayName}</p>
                 <div className="flex flex-col gap-3">
                   {stayItems.map((item) => (
                     <ProviderBookingCard key={item.itemId} item={item} />
@@ -89,28 +90,21 @@ export default async function ProviderRequestsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <p className="text-xs font-medium tracking-wide text-navy-300">YOUR REQUESTS</p>
-        <Heading level={1} className="mt-2">
-          Requests
-        </Heading>
-        <p className="mt-2 max-w-xl text-navy-500">
-          Everything requested or decided for your experiences. Open a pending request to confirm
-          or decline it.
-        </p>
-      </div>
+    <div className="flex flex-col gap-10">
+      <PageHeader
+        eyebrow="Your requests"
+        title="Requests"
+        description="Everything requested or decided for your experiences. Open a pending request to confirm or decline it."
+      />
 
       {items.length === 0 ? (
-        <Card>
-          <p className="text-navy-500">No new requests</p>
-        </Card>
+        <EmptyState>No new requests</EmptyState>
       ) : (
         <>
-          {section("PENDING REQUESTS", pending, "No pending requests")}
-          {section("CONFIRMED", confirmed, "No confirmed experiences yet")}
-          {section("CANCELLED", cancelled, "No cancelled experiences")}
-          {section("DECLINED", declined, "No declined requests")}
+          {section("Pending requests", pending, "No pending requests")}
+          {section("Confirmed", confirmed, "No confirmed experiences yet")}
+          {section("Cancelled", cancelled, "No cancelled experiences")}
+          {section("Declined", declined, "No declined requests")}
         </>
       )}
     </div>

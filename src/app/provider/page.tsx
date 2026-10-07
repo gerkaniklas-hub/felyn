@@ -1,17 +1,14 @@
 import Link from "next/link";
-import { FallbackImage } from "@/components/planner/FallbackImage";
-import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Card, cardSurface } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
+import { Eyebrow, PageHeader, textLinkClass } from "@/components/ui/page";
 import { MonthCalendar, type CalendarEvent } from "@/components/provider/MonthCalendar";
 import { ProviderBookingCard } from "@/components/provider/ProviderBookingCard";
 import { UpcomingBookingRow } from "@/components/provider/UpcomingBookingRow";
-import { ViewPublicProfileButton } from "@/components/provider/ViewPublicProfileButton";
+import { HostProfileSummary } from "@/components/provider/HostProfileSummary";
 import { getProviderIdentity, getProviderRequestItems } from "@/lib/provider/dashboard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-
-function humanize(value: string): string {
-  return value.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 /**
  * P1: "Your Felyn space" — the provider's dashboard/home. Identity comes
@@ -64,74 +61,46 @@ export default async function ProviderDashboardPage() {
   }));
 
   return (
-    <div className="flex flex-col gap-10">
-      <div>
-        <p className="text-xs font-medium tracking-wide text-navy-300">YOUR FELYN SPACE</p>
-        <Heading level={1} className="mt-2">
-          Good to see you, {identity.displayName.split(" ")[0]}.
-        </Heading>
-      </div>
+    <div className="flex flex-col gap-8">
+      <PageHeader eyebrow="Your Felyn space" title={`Good to see you, ${identity.displayName.split(" ")[0]}.`} />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
-        <Card className="flex flex-col items-center gap-3 text-center">
-          <p className="self-start text-xs font-medium tracking-wide text-navy-300">YOUR PROFILE</p>
-          <FallbackImage
-            src={identity.profilePhotoUrl}
-            alt={identity.displayName}
-            className="h-24 w-24 rounded-full"
-          />
-          <div>
-            <p className="font-display text-lg text-navy-950">{identity.displayName}</p>
-            {identity.baseLocation ? <p className="text-sm text-navy-500">{identity.baseLocation}</p> : null}
-          </div>
-          {identity.specialties.length > 0 ? (
-            <p className="text-sm text-navy-700">
-              {identity.specialties.slice(0, 3).map((value) => humanize(value)).join(" & ")}
-            </p>
-          ) : null}
-          {identity.bio ? <p className="line-clamp-3 text-sm text-navy-600">{identity.bio}</p> : null}
-          {identity.languages.length > 0 ? (
-            <p className="text-sm text-navy-500">{identity.languages.join(" · ")}</p>
-          ) : null}
-          <p className="text-sm font-medium text-navy-700">
-            {identity.publishedExperienceCount} published experience
-            {identity.publishedExperienceCount === 1 ? "" : "s"}
-          </p>
-          {identity.publishedExperienceCount > 0 ? (
-            <ViewPublicProfileButton providerId={identity.id} providerName={identity.displayName} />
-          ) : (
-            // provider_public_profiles only lists hosts with a published experience,
-            // so there is nothing public to preview yet.
-            <p className="text-sm text-navy-500">
-              Your public profile becomes visible to guests once you publish your first experience.
-            </p>
-          )}
-        </Card>
-
-        <div className="flex flex-col gap-6">
-          <Card>
-            <Heading level={3}>Needs your attention</Heading>
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        {/* Primary: what needs a decision, then what's coming up */}
+        <div className="flex min-w-0 flex-col gap-6">
+          <section className={`${cardSurface} p-6`} aria-labelledby="needs-attention">
+            <div className="flex items-center justify-between gap-3">
+              <Heading level={3} as="h2" id="needs-attention">
+                Needs your attention
+              </Heading>
+              {requested.length > 0 ? (
+                <Badge tone="gold" className="shrink-0">
+                  {requested.length} new
+                </Badge>
+              ) : null}
+            </div>
             {requested.length === 0 ? (
-              <p className="mt-3 text-navy-500">No new requests</p>
+              <p className="mt-3 text-[15px] text-navy-500">No new requests</p>
             ) : (
-              <div className="mt-4 flex flex-col gap-3">
+              <div className="mt-5 flex flex-col gap-3">
                 {requested.map((item) => (
                   <ProviderBookingCard
                     key={item.itemId}
                     item={item}
-                    badgeOverride={{ label: "NEW REQUEST", tone: "gold" }}
+                    badgeOverride={{ label: "New request", tone: "gold" }}
                   />
                 ))}
               </div>
             )}
-          </Card>
+          </section>
 
-          <Card>
-            <Heading level={3}>Upcoming</Heading>
+          <section className={`${cardSurface} p-6`} aria-labelledby="upcoming">
+            <Heading level={3} as="h2" id="upcoming">
+              Upcoming
+            </Heading>
             {upcoming.length === 0 ? (
-              <p className="mt-3 text-navy-500">No upcoming experiences</p>
+              <p className="mt-3 text-[15px] text-navy-500">No upcoming experiences</p>
             ) : (
-              <div className="mt-4 flex flex-col divide-y divide-ivory-300">
+              <div className="mt-3 flex flex-col divide-y divide-ivory-300">
                 {upcoming.map((item) => (
                   <UpcomingBookingRow
                     key={item.itemId}
@@ -143,21 +112,31 @@ export default async function ProviderDashboardPage() {
                 ))}
               </div>
             )}
-          </Card>
+          </section>
         </div>
+
+        {/* Supporting: the host's public profile at a glance */}
+        <aside className={`${cardSurface} p-6 lg:sticky lg:top-6`} aria-labelledby="your-profile">
+          <Eyebrow as="h2" className="mb-4">
+            <span id="your-profile">Your profile</span>
+          </Eyebrow>
+          <HostProfileSummary identity={identity} />
+        </aside>
       </div>
 
-      <Card>
+      <section className={`${cardSurface} p-6`} aria-labelledby="your-calendar">
         <div className="flex items-center justify-between gap-4">
-          <Heading level={3}>Your calendar</Heading>
-          <Link href="/provider/calendar" className="text-sm font-medium text-sky-600 hover:text-sky-700">
+          <Heading level={3} as="h2" id="your-calendar">
+            Your calendar
+          </Heading>
+          <Link href="/provider/calendar" className={textLinkClass}>
             Full calendar →
           </Link>
         </div>
-        <Link href="/provider/calendar" className="mt-4 block">
+        <Link href="/provider/calendar" className="mt-5 block">
           <MonthCalendar year={now.getUTCFullYear()} month={now.getUTCMonth()} events={calendarEvents} compact />
         </Link>
-      </Card>
+      </section>
     </div>
   );
 }

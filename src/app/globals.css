@@ -93,6 +93,14 @@ body {
   }
 }
 
+/* Host workspace (approved hosts, app/provider/layout.tsx): a deep navy shell
+   around an ivory content canvas. Scoped to pages that render
+   [data-shell="host"], so the guest app, the host login and the host
+   application keep the ivory page background. */
+body:has([data-shell="host"]) {
+  background-color: var(--color-navy-900);
+}
+
 /* Phase 5 (trip planner date navigation): hides the scrollbar on an
    otherwise-native horizontally scrolling strip, so left/right arrow
    buttons are the visible way to navigate it rather than a drag-track —

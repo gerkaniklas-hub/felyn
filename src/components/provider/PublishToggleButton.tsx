@@ -43,7 +43,7 @@ export function PublishToggleButton({ experienceId, published }: { experienceId:
   if (state.status === "success") {
     return (
       <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-navy-950/40 p-4 py-16">
-        <div className="w-full max-w-sm rounded-2xl border border-ivory-300 bg-ivory-50 p-6 text-center shadow-xl">
+        <div className="w-full max-w-sm rounded-card border border-ivory-300 bg-ivory-50 p-6 text-center shadow-xl">
           <Heading level={3}>{state.published ? "Your experience is now live." : "Your experience is unpublished."}</Heading>
           <p className="mt-3 text-sm text-navy-600">
             {state.published
