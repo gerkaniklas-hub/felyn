@@ -110,11 +110,12 @@ export function ProviderBookingCard({
           <p className="text-sm text-navy-500">A preference, not yet confirmed.</p>
         ) : null}
 
-        <p className="text-sm text-navy-600">
-          {item.guestFirstName ? `${item.guestFirstName} · ` : ""}
-          {item.stayName}
-          {item.stayLocation ? ` · ${item.stayLocation}` : ""}
-        </p>
+        {/* The guest and where they're staying — never the trip's own name (hosts don't need it). */}
+        {item.guestFirstName || item.stayLocation ? (
+          <p className="text-sm text-navy-600">
+            {[item.guestFirstName, item.stayLocation].filter(Boolean).join(" · ")}
+          </p>
+        ) : null}
 
         {item.occasionLabels.length > 0 || item.dietary.length > 0 ? (
           <div className="flex flex-wrap gap-1.5">

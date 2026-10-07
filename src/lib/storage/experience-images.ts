@@ -33,6 +33,23 @@ export function experienceImagePath(providerId: string, experienceId: string, mi
 }
 
 /**
+ * A host's profile photo lives in the same public bucket, in their own folder:
+ * "<provider_id>/profile/<random>.<ext>" — so 0022's existing storage policies
+ * (writes only under the caller's own "<provider_id>/") apply unchanged, and 0030's
+ * trigger only accepts a profile_photo_url pointing into this folder. A new random
+ * name per upload means the current photo is only replaced once the new one is saved.
+ */
+export function hostProfilePhotoPath(providerId: string, mimeType: string): string {
+  return experienceImagePath(providerId, "profile", mimeType);
+}
+
+/** True for an object path inside this provider's own profile-photo folder (one file, no sub-folders). */
+export function isHostProfilePhotoPath(providerId: string, objectPath: string): boolean {
+  const prefix = `${providerId}/profile/`;
+  return objectPath.startsWith(prefix) && /^[A-Za-z0-9._-]+$/.test(objectPath.slice(prefix.length));
+}
+
+/**
  * Recovers the storage object path from a public URL previously returned
  * by getPublicUrl for this bucket, so a gallery removal can also best-
  * effort delete the underlying object. Returns null for anything that

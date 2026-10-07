@@ -73,9 +73,8 @@ export default async function ProviderRequestsPage() {
           </p>
         ) : (
           <div className="flex flex-col gap-5">
-            {groupByStay(groupedItems).map(({ stayName, items: stayItems }) => (
+            {groupByStay(groupedItems).map(({ items: stayItems }) => (
               <div key={stayItems[0].requestId} className="flex flex-col gap-3">
-                <p className="text-sm font-medium text-navy-600">{stayName}</p>
                 <div className="flex flex-col gap-3">
                   {stayItems.map((item) => (
                     <ProviderBookingCard key={item.itemId} item={item} />
