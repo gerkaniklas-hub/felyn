@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { RequestSentModal } from "@/components/booking/RequestSentModal";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, formatDateRange } from "@/lib/format";
 import type { GuestStayOption } from "@/lib/matching/explore";
@@ -64,6 +65,8 @@ export function RequestExperienceModal({
   const [guests, setGuests] = useState(String(Math.max(range.min, Math.min(2, range.max))));
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  // Set only once requestExperience has succeeded: the id of the new request item.
+  const [sentItemId, setSentItemId] = useState<string | null>(null);
 
   const dateAvailable = Boolean(date) && date >= today && isAvailableOnDate(experience, date);
   const timeOptions = date && moment ? (getTimeOptions(experience, date, moment) ?? []) : [];
@@ -103,7 +106,7 @@ export function RequestExperienceModal({
       setError(result.error);
       return;
     }
-    router.push(`/bookings/${result.itemId}`);
+    setSentItemId(result.itemId);
   }
 
   const guestCountNumber = Number(guests);
@@ -111,6 +114,18 @@ export function RequestExperienceModal({
     Number.isInteger(guestCountNumber) && guestCountNumber > 0
       ? formatCurrency(experience.price_per_person * guestCountNumber, experience.currency)
       : null;
+
+  if (sentItemId) {
+    return (
+      <RequestSentModal
+        onDone={() => {
+          onClose();
+          router.refresh();
+        }}
+        onViewRequest={() => router.push(`/bookings/${sentItemId}`)}
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-navy-950/40 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="request-title">

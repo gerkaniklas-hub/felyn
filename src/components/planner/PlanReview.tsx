@@ -221,9 +221,9 @@ export function PlanReview({
               {submission.addedToExistingRequest ? "Added to your request" : "Your request is on its way"}
             </Heading>
             <p className="max-w-sm text-navy-500">
-              Felyn is checking availability for{" "}
-              {submission.addedToExistingRequest ? "your new experiences" : "your experiences"}. We&apos;ll let you know when
-              they&apos;re confirmed — and you can keep adding more in the meantime.
+              Your request has been sent. The host reviews{" "}
+              {submission.addedToExistingRequest ? "your new experiences" : "your experiences"}, and if they accept,
+              you&apos;ll receive a confirmation — you can keep adding more in the meantime.
             </p>
 
             <div className="mt-3 w-full max-w-sm rounded-xl border border-ivory-300 bg-ivory-100 p-4 text-left">

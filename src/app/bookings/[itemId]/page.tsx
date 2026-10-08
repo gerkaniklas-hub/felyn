@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CancelExperienceButton } from "@/components/booking/CancelExperienceButton";
+import { WithdrawRequestButton } from "@/components/booking/WithdrawRequestButton";
 import { GuestNav } from "@/components/navigation/GuestNav";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { GetHelpButton } from "@/components/support/GetHelpButton";
@@ -165,6 +166,7 @@ export default async function GuestExperienceDetailPage({
             />
           </div>
 
+          {item.status === "REQUESTED" ? <WithdrawRequestButton itemId={item.id} /> : null}
           {item.status === "CONFIRMED" ? <CancelExperienceButton itemId={item.id} stayId={item.stayId ?? undefined} /> : null}
         </div>
       </PageContainer>

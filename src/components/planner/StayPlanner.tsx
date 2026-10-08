@@ -741,7 +741,7 @@ export function StayPlanner({
 
       {withdrawItemState.status !== "idle" ? (
         <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-navy-950/40 p-4 py-16">
-          <div className="w-full max-w-sm rounded-card border border-ivory-300 bg-ivory-50 p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-card border border-ivory-300 bg-ivory-50 p-6 shadow-xl">
             <Heading level={3}>Withdraw this request?</Heading>
             {withdrawingItem ? (
               <div className="mt-3 rounded-xl border border-ivory-300 bg-ivory-100 p-3 text-sm">
@@ -759,11 +759,11 @@ export function StayPlanner({
                 {withdrawItemState.message}
               </p>
             ) : null}
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
               <Button
                 type="button"
                 variant="secondary"
-                className="flex-1"
+                className="w-full sm:flex-1"
                 disabled={withdrawItemState.status === "pending"}
                 onClick={() => setWithdrawItemState({ status: "idle" })}
               >
@@ -771,7 +771,7 @@ export function StayPlanner({
               </Button>
               <Button
                 type="button"
-                className="flex-1"
+                className="w-full sm:flex-1"
                 disabled={withdrawItemState.status === "pending"}
                 onClick={confirmWithdrawItem}
               >
