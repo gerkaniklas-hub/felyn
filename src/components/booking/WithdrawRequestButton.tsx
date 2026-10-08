@@ -6,6 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { withdrawBookingRequestItem } from "@/lib/matching/booking-requests";
 
+/**
+ * A compact outlined pill like the other secondary actions, tinted as the
+ * destructive booking action so it never reads like "Get help" (support) or
+ * like the page's primary action.
+ */
+const WITHDRAW_TRIGGER_CLASS =
+  "inline-flex h-9 items-center justify-center self-start rounded-full border border-red-200 bg-ivory-50 px-4 text-sm font-medium text-red-700 transition-colors hover:border-red-300 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-ivory-100";
+
 type State = { status: "idle" } | { status: "confirming"; error: string | null } | { status: "pending" } | { status: "withdrawn" };
 
 /**
@@ -61,7 +69,7 @@ export function WithdrawRequestButton({ itemId }: { itemId: string }) {
         ref={triggerRef}
         type="button"
         onClick={() => setState({ status: "confirming", error: null })}
-        className="self-start text-sm font-medium text-navy-400 hover:text-navy-700"
+        className={WITHDRAW_TRIGGER_CLASS}
       >
         Withdraw request
       </button>

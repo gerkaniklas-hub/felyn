@@ -124,6 +124,9 @@ export default async function GuestExperienceDetailPage({
             </p>
           </Card>
 
+          {/* Booking actions sit with the booking itself; support ("Get help") stays a separate section below. */}
+          {item.status === "REQUESTED" ? <WithdrawRequestButton itemId={item.id} /> : null}
+
           {item.experience?.description || item.experience?.shortDescription ? (
             <p className="text-base leading-relaxed text-navy-700">
               {item.experience.description ?? item.experience.shortDescription}
@@ -166,7 +169,6 @@ export default async function GuestExperienceDetailPage({
             />
           </div>
 
-          {item.status === "REQUESTED" ? <WithdrawRequestButton itemId={item.id} /> : null}
           {item.status === "CONFIRMED" ? <CancelExperienceButton itemId={item.id} stayId={item.stayId ?? undefined} /> : null}
         </div>
       </PageContainer>

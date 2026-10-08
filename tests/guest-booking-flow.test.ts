@@ -17,6 +17,17 @@ test("the booking detail page offers Withdraw only for a REQUESTED item", () => 
   const uses = [...bookingPage.matchAll(/<WithdrawRequestButton\b/g)];
   assert.equal(uses.length, 1);
   assert.match(bookingPage, /\{item\.status === "REQUESTED" \? <WithdrawRequestButton itemId=\{item\.id\} \/> : null\}/);
+  // It sits with the booking (right after the summary card), apart from and above "Get help".
+  const withdrawAt = bookingPage.indexOf("<WithdrawRequestButton");
+  const summaryCardEnd = bookingPage.lastIndexOf("</Card>", withdrawAt);
+  assert.ok(summaryCardEnd > bookingPage.indexOf("<Eyebrow>Date</Eyebrow>"), "Withdraw is not right after the summary card");
+  assert.ok(withdrawAt < bookingPage.indexOf("<GetHelpButton"), "Withdraw is not above Get help");
+  // A visible outlined pill, not a body-text link, and never the filled primary action.
+  const trigger = withdrawButton.match(/const WITHDRAW_TRIGGER_CLASS =\s+"([^"]+)"/);
+  assert.ok(trigger, "trigger class not found");
+  for (const cls of ["h-9", "rounded-full", "border"]) assert.ok(trigger[1].split(" ").includes(cls), `trigger lacks ${cls}`);
+  assert.doesNotMatch(trigger[1], /bg-navy-9/);
+  assert.match(withdrawButton, /className=\{WITHDRAW_TRIGGER_CLASS\}/);
   // Cancel stays CONFIRMED-only, so the two actions never appear together.
   assert.match(bookingPage, /\{item\.status === "CONFIRMED" \? <CancelExperienceButton /);
 });
