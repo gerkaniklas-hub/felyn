@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { CancelExperienceButton } from "@/components/booking/CancelExperienceButton";
 import { WithdrawRequestButton } from "@/components/booking/WithdrawRequestButton";
+import { MessageLauncherButton } from "@/components/messaging/MessageLauncherButton";
 import { GuestNav } from "@/components/navigation/GuestNav";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { GetHelpButton } from "@/components/support/GetHelpButton";
 import { ExperienceGallery } from "@/components/planner/ExperienceGallery";
 import { Badge } from "@/components/ui/badge";
+import { buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
 import { Eyebrow, PageContainer, textLinkClass } from "@/components/ui/page";
@@ -15,9 +17,13 @@ import {
   getDeclineReasonLabel,
   getItemStatusLabel,
   getItemStatusTone,
+  getMessagingClosedLabel,
+  getMessagingOpenCaption,
+  getMessagingWindowState,
   NO_TRIP_LINKED_LABEL,
 } from "@/lib/matching/booking-status";
 import { getGuestExperienceDetail } from "@/lib/matching/guest-experiences";
+import { getUnreadMessageCount } from "@/lib/messaging/messages";
 import { getBookingTimeLabel } from "@/lib/matching/plan";
 import { formatDayLabel } from "@/lib/matching/timeline";
 import { getOpenGuestSupportThreadId } from "@/lib/support/queries";
@@ -71,7 +77,12 @@ export default async function GuestExperienceDetailPage({
 
   const timeLabel = getBookingTimeLabel(item.plannedMoment, item.preferredTime);
   const total = item.pricePerPerson * item.guestCount;
-  const openSupportThreadId = await getOpenGuestSupportThreadId(supabase, item.id);
+  const [openSupportThreadId, unreadMessageCount] = await Promise.all([
+    getOpenGuestSupportThreadId(supabase, item.id),
+    getUnreadMessageCount(supabase, item.id),
+  ]);
+  // The booking's own guest<->host conversation (0014/0021 decide who may still send).
+  const messagingWindow = getMessagingWindowState(item.status, item.decidedAt, item.cancelledAt);
 
   return (
     <div className="flex flex-1 flex-col">
@@ -125,7 +136,28 @@ export default async function GuestExperienceDetailPage({
           </Card>
 
           {/* Booking actions sit with the booking itself; support ("Get help") stays a separate section below. */}
-          {item.status === "REQUESTED" ? <WithdrawRequestButton itemId={item.id} /> : null}
+          <div className="flex flex-wrap items-center gap-3">
+            <MessageLauncherButton
+              label="Message host"
+              unreadCount={unreadMessageCount}
+              className={buttonClasses({ variant: "secondary", size: "sm" })}
+              handle={{
+                itemId: item.id,
+                otherParticipant: {
+                  label: item.providerDisplayName,
+                  imageUrl: item.providerPhotoUrl,
+                  providerId: item.providerId,
+                },
+                experienceTitle: item.experienceTitle,
+                experienceImageUrl: item.experienceImageUrl,
+                bookingHref: `/bookings/${item.id}`,
+                canSend: messagingWindow.canSend,
+                closedLabel: getMessagingClosedLabel(item.status, messagingWindow),
+                openCaption: getMessagingOpenCaption(messagingWindow),
+              }}
+            />
+            {item.status === "REQUESTED" ? <WithdrawRequestButton itemId={item.id} /> : null}
+          </div>
 
           {item.experience?.description || item.experience?.shortDescription ? (
             <p className="text-base leading-relaxed text-navy-700">

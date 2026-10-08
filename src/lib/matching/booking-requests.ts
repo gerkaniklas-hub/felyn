@@ -13,7 +13,7 @@ import {
   type DeclineReason,
 } from "./booking-status";
 import { HOST_NOTE_MAX_LENGTH, PLANNED_MOMENTS, getPlannedMomentLabel, type PlannedMoment } from "./plan";
-import { getGuestCountRange, isAvailableAt, isPreferredTimeAllowed, normalizeTime } from "./slot-availability";
+import { getGuestCountRange, getRequestedStartError, isAvailableAt, normalizeTime, START_REFUSED_ERROR } from "./slot-availability";
 import { formatDayLabel } from "./timeline";
 import { assertGuestJourney } from "@/lib/journey-server";
 import { scheduleEmailDispatch } from "@/lib/email/dispatcher";
@@ -24,7 +24,10 @@ export type SubmitBookingRequestItem = {
   plannedMoment: PlannedMoment;
   /** The guest's own group size for THIS experience (not necessarily the stay's). */
   guestCount: number;
-  /** 'HH:MM' preference, or null for none. Never a confirmed appointment. */
+  /**
+   * Requested start, 'HH:MM' Tenerife time — required for every new request
+   * (0032); null is refused. Still only a request until the host accepts.
+   */
   preferredTime: string | null;
   /** Optional plain-text note for the provider. */
   hostNote: string | null;
@@ -148,6 +151,7 @@ export async function submitBookingRequest(
   // Authoritative experience data (price, group limits, availability) — the
   // same RLS-scoped hard filter the planner itself is built from.
   const eligible = await getHardFilteredExperiences(supabase, stay.id);
+  const now = Date.now();
   const experienceById = new Map(eligible.map((experience) => [experience.id, experience]));
 
   const itemsToInsert: {
@@ -185,15 +189,10 @@ export async function submitBookingRequest(
       return { ok: false, error: `${experience.title} needs between ${range.min} and ${range.max} guests.` };
     }
 
-    if (
-      item.preferredTime != null &&
-      !isPreferredTimeAllowed(experience, item.plannedDate, item.plannedMoment, item.preferredTime)
-    ) {
-      return {
-        ok: false,
-        error: `The preferred time for ${experience.title} doesn't match its date and time of day.`,
-      };
-    }
+    // Same start-time rules as requestExperience (and 0032 in the database):
+    // required, the whole experience fits the moment, at least 4 hours ahead.
+    const startError = getRequestedStartError(experience, item.plannedDate, item.plannedMoment, item.preferredTime, now);
+    if (startError) return { ok: false, error: startError };
 
     const note = normalizeHostNote(item.hostNote);
     if (!note.ok) {
@@ -254,6 +253,7 @@ export async function submitBookingRequest(
 
     const { error: insertError } = await supabase.from("booking_request_items").insert(insertRows(requestId));
     if (insertError) {
+      if (insertError.code === "22023") return { ok: false, error: START_REFUSED_ERROR };
       return { ok: false, error: "We couldn't add these to your request. Please try again." };
     }
 
@@ -302,6 +302,7 @@ export async function submitBookingRequest(
 
   if (itemsError) {
     await supabase.from("booking_requests").delete().eq("id", request.id);
+    if (itemsError.code === "22023") return { ok: false, error: START_REFUSED_ERROR };
     return { ok: false, error: "We couldn't submit your request. Please try again." };
   }
 

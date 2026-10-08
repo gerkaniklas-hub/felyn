@@ -171,6 +171,12 @@ export async function getGuestExperiences(
 
 export type GuestExperienceDetail = GuestExperienceItem & {
   hostNote: string | null;
+  /** For "Message host" (the existing booking conversation): the host's public profile, null once the experience is unreadable. */
+  providerId: string | null;
+  providerPhotoUrl: string | null;
+  /** Anchors of the messaging window (getMessagingWindowState): set only when DECLINED / CANCELLED respectively. */
+  decidedAt: string | null;
+  cancelledAt: string | null;
   /**
    * The catalogue experience's own richer details — description, category,
    * duration, the full photo gallery — when they're still readable. This
@@ -208,7 +214,7 @@ export async function getGuestExperienceDetail(
   const { data: itemRow } = await supabase
     .from("booking_request_items")
     .select(
-      "id, booking_request_id, experience_id, planned_date, planned_moment, preferred_time, guest_count, price_per_person, status, decline_reason, host_note, created_at, cancelled_by, cancellation_reason, cancellation_note",
+      "id, booking_request_id, experience_id, planned_date, planned_moment, preferred_time, guest_count, price_per_person, status, decline_reason, host_note, created_at, decided_at, cancelled_at, cancelled_by, cancellation_reason, cancellation_note",
     )
     .eq("id", itemId)
     .maybeSingle();
@@ -226,6 +232,8 @@ export async function getGuestExperienceDetail(
     decline_reason: DeclineReason | null;
     host_note: string | null;
     created_at: string;
+    decided_at: string | null;
+    cancelled_at: string | null;
     cancelled_by: CancelledBy | null;
     cancellation_reason: CancelReason | null;
     cancellation_note: string | null;
@@ -268,19 +276,26 @@ export async function getGuestExperienceDetail(
   const experience = experienceRes.data as ExperienceRow | null;
 
   let providerDisplayName = "Felyn host";
+  let providerPhotoUrl: string | null = null;
   let galleryRows: { image_url: string; caption: string | null }[] = [];
   let experienceImageUrl: string | null = null;
 
   if (experience) {
     const [providerRes, galleryRes] = await Promise.all([
-      supabase.from("provider_public_profiles").select("display_name").eq("id", experience.provider_id).maybeSingle(),
+      supabase
+        .from("provider_public_profiles")
+        .select("display_name, profile_photo_url")
+        .eq("id", experience.provider_id)
+        .maybeSingle(),
       supabase
         .from("experience_gallery")
         .select("image_url, caption, sort_order")
         .eq("experience_id", item.experience_id)
         .order("sort_order", { ascending: true }),
     ]);
-    providerDisplayName = (providerRes.data as { display_name: string } | null)?.display_name ?? "Felyn host";
+    const provider = providerRes.data as { display_name: string; profile_photo_url: string | null } | null;
+    providerDisplayName = provider?.display_name ?? "Felyn host";
+    providerPhotoUrl = provider?.profile_photo_url ?? null;
     galleryRows = ((galleryRes.data as { image_url: string; caption: string | null }[] | null) ?? []).map((row) => ({
       image_url: row.image_url,
       caption: row.caption,
@@ -309,6 +324,10 @@ export async function getGuestExperienceDetail(
     cancellationReason: item.cancellation_reason,
     cancellationNote: item.cancellation_note,
     hostNote: item.host_note,
+    providerId: experience?.provider_id ?? null,
+    providerPhotoUrl,
+    decidedAt: item.decided_at,
+    cancelledAt: item.cancelled_at,
     experience: experience
       ? {
           shortDescription: experience.short_description,

@@ -9,15 +9,20 @@ import { HOST_NOTE_MAX_LENGTH, PLANNED_MOMENTS, type PlannedMoment } from "@/lib
 import {
   getBookableDates,
   getGuestCountRange,
+  getRequestedStartError,
+  getStartTimeHint,
   getTimeOptions,
   isAvailableAt,
 } from "@/lib/matching/slot-availability";
 import { formatLongDayLabel } from "@/lib/matching/timeline";
 
+/** The real clock, read in event handlers only (never during render). */
+const readClock = () => Date.now();
+
 export type ExperienceConfig = {
   date: string;
   moment: PlannedMoment;
-  /** 'HH:MM' or null for "no preference". */
+  /** Requested start, 'HH:MM' Tenerife time — required to add the experience; null only until one is chosen. */
   preferredTime: string | null;
   guestCount: number;
   hostNote: string;
@@ -31,14 +36,15 @@ function resolveSlot(
   date: string,
   wanted: PlannedMoment,
   wantedTime: string | null,
+  nowMs: number,
 ): { moment: PlannedMoment; preferredTime: string | null } {
-  const moment = isAvailableAt(experience, date, wanted)
+  const moment = isAvailableAt(experience, date, wanted, nowMs)
     ? wanted
-    : (MOMENT_ORDER.find((m) => isAvailableAt(experience, date, m)) ?? wanted);
-  const times = getTimeOptions(experience, date, moment);
+    : (MOMENT_ORDER.find((m) => isAvailableAt(experience, date, m, nowMs)) ?? wanted);
+  const times = getTimeOptions(experience, date, moment, nowMs);
   // A previously chosen time survives the moment/date change only if it's
-  // still one of the new moment's standard times; otherwise it's cleared —
-  // never auto-filled, since an unspecified time is a perfectly normal choice.
+  // still one of the new moment's valid times; otherwise it's cleared — never
+  // auto-filled, so the guest always picks the start time themselves.
   const preferredTime = times && wantedTime && times.includes(wantedTime) ? wantedTime : null;
   return { moment, preferredTime };
 }
@@ -69,12 +75,15 @@ export function ExperienceConfigModal({
   onConfirm: (config: ExperienceConfig) => void;
   onClose: () => void;
 }) {
-  const bookableDates = getBookableDates(experience, plannableDates);
+  // "Now" for the offered times (4 hours' notice), fixed while the modal is open; confirm re-checks the real clock.
+  const [now] = useState(() => Date.now());
+  const [error, setError] = useState<string | null>(null);
+  const bookableDates = getBookableDates(experience, plannableDates, now);
   const range = getGuestCountRange(experience, stayGuestCount);
 
   const [config, setConfig] = useState<ExperienceConfig>(() => {
     const date = bookableDates.includes(initial.date) ? initial.date : (bookableDates[0] ?? initial.date);
-    const slot = resolveSlot(experience, date, initial.moment, initial.preferredTime);
+    const slot = resolveSlot(experience, date, initial.moment, initial.preferredTime, now);
     return {
       date,
       moment: slot.moment,
@@ -93,18 +102,28 @@ export function ExperienceConfigModal({
   }, [onClose]);
 
   function changeDate(date: string) {
-    const slot = resolveSlot(experience, date, config.moment, config.preferredTime);
+    const slot = resolveSlot(experience, date, config.moment, config.preferredTime, now);
     setConfig((prev) => ({ ...prev, date, moment: slot.moment, preferredTime: slot.preferredTime }));
+    setError(null);
   }
 
   function changeMoment(moment: PlannedMoment) {
-    const slot = resolveSlot(experience, config.date, moment, moment === config.moment ? config.preferredTime : null);
+    const slot = resolveSlot(experience, config.date, moment, moment === config.moment ? config.preferredTime : null, now);
     setConfig((prev) => ({ ...prev, moment: slot.moment, preferredTime: slot.preferredTime }));
+    setError(null);
   }
 
-  const timeOptions = getTimeOptions(experience, config.date, config.moment);
+  function confirm() {
+    // Re-checked against the real clock: a time can become too soon while the modal is open.
+    const startError = getRequestedStartError(experience, config.date, config.moment, config.preferredTime, readClock());
+    if (startError) return setError(startError);
+    onConfirm(config);
+  }
+
+  const timeOptions = getTimeOptions(experience, config.date, config.moment, now);
   const total = experience.price_per_person * config.guestCount;
-  const canConfirm = bookableDates.length > 0 && timeOptions !== null && range.max >= range.min;
+  const canConfirm =
+    bookableDates.length > 0 && timeOptions !== null && config.preferredTime !== null && range.max >= range.min;
 
   return (
     <div className="fixed inset-0 z-[75] flex items-end justify-center bg-navy-950/40 sm:items-center sm:p-4">
@@ -164,7 +183,7 @@ export function ExperienceConfigModal({
             <p className="mb-1.5 text-sm font-medium text-navy-900">Time of day</p>
             <div role="group" aria-label="Time of day" className="grid grid-cols-3 gap-2">
               {PLANNED_MOMENTS.map((moment) => {
-                const offered = isAvailableAt(experience, config.date, moment.value);
+                const offered = isAvailableAt(experience, config.date, moment.value, now);
                 const selected = config.moment === moment.value;
                 return (
                   <button
@@ -187,10 +206,10 @@ export function ExperienceConfigModal({
             </div>
             {/* A disabled button + hover title alone isn't clear on touch devices
                 (no hover) — this makes the same fact visible unconditionally. */}
-            {PLANNED_MOMENTS.some((moment) => !isAvailableAt(experience, config.date, moment.value)) ? (
+            {PLANNED_MOMENTS.some((moment) => !isAvailableAt(experience, config.date, moment.value, now)) ? (
               <p className="mt-1.5 text-xs text-navy-500">
                 Not available for{" "}
-                {PLANNED_MOMENTS.filter((moment) => !isAvailableAt(experience, config.date, moment.value))
+                {PLANNED_MOMENTS.filter((moment) => !isAvailableAt(experience, config.date, moment.value, now))
                   .map((moment) => moment.label.toLowerCase())
                   .join(" or ")}{" "}
                 on this date
@@ -201,17 +220,21 @@ export function ExperienceConfigModal({
 
           <div>
             <label htmlFor="config-time" className="mb-1.5 block text-sm font-medium text-navy-900">
-              Preferred time <span className="font-normal text-navy-500">(optional)</span>
+              Start time
             </label>
             <select
               id="config-time"
+              required
               value={config.preferredTime ?? ""}
-              onChange={(event) =>
-                setConfig((prev) => ({ ...prev, preferredTime: event.target.value === "" ? null : event.target.value }))
-              }
+              onChange={(event) => {
+                setConfig((prev) => ({ ...prev, preferredTime: event.target.value === "" ? null : event.target.value }));
+                setError(null);
+              }}
               className="h-11 w-full rounded-full border border-ivory-400 bg-ivory-50 px-4 text-base text-navy-900"
             >
-              <option value="">No preference</option>
+              <option value="" disabled>
+                Choose a start time
+              </option>
               {(timeOptions ?? []).map((time) => (
                 <option key={time} value={time}>
                   {time}
@@ -219,7 +242,7 @@ export function ExperienceConfigModal({
               ))}
             </select>
             <p className="mt-1.5 text-xs text-navy-500">
-              Choose your preferred time. The host will review it when confirming your request.
+              {getStartTimeHint(experience, config.moment)} The host reviews it when confirming your request.
             </p>
           </div>
 
@@ -292,7 +315,12 @@ export function ExperienceConfigModal({
         </div>
 
         <div className="border-t border-ivory-300 px-5 py-4 sm:px-6">
-          <Button type="button" className="w-full" disabled={!canConfirm} onClick={() => onConfirm(config)}>
+          {error ? (
+            <p role="alert" className="mb-3 rounded-xl bg-gold-100 px-3 py-2 text-sm font-medium text-gold-700">
+              {error}
+            </p>
+          ) : null}
+          <Button type="button" className="w-full" disabled={!canConfirm} onClick={confirm}>
             {mode === "edit" ? "Save changes" : "Add to my plan"}
           </Button>
           <p className="mt-2 text-center text-xs text-navy-500">

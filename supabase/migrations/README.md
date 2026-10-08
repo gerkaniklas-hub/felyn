@@ -399,3 +399,50 @@ effect on the next request, no sign-out needed.
   rolled back. It would fail now that 0031 exists, and should not be re-run.
 - SHA-256 of the files as written: 0031 `af2ceb95003683b1…`, isolated test
   `3a844f53ab7b8839…`.
+
+## Migration 0032: requested start rules — ALREADY APPLIED TO PRODUCTION — DO NOT RE-RUN
+
+- `0032_requested_start_rules.sql` **was applied to production on
+  2026-10-08** (by the project owner, after its isolated test passed there;
+  verified afterwards: the rule function exists, the insert trigger calls it,
+  no client role can call it, Canary/DST conversion is correct, and a missing
+  `preferred_time` is refused). **Do not run it against production again.**
+  Its own starting checks would abort a re-run (it refuses unless the insert
+  guard is still 0031's version), but it must not be executed as part of any
+  deployment. Same form as 0023-0031: a single `DO`
+  statement that applies fully or rolls back fully, with preconditions (it
+  aborts unless 0031's insert guard is in place and the database knows the
+  `Atlantic/Canary` time zone) and postconditions (including a DST sanity
+  check of two known Canary instants).
+- It makes a NEW booking item's requested start (`preferred_time`) reliable:
+  - `public.booking_request_start_error(experience, date, moment, time, now)`
+    returns NULL or the reason a start is refused: the time is required; it
+    must be inside the moment (morning 07-12, afternoon 12-17, evening
+    17-22 — the app's `MOMENT_RANGES`); the whole experience
+    (`experiences.duration_minutes`) must end by the end of the moment; an
+    availability window must cover the date (and its hours, if set, touch the
+    moment); and the start, read as Tenerife local time
+    (`(planned_date + preferred_time) at time zone 'Atlantic/Canary'`,
+    DST-correct), must be at least 4 hours after `now`. Not callable by any
+    client role.
+  - 0031's `booking_request_items_before_insert()` is replaced by the same
+    function plus that check (with `now()`), raising SQLSTATE 22023. Every
+    0031 check is kept verbatim.
+  - Inserts only: existing rows (including historical ones with no
+    `preferred_time`) are not touched or re-validated, and the 0031 status
+    transitions keep working on them.
+- Deploy with the app change that requires a start time in both request
+  paths (an older app still lets guests send "no preference", which 0032
+  refuses with a generic error).
+- Companion file (not a migration; never run during deployment):
+  `requested_start_rules_isolated_test.sql` — the fail-closed rehearsal, to
+  be run **after 0031 and before 0032**. It embeds 0032's section 2 verbatim
+  (`tests/requested-start-rules.test.ts` fails if the two drift), checks the
+  rule with fixed "now" instants (exact 4-hour boundaries in summer and
+  winter, both DST switch days, the past, moments, durations, availability),
+  then the real trigger as a signed-in guest and a legacy row without a time,
+  needs two accounts in `auth.users`, and always ends in an error so
+  everything is rolled back. It would fail now that 0032 exists, and should
+  not be re-run.
+- SHA-256 of the files as written: 0032 `ee96be5499cb03fb…`, isolated test
+  `7f7937ff7fbda998…`.

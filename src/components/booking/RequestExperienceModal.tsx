@@ -9,12 +9,22 @@ import type { GuestStayOption } from "@/lib/matching/explore";
 import type { MatchedExperience } from "@/lib/matching/hard-filter";
 import { HOST_NOTE_MAX_LENGTH, PLANNED_MOMENTS, type PlannedMoment } from "@/lib/matching/plan";
 import { requestExperience } from "@/lib/matching/request-experience";
-import { getGuestCountRange, getTimeOptions, isAvailableAt, isAvailableOnDate } from "@/lib/matching/slot-availability";
+import { canaryToday } from "@/lib/matching/canary-time";
+import {
+  getGuestCountRange,
+  getRequestedStartError,
+  getStartTimeHint,
+  getTimeOptions,
+  isAvailableAt,
+  isAvailableOnDate,
+} from "@/lib/matching/slot-availability";
 import { formatDayLabel } from "@/lib/matching/timeline";
-import { todayISODate } from "@/lib/onboarding/stay-dates";
 
 
 const LOOKAHEAD_DAYS = 365;
+
+/** The real clock, read in event handlers only (never during render). */
+const readClock = () => Date.now();
 
 function addDays(date: string, days: number): string {
   const [y, m, d] = date.split("-").map(Number);
@@ -39,16 +49,19 @@ export function RequestExperienceModal({
   onClose: () => void;
 }) {
   const router = useRouter();
-  const today = todayISODate();
+  // "Now" for the offered times (4 hours' notice), fixed while the form is open;
+  // submit re-checks against the real clock. Dates are Tenerife dates.
+  const [now] = useState(() => Date.now());
+  const today = canaryToday(now);
 
   // The date picker opens on the first date this experience can be requested.
   const firstAvailableDate = useMemo(() => {
     for (let i = 0; i < LOOKAHEAD_DAYS; i++) {
       const candidate = addDays(today, i);
-      if (isAvailableOnDate(experience, candidate)) return candidate;
+      if (isAvailableOnDate(experience, candidate, now)) return candidate;
     }
     return "";
-  }, [experience, today]);
+  }, [experience, today, now]);
 
   const [date, setDate] = useState(firstAvailableDate);
   const [moment, setMoment] = useState<PlannedMoment | null>(null);
@@ -68,14 +81,14 @@ export function RequestExperienceModal({
   // Set only once requestExperience has succeeded: the id of the new request item.
   const [sentItemId, setSentItemId] = useState<string | null>(null);
 
-  const dateAvailable = Boolean(date) && date >= today && isAvailableOnDate(experience, date);
-  const timeOptions = date && moment ? (getTimeOptions(experience, date, moment) ?? []) : [];
+  const dateAvailable = Boolean(date) && date >= today && isAvailableOnDate(experience, date, now);
+  const timeOptions = date && moment ? (getTimeOptions(experience, date, moment, now) ?? []) : [];
 
   function chooseDate(next: string) {
     setDate(next);
     setError(null);
     setPreferredTime("");
-    if (moment && !(next && isAvailableAt(experience, next, moment))) setMoment(null);
+    if (moment && !(next && isAvailableAt(experience, next, moment, now))) setMoment(null);
     const stillCovers = stays.some((stay) => stay.id === stayChoice && next >= stay.checkIn && next < stay.checkOut);
     if (!stillCovers) {
       const firstCovering = stays.find((stay) => next >= stay.checkIn && next < stay.checkOut);
@@ -88,9 +101,13 @@ export function RequestExperienceModal({
     const guestCount = Number(guests);
     if (!dateAvailable) return setError("Choose a date this experience is available.");
     if (!moment) return setError("Choose a time of day.");
+    if (!preferredTime) return setError("Choose a start time.");
     if (!Number.isInteger(guestCount) || guestCount < range.min || guestCount > range.max) {
       return setError(`Choose between ${range.min} and ${range.max} guests.`);
     }
+    // Re-checked against the real clock: a time can become too soon while the form is open.
+    const startError = getRequestedStartError(experience, date, moment, preferredTime, readClock());
+    if (startError) return setError(startError);
     setSending(true);
     const result = await requestExperience({
       experienceId: experience.id,
@@ -98,7 +115,7 @@ export function RequestExperienceModal({
       plannedDate: date,
       plannedMoment: moment,
       guestCount,
-      preferredTime: preferredTime || null,
+      preferredTime,
       hostNote: note.trim() || null,
     });
     if (!result.ok) {
@@ -167,7 +184,7 @@ export function RequestExperienceModal({
               <legend className="text-sm font-medium text-navy-700">Time of day</legend>
               <div className="grid grid-cols-3 gap-2">
                 {PLANNED_MOMENTS.map((option) => {
-                  const available = dateAvailable && isAvailableAt(experience, date, option.value);
+                  const available = dateAvailable && isAvailableAt(experience, date, option.value, now);
                   return (
                     <button
                       key={option.value}
@@ -192,19 +209,26 @@ export function RequestExperienceModal({
 
             {timeOptions.length > 0 ? (
               <label className="flex flex-col gap-1.5">
-                <span className="text-sm font-medium text-navy-700">Preferred time (optional)</span>
+                <span className="text-sm font-medium text-navy-700">Start time</span>
                 <select
                   value={preferredTime}
-                  onChange={(event) => setPreferredTime(event.target.value)}
+                  required
+                  onChange={(event) => {
+                    setPreferredTime(event.target.value);
+                    setError(null);
+                  }}
                   className="h-11 rounded-full border border-ivory-400 bg-ivory-50 px-4 text-sm text-navy-900"
                 >
-                  <option value="">No preference</option>
+                  <option value="" disabled>
+                    Choose a start time
+                  </option>
                   {timeOptions.map((time) => (
                     <option key={time} value={time}>
                       {time}
                     </option>
                   ))}
                 </select>
+                <span className="text-xs text-navy-500">{getStartTimeHint(experience, moment)}</span>
               </label>
             ) : null}
 

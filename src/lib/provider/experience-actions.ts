@@ -288,7 +288,8 @@ export type AvailabilityFormState = { error?: string; ok?: boolean };
 /**
  * Intentionally simple MVP availability (matches 0002's own comment on
  * experience_availability): add a date window, optionally narrowed to a
- * start/end time-of-day and a max_bookings cap. Dates and times are plain
+ * start/end time-of-day. No booking cap: max_bookings is not enforced by the
+ * booking system, so hosts can't set it (new windows store NULL). Dates and times are plain
  * calendar dates / times-of-day with no timezone conversion — the same
  * convention already used for planned_date/preferred_time elsewhere in
  * this app (see booking-status.ts's own note: Atlantic/Canary-local
@@ -305,7 +306,6 @@ export async function addAvailabilityWindow(
   const availableUntil = String(formData.get("availableUntil") ?? "").trim();
   const startTimeRaw = String(formData.get("startTime") ?? "").trim();
   const endTimeRaw = String(formData.get("endTime") ?? "").trim();
-  const maxBookingsRaw = String(formData.get("maxBookings") ?? "").trim();
 
   if (!experienceId || !availableFrom || !availableUntil) {
     return { error: "Please fill in the date range." };
@@ -328,14 +328,6 @@ export async function addAvailabilityWindow(
     }
   }
 
-  let maxBookings: number | null = null;
-  if (maxBookingsRaw) {
-    maxBookings = Number(maxBookingsRaw);
-    if (!Number.isInteger(maxBookings) || maxBookings <= 0) {
-      return { error: "Max bookings must be a positive whole number." };
-    }
-  }
-
   const supabase = await createSupabaseServerClient();
   const providerId = await resolveOwnProviderId(supabase);
   if (!providerId) return { error: "This account isn't linked to a Felyn provider profile yet." };
@@ -349,7 +341,6 @@ export async function addAvailabilityWindow(
     available_until: availableUntil,
     start_time: startTime,
     end_time: endTime,
-    max_bookings: maxBookings,
   });
 
   if (error) return { error: GENERIC_ERROR };

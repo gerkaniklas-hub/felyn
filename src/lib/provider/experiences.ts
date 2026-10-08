@@ -93,7 +93,6 @@ export type ProviderExperienceAvailabilityWindow = {
   availableUntil: string;
   startTime: string | null;
   endTime: string | null;
-  maxBookings: number | null;
 };
 
 export type ProviderExperienceDetail = {
@@ -149,7 +148,7 @@ export async function getProviderExperienceDetail(
       .order("sort_order", { ascending: true }),
     supabase
       .from("experience_availability")
-      .select("id, available_from, available_until, start_time, end_time, max_bookings")
+      .select("id, available_from, available_until, start_time, end_time")
       .eq("experience_id", experienceId)
       .order("available_from", { ascending: true }),
   ]);
@@ -170,7 +169,6 @@ export async function getProviderExperienceDetail(
           available_until: string;
           start_time: string | null;
           end_time: string | null;
-          max_bookings: number | null;
         }[]
       | null) ?? []
   ).map((row) => ({
@@ -179,7 +177,6 @@ export async function getProviderExperienceDetail(
     availableUntil: row.available_until,
     startTime: normalizeTime(row.start_time),
     endTime: normalizeTime(row.end_time),
-    maxBookings: row.max_bookings,
   }));
 
   return {

@@ -68,7 +68,6 @@ export function ExperienceAvailabilityManager({
                 </p>
                 <p className="text-navy-500">
                   {window.startTime && window.endTime ? `${window.startTime}–${window.endTime}` : "All day"}
-                  {window.maxBookings != null ? ` · max ${window.maxBookings} bookings` : ""}
                 </p>
               </div>
               <button
@@ -98,10 +97,10 @@ export function ExperienceAvailabilityManager({
           <Input label="Available from" name="availableFrom" type="date" required />
           <Input label="Available until" name="availableUntil" type="date" required />
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        {/* No booking cap: experience_availability.max_bookings is not enforced anywhere, so it isn't offered. */}
+        <div className="grid grid-cols-2 gap-3">
           <Input label="Start time (optional)" name="startTime" type="time" />
           <Input label="End time (optional)" name="endTime" type="time" />
-          <Input label="Max bookings (optional)" name="maxBookings" type="number" min={1} />
         </div>
         <p className="text-xs text-navy-400">Times are Tenerife local time. Leave both blank for an all-day window.</p>
         {state.error ? <p className="text-sm text-red-600">{state.error}</p> : null}

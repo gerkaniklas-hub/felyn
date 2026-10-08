@@ -2,13 +2,13 @@
 
 import { scheduleEmailDispatch } from "@/lib/email/dispatcher";
 import { assertGuestJourney } from "@/lib/journey-server";
-import { todayISODate } from "@/lib/onboarding/stay-dates";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { submitBookingRequest, type SubmitBookingRequestItem } from "./booking-requests";
+import { canaryToday } from "./canary-time";
 import { getPublishedExperiences } from "./explore";
 import { getHardFilteredExperiences } from "./hard-filter";
 import { HOST_NOTE_MAX_LENGTH, PLANNED_MOMENTS, getPlannedMomentLabel } from "./plan";
-import { getGuestCountRange, isAvailableAt, isPreferredTimeAllowed } from "./slot-availability";
+import { getGuestCountRange, getRequestedStartError, isAvailableAt, START_REFUSED_ERROR } from "./slot-availability";
 import { formatDayLabel } from "./timeline";
 
 export type RequestExperienceInput = SubmitBookingRequestItem & {
@@ -31,8 +31,10 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
  * - Without a stay: a booking_requests row with stay_id = NULL (0026) and
  *   the item, validated with the planner's own rules minus the stay-based
  *   ones: published, available on that date and time of day, the
- *   experience's guest limits, preferred-time and note rules, not in the
- *   past.
+ *   experience's guest limits, the start-time rules (required, the whole
+ *   experience fits the moment, at least 4 hours ahead in Tenerife time —
+ *   getRequestedStartError, which 0032 also enforces in the database) and
+ *   the note rules.
  *
  * Returns the new line item's id for its booking detail page (/bookings/<id>).
  */
@@ -72,7 +74,8 @@ export async function requestExperience(input: RequestExperienceInput): Promise<
   const experience = (await getPublishedExperiences(supabase)).find((candidate) => candidate.id === item.experienceId);
   if (!experience) return { ok: false, error: "This experience is no longer available." };
 
-  if (!DATE_PATTERN.test(item.plannedDate) || item.plannedDate < todayISODate()) {
+  const now = Date.now();
+  if (!DATE_PATTERN.test(item.plannedDate) || item.plannedDate < canaryToday(now)) {
     return { ok: false, error: "Choose a date from today onwards." };
   }
   if (!PLANNED_MOMENTS.some((moment) => moment.value === item.plannedMoment)) {
@@ -89,9 +92,8 @@ export async function requestExperience(input: RequestExperienceInput): Promise<
   if (!Number.isInteger(item.guestCount) || item.guestCount < range.min || item.guestCount > range.max) {
     return { ok: false, error: `${experience.title} needs between ${range.min} and ${range.max} guests.` };
   }
-  if (item.preferredTime != null && !isPreferredTimeAllowed(experience, item.plannedDate, item.plannedMoment, item.preferredTime)) {
-    return { ok: false, error: `The preferred time for ${experience.title} doesn't match its date and time of day.` };
-  }
+  const startError = getRequestedStartError(experience, item.plannedDate, item.plannedMoment, item.preferredTime, now);
+  if (startError) return { ok: false, error: startError };
   const note = item.hostNote?.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").trim() || null;
   if (note && note.length > HOST_NOTE_MAX_LENGTH) {
     return { ok: false, error: `Your note is too long (max ${HOST_NOTE_MAX_LENGTH} characters).` };
@@ -120,6 +122,7 @@ export async function requestExperience(input: RequestExperienceInput): Promise<
     .single();
   if (itemError || !inserted) {
     await supabase.from("booking_requests").delete().eq("id", request.id);
+    if (itemError?.code === "22023") return { ok: false, error: START_REFUSED_ERROR };
     return { ok: false, error: "We couldn't send your request. Please try again." };
   }
   scheduleEmailDispatch();
