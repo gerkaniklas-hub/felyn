@@ -99,11 +99,12 @@ export async function requestExperience(input: RequestExperienceInput): Promise<
 
   const { data: request, error: requestError } = await supabase
     .from("booking_requests")
-    .insert({ user_id: user.id, stay_id: null, estimated_total: experience.price_per_person * item.guestCount })
+    .insert({ user_id: user.id, stay_id: null })
     .select("id")
     .single();
   if (requestError || !request) return { ok: false, error: "We couldn't send your request. Please try again." };
 
+  // The database sets price_per_person from the experience itself (0031); clients can't send it.
   const { data: inserted, error: itemError } = await supabase
     .from("booking_request_items")
     .insert({
@@ -112,7 +113,6 @@ export async function requestExperience(input: RequestExperienceInput): Promise<
       planned_date: item.plannedDate,
       planned_moment: item.plannedMoment,
       guest_count: item.guestCount,
-      price_per_person: experience.price_per_person,
       preferred_time: item.preferredTime,
       host_note: note,
     })

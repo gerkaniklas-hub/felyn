@@ -196,7 +196,7 @@ export type GuestExperienceDetail = GuestExperienceItem & {
  * One booking, in full, for the guest's own booking-detail page
  * (/experiences/[itemId]). Ownership is enforced by RLS alone here (no
  * explicit user_id filter is possible before the row is even fetched) —
- * "Users manage their own booking request items" (0005) means a guest can
+ * "Guests view their own booking request items" (0031; 0005 before) means a guest can
  * only ever receive their OWN item; an itemId for someone else's booking
  * simply resolves to null, exactly like getProviderRequestItems already
  * relies on RLS for the equivalent provider-side lookup.

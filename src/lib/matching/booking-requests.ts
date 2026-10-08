@@ -216,6 +216,18 @@ export async function submitBookingRequest(
 
   const currency = experienceById.get(items[0].experienceId)?.currency ?? "EUR";
 
+  /** Only the columns a guest may write (0031) — the database sets price_per_person from the experience itself. */
+  const insertRows = (bookingRequestId: string) =>
+    itemsToInsert.map((row) => ({
+      booking_request_id: bookingRequestId,
+      experience_id: row.experience_id,
+      planned_date: row.planned_date,
+      planned_moment: row.planned_moment,
+      guest_count: row.guest_count,
+      preferred_time: row.preferred_time,
+      host_note: row.host_note,
+    }));
+
   /** Appends to an already-active request this guest owns; recomputes its total from the database. */
   async function appendToRequest(requestId: string): Promise<SubmitBookingRequestResult> {
     // A new item must not land on a slot another ACTIVE item already holds —
@@ -240,14 +252,12 @@ export async function submitBookingRequest(
       }
     }
 
-    const { error: insertError } = await supabase
-      .from("booking_request_items")
-      .insert(itemsToInsert.map((row) => ({ ...row, booking_request_id: requestId })));
+    const { error: insertError } = await supabase.from("booking_request_items").insert(insertRows(requestId));
     if (insertError) {
       return { ok: false, error: "We couldn't add these to your request. Please try again." };
     }
 
-    const estimatedTotal = await recalculateEstimatedTotal(supabase, requestId);
+    const estimatedTotal = await readEstimatedTotal(supabase, requestId);
     scheduleEmailDispatch();
     return {
       ok: true,
@@ -272,11 +282,9 @@ export async function submitBookingRequest(
   const existingRequestId = await findOwnActiveRequestId();
   if (existingRequestId) return appendToRequest(existingRequestId);
 
-  const estimatedTotal = itemsToInsert.reduce((sum, row) => sum + row.price_per_person * row.guest_count, 0);
-
   const { data: request, error: requestError } = await supabase
     .from("booking_requests")
-    .insert({ user_id: user.id, stay_id: stay.id, estimated_total: estimatedTotal })
+    .insert({ user_id: user.id, stay_id: stay.id })
     .select("id")
     .single();
 
@@ -290,14 +298,14 @@ export async function submitBookingRequest(
     return { ok: false, error: "We couldn't submit your request. Please try again." };
   }
 
-  const { error: itemsError } = await supabase
-    .from("booking_request_items")
-    .insert(itemsToInsert.map((row) => ({ ...row, booking_request_id: request.id })));
+  const { error: itemsError } = await supabase.from("booking_request_items").insert(insertRows(request.id));
 
   if (itemsError) {
     await supabase.from("booking_requests").delete().eq("id", request.id);
     return { ok: false, error: "We couldn't submit your request. Please try again." };
   }
+
+  const estimatedTotal = await readEstimatedTotal(supabase, request.id);
 
   scheduleEmailDispatch();
   return {
@@ -384,36 +392,30 @@ export async function getActiveBookingRequest(stayId: string): Promise<ActiveBoo
 
 /**
  * The request's estimated_total only ever reflects items that are still
- * REQUESTED or CONFIRMED — a DECLINED or WITHDRAWN item's price no longer
- * applies. Recomputed from the database on every change that can affect it
- * (adding items, individual withdrawal), never adjusted by arithmetic on a
- * client-supplied old total. Each item contributes its OWN price_per_person
- * × its OWN guest_count.
+ * REQUESTED or CONFIRMED — a DECLINED, WITHDRAWN or CANCELLED item's price
+ * no longer applies. Since 0031 the database keeps it current itself (the
+ * booking_request_items_sync_total trigger, on every item insert and status
+ * change; clients can no longer write it), so this only reads it back. Each
+ * item contributes its OWN price_per_person × its OWN guest_count.
  */
-export async function recalculateEstimatedTotal(supabase: SupabaseServerClient, bookingRequestId: string): Promise<number> {
-  const { data: activeItems } = await supabase
-    .from("booking_request_items")
-    .select("price_per_person, guest_count")
-    .eq("booking_request_id", bookingRequestId)
-    .in("status", ITEM_ACTIVE_STATUSES);
-
-  const newTotal = ((activeItems as { price_per_person: number; guest_count: number }[] | null) ?? []).reduce(
-    (sum, item) => sum + item.price_per_person * item.guest_count,
-    0,
-  );
-  await supabase.from("booking_requests").update({ estimated_total: newTotal }).eq("id", bookingRequestId);
-  return newTotal;
+async function readEstimatedTotal(supabase: SupabaseServerClient, bookingRequestId: string): Promise<number> {
+  const { data } = await supabase
+    .from("booking_requests")
+    .select("estimated_total")
+    .eq("id", bookingRequestId)
+    .maybeSingle();
+  return Number((data as { estimated_total: number } | null)?.estimated_total ?? 0);
 }
 
 export type WithdrawItemResult = { ok: true } | { ok: false; error: string };
 
 /**
  * P1.4: the guest withdraws ONE still-pending item — never the whole
- * request, never a DECLINED/CONFIRMED item (the `.eq("status",
- * "REQUESTED")` guard on the update makes that the database's own
- * decision, not just a UI restriction). Ownership is verified via the
- * parent booking_request's user_id. The item row is kept as history; only
- * the total is recalculated.
+ * request, never a DECLINED/CONFIRMED item. The transition itself runs in
+ * the database function booking_item_withdraw (0031), which re-checks
+ * ownership and the REQUESTED state — the database's own decision, not just
+ * a UI restriction. The reads below only pick the friendlier error message.
+ * The item row is kept as history; the total is recomputed by the database.
  */
 export async function withdrawBookingRequestItem(itemId: string): Promise<WithdrawItemResult> {
   await assertGuestJourney();
@@ -446,22 +448,14 @@ export async function withdrawBookingRequestItem(itemId: string): Promise<Withdr
     return { ok: false, error: "We couldn't find that request." };
   }
 
-  const { data: updated, error } = await supabase
-    .from("booking_request_items")
-    .update({ status: "WITHDRAWN" })
-    .eq("id", itemId)
-    .eq("status", "REQUESTED")
-    .select("id")
-    .maybeSingle();
+  const { data: withdrawn, error } = await supabase.rpc("booking_item_withdraw", { p_item_id: itemId });
 
-  if (error || !updated) {
+  if (error || withdrawn !== true) {
     return {
       ok: false,
       error: "We couldn't withdraw this experience. It may already have been decided.",
     };
   }
-
-  await recalculateEstimatedTotal(supabase, item.booking_request_id);
 
   return { ok: true };
 }
@@ -470,19 +464,18 @@ export type CancelItemResult = { ok: true } | { ok: false; error: string };
 
 /**
  * Booking-lifecycle milestone: the guest cancels ONE already-CONFIRMED
- * item — immediate, no acceptance step. Mirrors withdrawBookingRequestItem's
- * ownership pattern exactly (fetch item -> fetch parent request -> verify
- * user_id), but unlike that function, every failure path here returns the
- * SAME generic message: whether the item doesn't exist, isn't the caller's,
- * or is no longer CONFIRMED, the guest is told only "we couldn't cancel
- * this" — never which of those three it was (an explicit requirement for
- * this action, not retrofitted onto withdrawBookingRequestItem above).
+ * item — immediate, no acceptance step. Runs in the database function
+ * booking_item_cancel_as_guest (0031), which checks the item belongs to one
+ * of the caller's own requests and is still CONFIRMED. Every failure path
+ * returns the SAME generic message: whether the item doesn't exist, isn't
+ * the caller's, or is no longer CONFIRMED, the guest is told only "we
+ * couldn't cancel this" — never which of those three it was.
  * status/cancelled_at/cancelled_by/cancellation_reason/cancellation_note
  * are written together in the one guarded update; migration 0019's own
  * CHECK constraints make a partial write of these five fields impossible
  * regardless. The parent booking_request's own status is never touched —
- * only its estimated_total, recalculated the same way withdrawal already
- * does, since a cancelled item's price no longer applies.
+ * only its estimated_total, recomputed by the database, since a cancelled
+ * item's price no longer applies.
  */
 export async function cancelBookingRequestItemAsGuest(
   itemId: string,
@@ -509,57 +502,30 @@ export async function cancelBookingRequestItemAsGuest(
     return { ok: false, error: `Your note is too long (max ${CANCELLATION_NOTE_MAX_LENGTH} characters).` };
   }
 
-  const { data: item } = await supabase
-    .from("booking_request_items")
-    .select("id, booking_request_id")
-    .eq("id", itemId)
-    .maybeSingle();
+  const { data: cancelled, error } = await supabase.rpc("booking_item_cancel_as_guest", {
+    p_item_id: itemId,
+    p_reason: reason,
+    p_note: trimmedNote,
+  });
 
-  if (!item) {
+  if (error || cancelled !== true) {
     return { ok: false, error: GENERIC_ERROR };
   }
 
-  const { data: request } = await supabase
-    .from("booking_requests")
-    .select("id, user_id")
-    .eq("id", item.booking_request_id)
-    .maybeSingle();
-
-  if (!request || request.user_id !== user.id) {
-    return { ok: false, error: GENERIC_ERROR };
-  }
-
-  const cancelledBy: CancelledBy = "guest";
-  const { data: updated, error } = await supabase
-    .from("booking_request_items")
-    .update({
-      status: "CANCELLED",
-      cancelled_at: new Date().toISOString(),
-      cancelled_by: cancelledBy,
-      cancellation_reason: reason,
-      cancellation_note: trimmedNote.length > 0 ? trimmedNote : null,
-    })
-    .eq("id", itemId)
-    .eq("status", "CONFIRMED")
-    .select("id")
-    .maybeSingle();
-
-  if (error || !updated) {
-    return { ok: false, error: GENERIC_ERROR };
-  }
-
-  await recalculateEstimatedTotal(supabase, item.booking_request_id);
   scheduleEmailDispatch();
 
   return { ok: true };
 }
 
 /**
- * M7.2: guest-initiated withdrawal. Scoped to `user_id = auth.uid()` (both
- * via RLS and this explicit filter) and only transitions rows that are
- * still active — an already-withdrawn or otherwise-final request just
- * fails harmlessly. Once withdrawn, the row no longer matches the partial
- * unique index, freeing the stay up for a new request.
+ * M7.2: guest-initiated withdrawal of the whole request. Runs in the
+ * database function booking_request_withdraw (0031): scoped to the caller's
+ * own request, only from an active status (an already-withdrawn or
+ * otherwise-final request just fails harmlessly), and in the SAME
+ * transaction every still-REQUESTED item of the request becomes WITHDRAWN —
+ * no pending item is left behind. Decided items (CONFIRMED/DECLINED/
+ * CANCELLED) keep their status as history. Once withdrawn, the row no longer
+ * matches the partial unique index, freeing the stay up for a new request.
  */
 export async function withdrawBookingRequest(
   requestId: string,
@@ -574,16 +540,9 @@ export async function withdrawBookingRequest(
     return { ok: false, error: "You need to be signed in to withdraw this request." };
   }
 
-  const { data, error } = await supabase
-    .from("booking_requests")
-    .update({ status: "WITHDRAWN", updated_at: new Date().toISOString() })
-    .eq("id", requestId)
-    .eq("user_id", user.id)
-    .in("status", ACTIVE_STATUSES)
-    .select("id")
-    .maybeSingle();
+  const { data, error } = await supabase.rpc("booking_request_withdraw", { p_request_id: requestId });
 
-  if (error || !data) {
+  if (error || data !== true) {
     return { ok: false, error: "We couldn't withdraw this request. Please try again." };
   }
 

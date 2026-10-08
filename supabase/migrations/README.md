@@ -353,3 +353,49 @@ returning user_id, role;
 Exactly one row should be returned. Removing staff access:
 `delete from public.staff_members where user_id = '<user id>';` — it takes
 effect on the next request, no sign-out needed.
+
+## Migration 0031: booking write hardening — ALREADY APPLIED TO PRODUCTION — DO NOT RE-RUN
+
+- `0031_booking_write_hardening.sql` **was applied to production on
+  2026-10-08** (by the project owner). **Do not run it against production
+  again.** Its own starting checks would abort a re-run (it refuses unless the
+  booking policies are exactly the pre-0031 ones), but it must not be executed
+  as part of any deployment. Same form as 0023-0030: a single
+  `DO` statement that applies fully or rolls back fully, with preconditions
+  (it aborts unless the booking policies are exactly 0005/0007/0009/0026's)
+  and postconditions.
+- It makes the database the only authority over booking rows before payments:
+  - `booking_requests` / `booking_request_items`: no client UPDATE at all; no
+    client DELETE of items; INSERT limited to the request columns
+    (`user_id, stay_id` and `booking_request_id, experience_id, planned_date,
+    planned_moment, guest_count, preferred_time, host_note`); anon has nothing.
+    The guest FOR ALL policies become SELECT + INSERT (same ownership rules);
+    guests may DELETE only their own requests with no REQUESTED, CONFIRMED or
+    DECLINED item. The host UPDATE policy is dropped.
+  - Every status change runs in a `SECURITY DEFINER` function that checks
+    `auth.uid()` and the current state: `booking_item_confirm`,
+    `booking_item_decline`, `booking_item_cancel_as_host` (host),
+    `booking_item_withdraw`, `booking_item_cancel_as_guest`,
+    `booking_request_withdraw` (guest; withdraws the request's REQUESTED items
+    in the same transaction).
+  - Guard triggers (apply to every role, postgres included): new rows start
+    REQUESTED with no decision/cancellation/completion; `price_per_person` is
+    always copied from the experience; the experience must be published and
+    `guest_count` within its group size; booking details never change; only
+    the existing transitions are allowed; `estimated_total` is maintained from
+    the items.
+  - Data, once: REQUESTED items under an already withdrawn request become
+    WITHDRAWN, and every `estimated_total` is recomputed (the run prints both
+    counts as NOTICEs). No notification or email results.
+- **The app change that calls these functions must be deployed with it.** An
+  app version from before 0031 writes these tables directly, so its booking
+  actions fail against the hardened database.
+- Companion file (not a migration; never run during deployment):
+  `booking_write_hardening_isolated_test.sql` — the fail-closed rehearsal, to
+  be run **before** 0031. It embeds 0031's section 2 verbatim
+  (`tests/booking-write-hardening.test.ts` fails if the two drift), runs its
+  checks as `anon` / `authenticated` with real user claims, needs four
+  accounts in `auth.users`, and always ends in an error so everything is
+  rolled back. It would fail now that 0031 exists, and should not be re-run.
+- SHA-256 of the files as written: 0031 `af2ceb95003683b1…`, isolated test
+  `3a844f53ab7b8839…`.
