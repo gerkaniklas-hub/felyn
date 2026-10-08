@@ -242,8 +242,8 @@ export function HostInbox({
                       avatar={<GuestAvatar participant={c.otherParticipant} className="h-12 w-12 text-lg" />}
                       name={c.otherParticipant.label}
                       timestamp={c.lastMessage ? formatListTimestamp(c.lastMessage.createdAt) : null}
-                      subtitle={c.experienceTitle}
-                      subtitleMuted={c.itemStatus === "DECLINED" || c.itemStatus === "CANCELLED"}
+                      subtitle={c.itemStatus === "WITHDRAWN" ? `Withdrawn request · ${c.experienceTitle}` : c.experienceTitle}
+                      subtitleMuted={c.itemStatus === "DECLINED" || c.itemStatus === "CANCELLED" || c.itemStatus === "WITHDRAWN"}
                       preview={previewText(c.lastMessage)}
                       unread={openedIds.has(c.itemId) ? 0 : c.unreadCount}
                     />
@@ -271,9 +271,12 @@ export function HostInbox({
                     <Badge tone={getItemStatusTone(selected.itemStatus)} className="text-[10px]">
                       {getItemStatusLabel(selected.itemStatus)}
                     </Badge>
-                    <Link href={selected.bookingHref} className="text-xs font-medium text-sky-600 hover:text-sky-700">
-                      View request →
-                    </Link>
+                    {/* A withdrawn request has no request page any more (it's kept out of Requests); only this history remains. */}
+                    {selected.itemStatus === "WITHDRAWN" ? null : (
+                      <Link href={selected.bookingHref} className="text-xs font-medium text-sky-600 hover:text-sky-700">
+                        View request →
+                      </Link>
+                    )}
                   </>
                 }
               >
@@ -299,7 +302,11 @@ export function HostInbox({
                     currentUserId={currentUserId}
                     initialMessages={messages}
                     canSend={handle.canSend}
-                    closedLabel={handle.closedLabel}
+                    closedLabel={
+                      selected.itemStatus === "WITHDRAWN"
+                        ? "The guest withdrew this request. This conversation is read-only."
+                        : handle.closedLabel
+                    }
                     openCaption={handle.openCaption}
                     appearance="pane"
                   />

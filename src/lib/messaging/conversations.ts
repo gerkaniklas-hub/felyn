@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NO_TRIP_LINKED_LABEL, type BookingItemStatus } from "@/lib/matching/booking-status";
 import type { PlannedMoment } from "@/lib/matching/plan";
-import { getProviderRequestItems, type ProviderVisibleItemStatus } from "@/lib/provider/dashboard";
+import { getProviderMessagingItems } from "@/lib/provider/dashboard";
 import { getItemIdsWithMessages, getLastMessagesByItem, getUnreadMessageCountsByItem } from "./messages";
 
 /**
@@ -166,12 +166,15 @@ export async function getGuestConversations(supabase: SupabaseClient): Promise<C
 }
 
 /**
- * The signed-in provider's own conversations. Reuses getProviderRequestItems
+ * The signed-in provider's own conversations. Reuses the provider item data
  * wholesale (task 4: no duplicate provider-side data fetching) — the exact
  * same items, guest names, experience info and stay names already shown on
  * the dashboard/Requests/detail pages — and layers only the conversation-
  * specific fields (last message, unread count) on top, filtered down to
- * items that actually have a message.
+ * items that actually have a message. Uses getProviderMessagingItems, which
+ * also keeps WITHDRAWN items: their conversations stay readable as closed,
+ * read-only history (the messages INSERT policies refuse WITHDRAWN), while
+ * the booking surfaces never show them.
  */
 export async function getProviderConversations(
   supabase: SupabaseClient,
@@ -183,7 +186,7 @@ export async function getProviderConversations(
   if (!user) return [];
 
   const [items, itemIdsWithMessages] = await Promise.all([
-    getProviderRequestItems(supabase, providerId),
+    getProviderMessagingItems(supabase, providerId),
     getItemIdsWithMessages(supabase),
   ]);
   const withMessages = itemIdsWithMessages.length > 0 ? new Set(itemIdsWithMessages) : null;
@@ -211,7 +214,7 @@ export async function getProviderConversations(
       experienceImageUrl: item.experienceImageUrl,
       plannedDate: item.plannedDate,
       plannedMoment: item.plannedMoment,
-      itemStatus: item.status as ProviderVisibleItemStatus,
+      itemStatus: item.status,
       decidedAt: item.decidedAt,
       cancelledAt: item.cancelledAt,
       stayName: item.stayName,

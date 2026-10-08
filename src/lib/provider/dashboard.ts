@@ -141,6 +141,14 @@ export type ProviderRequestItem = {
 };
 
 /**
+ * The host Messages inbox's item shape: a ProviderRequestItem that may also
+ * be WITHDRAWN, kept only as read-only conversation history (see
+ * getProviderMessagingItems). Never used by the Requests/Dashboard/Calendar
+ * surfaces, which keep the narrower ProviderRequestItem.
+ */
+export type ProviderMessagingItem = Omit<ProviderRequestItem, "status"> & { status: BookingItemStatus };
+
+/**
  * P1/P1.1: every booking_request_item for experiences belonging to this
  * provider. Each item's OWN `status` (REQUESTED/CONFIRMED/DECLINED, from
  * 0009) is what the dashboard/calendar/requests pages actually group and
@@ -170,14 +178,40 @@ export type ProviderRequestItem = {
  * alone), with the provider SELECT/UPDATE policies (0007/0009) as the
  * database-level backstop — a provider can never see or change another
  * provider's items even if this filter were ever removed. This function is
- * the single shared source for every host-facing surface (dashboard,
- * requests list, item detail, calendar, and messaging via
- * getProviderConversations) — fixing it here fixes all of them at once.
+ * the single shared source for every host-facing booking surface (dashboard,
+ * requests list, item detail, calendar) — fixing it here fixes all of them at
+ * once. Host Messages uses getProviderMessagingItems below instead: the same
+ * items plus WITHDRAWN ones, as read-only conversation history.
  */
 export async function getProviderRequestItems(
   supabase: SupabaseClient,
   providerId: string,
 ): Promise<ProviderRequestItem[]> {
+  const items = await loadProviderItems(supabase, providerId, { includeWithdrawn: false });
+  return items.filter((item): item is ProviderRequestItem => item.status !== "WITHDRAWN");
+}
+
+/**
+ * Host Messages only: everything getProviderRequestItems returns, plus the
+ * provider's WITHDRAWN items, so a conversation the guest had with the host
+ * before withdrawing stays readable as history (whether one item or the
+ * whole request was withdrawn). Sending stays impossible: the 0014/0021
+ * messages INSERT policies never allow WITHDRAWN, and the inbox shows such a
+ * conversation as closed (getMessagingWindowState). Nothing else may use
+ * this — withdrawn items must stay out of Requests, Dashboard and Calendar.
+ */
+export async function getProviderMessagingItems(
+  supabase: SupabaseClient,
+  providerId: string,
+): Promise<ProviderMessagingItem[]> {
+  return loadProviderItems(supabase, providerId, { includeWithdrawn: true });
+}
+
+async function loadProviderItems(
+  supabase: SupabaseClient,
+  providerId: string,
+  { includeWithdrawn }: { includeWithdrawn: boolean },
+): Promise<ProviderMessagingItem[]> {
   const { data: experienceRows } = await supabase
     .from("experiences")
     .select("id, title, currency")
@@ -315,24 +349,27 @@ export async function getProviderRequestItems(
     ]),
   );
 
-  const results: ProviderRequestItem[] = [];
+  const results: ProviderMessagingItem[] = [];
   for (const item of items) {
-    // P1.4: a guest-withdrawn item never reaches the provider at all — not
-    // the dashboard, not Requests, not the calendar. Unlike DECLINED (a
-    // provider decision worth keeping visible as their own history),
-    // WITHDRAWN is the guest's own "never mind" before anyone acted on it.
-    if (item.status === "WITHDRAWN") continue;
+    // P1.4: a guest-withdrawn item never reaches the provider's booking
+    // surfaces — not the dashboard, not Requests, not the calendar. Unlike
+    // DECLINED (a provider decision worth keeping visible as their own
+    // history), WITHDRAWN is the guest's own "never mind" before anyone acted
+    // on it. Only host Messages asks for it (includeWithdrawn), as history.
+    if (item.status === "WITHDRAWN" && !includeWithdrawn) continue;
     const request = requestById.get(item.booking_request_id);
     if (!request) continue; // orphaned row — shouldn't happen, defensive only
 
-    // Booking-lifecycle milestone: see this function's own doc comment for
-    // the full rule. A decided item (CONFIRMED/DECLINED) is permanent
+    // Booking-lifecycle milestone: see getProviderRequestItems' doc comment
+    // for the full rule. A decided item (CONFIRMED/DECLINED) is permanent
     // history and stays visible no matter what the guest does to the rest
     // of the request; a still-pending (REQUESTED) item is only shown while
-    // its parent request is still active.
+    // its parent request is still active. A WITHDRAWN item (only reaching
+    // here for Messages) is history too, even under a withdrawn request.
     const parentIsActive = request.status === "REQUESTED" || request.status === "CONFIRMED";
-    const itemIsDecided = item.status === "CONFIRMED" || item.status === "DECLINED" || item.status === "CANCELLED";
-    if (!parentIsActive && !itemIsDecided) continue;
+    const itemIsHistory =
+      item.status === "CONFIRMED" || item.status === "DECLINED" || item.status === "CANCELLED" || item.status === "WITHDRAWN";
+    if (!parentIsActive && !itemIsHistory) continue;
 
     const experience = experienceById.get(item.experience_id);
     if (!experience) continue;
@@ -341,7 +378,7 @@ export async function getProviderRequestItems(
     results.push({
       itemId: item.id,
       requestId: request.id,
-      status: item.status as ProviderVisibleItemStatus,
+      status: item.status,
       requestStatus: request.status,
       stayName: request.stay_id ? (stay?.property_name ?? "A Felyn stay") : NO_TRIP_LINKED_LABEL,
       stayLocation: stay?.location_text ?? "",
