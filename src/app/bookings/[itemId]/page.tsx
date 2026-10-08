@@ -24,7 +24,7 @@ import {
 } from "@/lib/matching/booking-status";
 import { getGuestExperienceDetail } from "@/lib/matching/guest-experiences";
 import { getUnreadMessageCount } from "@/lib/messaging/messages";
-import { getBookingTimeLabel } from "@/lib/matching/plan";
+import { getBookingStartTime, getBookingTimeLabel } from "@/lib/matching/plan";
 import { formatDayLabel } from "@/lib/matching/timeline";
 import { getOpenGuestSupportThreadId } from "@/lib/support/queries";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -75,7 +75,7 @@ export default async function GuestExperienceDetailPage({
     );
   }
 
-  const timeLabel = getBookingTimeLabel(item.plannedMoment, item.preferredTime);
+  const timeLabel = getBookingTimeLabel(item.plannedMoment, getBookingStartTime(item));
   const total = item.pricePerPerson * item.guestCount;
   const [openSupportThreadId, unreadMessageCount] = await Promise.all([
     getOpenGuestSupportThreadId(supabase, item.id),
@@ -118,7 +118,7 @@ export default async function GuestExperienceDetailPage({
                 <p className="mt-1.5 text-[15px] font-medium text-navy-900">{formatDayLabel(item.plannedDate)}</p>
               </div>
               <div>
-                <Eyebrow>Time</Eyebrow>
+                <Eyebrow>{item.status === "REQUESTED" ? "Requested time" : "Time"}</Eyebrow>
                 <p className="mt-1.5 text-[15px] font-medium text-navy-900">{timeLabel}</p>
               </div>
               <div>

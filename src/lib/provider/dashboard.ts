@@ -133,6 +133,15 @@ export type ProviderRequestItem = {
   declineNote: string | null;
   /** Stage 2c-B: set only once status is DECLINED — anchors the 30-day messaging window (see getMessagingWindowState). */
   decidedAt: string | null;
+  /**
+   * 0033 acceptance snapshot, set together when the host accepts and never
+   * changed afterwards; null before acceptance and on bookings accepted
+   * before 0033. confirmedStartAt is the authoritative start instant;
+   * acceptedDurationMinutes the experience's length that was agreed.
+   */
+  acceptedAt: string | null;
+  confirmedStartAt: string | null;
+  acceptedDurationMinutes: number | null;
   /** Booking-lifecycle milestone: set only once status is CANCELLED — see booking-status.ts. */
   cancelledAt: string | null;
   cancelledBy: CancelledBy | null;
@@ -228,7 +237,7 @@ async function loadProviderItems(
     supabase
       .from("booking_request_items")
       .select(
-        "id, booking_request_id, experience_id, planned_date, planned_moment, guest_count, price_per_person, preferred_time, host_note, status, decline_reason, decline_note, decided_at, created_at, cancelled_at, cancelled_by, cancellation_reason, cancellation_note",
+        "id, booking_request_id, experience_id, planned_date, planned_moment, guest_count, price_per_person, preferred_time, host_note, status, decline_reason, decline_note, decided_at, created_at, cancelled_at, cancelled_by, cancellation_reason, cancellation_note, accepted_at, confirmed_start_at, duration_minutes",
       )
       .in("experience_id", experienceIds),
     supabase
@@ -252,6 +261,9 @@ async function loadProviderItems(
     decline_reason: DeclineReason | null;
     decline_note: string | null;
     decided_at: string | null;
+    accepted_at: string | null;
+    confirmed_start_at: string | null;
+    duration_minutes: number | null;
     created_at: string;
     cancelled_at: string | null;
     cancelled_by: CancelledBy | null;
@@ -400,6 +412,9 @@ async function loadProviderItems(
       declineReason: item.decline_reason,
       declineNote: item.decline_note,
       decidedAt: item.decided_at,
+      acceptedAt: item.accepted_at,
+      confirmedStartAt: item.confirmed_start_at,
+      acceptedDurationMinutes: item.duration_minutes,
       cancelledAt: item.cancelled_at,
       cancelledBy: item.cancelled_by,
       cancellationReason: item.cancellation_reason,

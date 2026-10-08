@@ -1,3 +1,4 @@
+import { canaryLocalDateTime } from "./canary-time";
 import type { StayDay } from "./timeline";
 
 /**
@@ -57,6 +58,17 @@ export function getPlannedMomentLabel(moment: PlannedMoment): string {
  */
 export function getBookingTimeLabel(moment: PlannedMoment, preferredTime: string | null): string {
   return preferredTime ?? `${getPlannedMomentLabel(moment)} · Time not specified`;
+}
+
+/**
+ * The start time to show for a booking ('HH:MM', Tenerife time): the
+ * authoritative confirmed_start_at once the host has accepted (0033), else
+ * the requested preferred_time — which is also all that bookings accepted
+ * before 0033 ever had, so they keep displaying exactly as before.
+ */
+export function getBookingStartTime(item: { preferredTime: string | null; confirmedStartAt: string | null }): string | null {
+  if (item.confirmedStartAt) return canaryLocalDateTime(Date.parse(item.confirmedStartAt)).time;
+  return item.preferredTime;
 }
 
 /**

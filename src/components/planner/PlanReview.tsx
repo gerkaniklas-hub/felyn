@@ -79,7 +79,11 @@ function ReviewRow({
         <div className="min-w-0">
           <p className="text-[11px] font-semibold tracking-[0.12em] text-navy-400 uppercase">
             {formatDayLabel(item.slot.date)} · {getPlannedMomentLabel(item.slot.moment)}
-            {item.preferredTime ? ` · prefers ${item.preferredTime}` : ""}
+            {item.preferredTime
+              ? item.status === "REQUESTED" || item.status === "DRAFT"
+                ? ` · prefers ${item.preferredTime}`
+                : ` · ${item.preferredTime}`
+              : ""}
           </p>
           <p className={`truncate font-display text-base ${isMuted ? "text-navy-500" : "text-navy-950"}`}>
             {experience.title}

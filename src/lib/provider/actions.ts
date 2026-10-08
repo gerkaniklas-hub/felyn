@@ -7,6 +7,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export type ProviderItemActionResult = { ok: true } | { ok: false; error: string };
 
 const GENERIC_ERROR = "We couldn't update this request. It may already have been decided, or it isn't yours to manage.";
+const UNACCEPTABLE_REQUEST_ERROR =
+  "This request can't be confirmed because it has no start time (or the experience has no valid duration). Message the guest and ask them to send a new request with a time.";
 
 /**
  * P1.1/P1.2: a provider deciding on ONE of their own booking_request_items.
@@ -16,9 +18,12 @@ const GENERIC_ERROR = "We couldn't update this request. It may already have been
  * function booking_item_confirm, which only moves a still-REQUESTED item of
  * one of the caller's own experiences (whose request is still active) and
  * returns false otherwise — never another provider's data, and the item can
- * be decided only once. The database trigger from 0009 creates the
- * guest-facing notification as a side effect; nothing here writes to
- * `notifications` directly.
+ * be decided only once. Since 0033 the same function also records the
+ * acceptance snapshot — accepted_at, confirmed_start_at (the requested
+ * Tenerife start as a real instant) and duration_minutes — in the same
+ * update; nothing here supplies those values. The database trigger from 0009
+ * creates the guest-facing notification as a side effect; nothing here
+ * writes to `notifications` directly.
  */
 export async function confirmBookingRequestItem(itemId: string): Promise<ProviderItemActionResult> {
   const supabase = await createSupabaseServerClient();
@@ -32,6 +37,11 @@ export async function confirmBookingRequestItem(itemId: string): Promise<Provide
 
   const { data, error } = await supabase.rpc("booking_item_confirm", { p_item_id: itemId });
 
+  // 22023: 0033 refused to accept without a complete snapshot — a request made
+  // before start times were required, or an experience without a valid duration.
+  if (error?.code === "22023") {
+    return { ok: false, error: UNACCEPTABLE_REQUEST_ERROR };
+  }
   if (error || data !== true) {
     return { ok: false, error: GENERIC_ERROR };
   }

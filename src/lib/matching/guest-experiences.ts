@@ -15,8 +15,10 @@ export type GuestExperienceItem = {
   providerDisplayName: string;
   plannedDate: string;
   plannedMoment: PlannedMoment;
-  /** 'HH:MM' — the guest's exact requested/confirmed time, or null (see getBookingTimeLabel, plan.ts, for the display fallback). */
+  /** 'HH:MM' — the guest's requested time, or null on old requests (see getBookingTimeLabel, plan.ts, for the display fallback). */
   preferredTime: string | null;
+  /** 0033: the authoritative start once the host has accepted (null before, and on bookings accepted before 0033) — see getBookingStartTime. */
+  confirmedStartAt: string | null;
   guestCount: number;
   pricePerPerson: number;
   currency: string;
@@ -73,7 +75,7 @@ export async function getGuestExperiences(
     supabase
       .from("booking_request_items")
       .select(
-        "id, booking_request_id, experience_id, planned_date, planned_moment, preferred_time, guest_count, price_per_person, status, decline_reason, created_at, cancelled_by, cancellation_reason, cancellation_note",
+        "id, booking_request_id, experience_id, planned_date, planned_moment, preferred_time, guest_count, price_per_person, status, decline_reason, created_at, cancelled_by, cancellation_reason, cancellation_note, confirmed_start_at",
       )
       .in("booking_request_id", requestIds)
       .order("planned_date", { ascending: false }),
@@ -89,6 +91,7 @@ export async function getGuestExperiences(
     planned_date: string;
     planned_moment: PlannedMoment;
     preferred_time: string | null;
+    confirmed_start_at: string | null;
     guest_count: number;
     price_per_person: number;
     status: BookingItemStatus;
@@ -156,6 +159,7 @@ export async function getGuestExperiences(
       plannedDate: item.planned_date,
       plannedMoment: item.planned_moment,
       preferredTime: normalizeTime(item.preferred_time),
+      confirmedStartAt: item.confirmed_start_at,
       guestCount: item.guest_count,
       pricePerPerson: item.price_per_person,
       currency: experience?.currency ?? "EUR",
@@ -214,7 +218,7 @@ export async function getGuestExperienceDetail(
   const { data: itemRow } = await supabase
     .from("booking_request_items")
     .select(
-      "id, booking_request_id, experience_id, planned_date, planned_moment, preferred_time, guest_count, price_per_person, status, decline_reason, host_note, created_at, decided_at, cancelled_at, cancelled_by, cancellation_reason, cancellation_note",
+      "id, booking_request_id, experience_id, planned_date, planned_moment, preferred_time, guest_count, price_per_person, status, decline_reason, host_note, created_at, decided_at, cancelled_at, cancelled_by, cancellation_reason, cancellation_note, confirmed_start_at",
     )
     .eq("id", itemId)
     .maybeSingle();
@@ -226,6 +230,7 @@ export async function getGuestExperienceDetail(
     planned_date: string;
     planned_moment: PlannedMoment;
     preferred_time: string | null;
+    confirmed_start_at: string | null;
     guest_count: number;
     price_per_person: number;
     status: BookingItemStatus;
@@ -314,6 +319,7 @@ export async function getGuestExperienceDetail(
     plannedDate: item.planned_date,
     plannedMoment: item.planned_moment,
     preferredTime: normalizeTime(item.preferred_time),
+      confirmedStartAt: item.confirmed_start_at,
     guestCount: item.guest_count,
     pricePerPerson: item.price_per_person,
     currency: experience?.currency ?? "EUR",

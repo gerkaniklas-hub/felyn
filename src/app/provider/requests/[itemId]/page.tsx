@@ -12,7 +12,7 @@ import {
   getMessagingOpenCaption,
   getMessagingWindowState,
 } from "@/lib/matching/booking-status";
-import { getBookingTimeLabel } from "@/lib/matching/plan";
+import { getBookingStartTime, getBookingTimeLabel } from "@/lib/matching/plan";
 import { formatDayLabel } from "@/lib/matching/timeline";
 import { getUnreadMessageCount } from "@/lib/messaging/messages";
 import { getProviderIdentity, getProviderRequestItems } from "@/lib/provider/dashboard";
@@ -147,7 +147,7 @@ export default async function ProviderRequestItemPage({
             booking={{
               experienceTitle: item.experienceTitle,
               dateLabel: formatDayLabel(item.plannedDate),
-              timeLabel: getBookingTimeLabel(item.plannedMoment, item.preferredTime),
+              timeLabel: getBookingTimeLabel(item.plannedMoment, getBookingStartTime(item)),
               guestCount: item.guestCount,
             }}
             existingThreadId={openSupportThreadId}

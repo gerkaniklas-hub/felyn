@@ -446,3 +446,55 @@ effect on the next request, no sign-out needed.
   not be re-run.
 - SHA-256 of the files as written: 0032 `ee96be5499cb03fb…`, isolated test
   `7f7937ff7fbda998…`.
+
+## Migration 0033: accepted start snapshot — ALREADY APPLIED TO PRODUCTION — DO NOT RE-RUN
+
+- `0033_accepted_start_snapshot.sql` **was applied to production on
+  2026-10-08** (by the project owner, in the SQL Editor): its isolated test
+  passed there first ("FELYN TEST PASSED"), then the migration itself
+  succeeded. Production data is test data, so no legacy-data remediation was
+  needed. **Do not run it against production again.** Its own starting checks
+  would abort a re-run (it refuses if a snapshot column already exists), but it
+  must not be executed as part of any deployment. Same form as 0023-0032: a
+  single `DO` statement that applies fully
+  or rolls back fully, with preconditions (it aborts unless 0031's
+  `booking_item_confirm` and update guard and 0032's start rule are in place,
+  and the database knows `Atlantic/Canary`) and postconditions (columns,
+  constraints, no client privileges on the new columns, both functions
+  replaced, no existing row touched, a DST sanity check).
+- It records what a host accepts, for later phases (payment deadline,
+  overlap protection), on `public.booking_request_items`:
+  - three nullable columns, written only on REQUESTED -> CONFIRMED:
+    `accepted_at` (database clock), `confirmed_start_at`
+    (`(planned_date + preferred_time) at time zone 'Atlantic/Canary'`, a real
+    instant, DST-correct) and `duration_minutes` (the experience's duration at
+    acceptance; later edits to the experience don't change it);
+  - check constraints: all three set or all NULL; duration > 0; only on a
+    CONFIRMED or CANCELLED item (a new REQUESTED item can never carry them);
+  - 0031's update guard is replaced by the same function plus one rule: on
+    acceptance the three fields must be set (start = the requested Tenerife
+    start, positive duration); otherwise they can never change — for every
+    role, postgres included;
+  - 0031's `booking_item_confirm(item)` keeps its signature, grants and
+    authorization, locks the item, refuses with SQLSTATE 22023 (nothing
+    changed) an item without `preferred_time` or an experience without a
+    valid duration, and sets the status and the snapshot in one update.
+  - No grant, policy or other function changes; clients still cannot write
+    the columns (no column privilege).
+- Legacy: existing rows keep NULL (no backfill, no status change). Legacy
+  REQUESTED items without `preferred_time` can no longer be accepted (the host
+  is told to ask for a new request). Legacy CONFIRMED rows keep working and
+  display from `planned_date`/`preferred_time`.
+- Acceptance has no time limit: a request can still be accepted less than 2
+  hours before its start (or after it). The real `accepted_at` and
+  `confirmed_start_at` are recorded; the payment-window rule is decided later.
+- Deploy with the app change that reads `confirmed_start_at` (an older app
+  keeps working against 0033; it just doesn't show the snapshot).
+- Companion file (not a migration; never run during deployment):
+  `accepted_start_snapshot_isolated_test.sql` — the fail-closed rehearsal, to
+  be run **after 0032 and before 0033**. It embeds 0033's section 2 verbatim
+  (`tests/accepted-start-snapshot.test.ts` fails if the two drift), needs
+  three accounts in `auth.users`, and always ends in an error so everything is
+  rolled back. It would fail now that 0033 exists, and should not be re-run.
+- SHA-256 of the files as written: 0033 `e02efc676c06906f…`, isolated test
+  `82889fc148ec1065…`.

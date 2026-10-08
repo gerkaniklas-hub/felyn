@@ -37,7 +37,7 @@ export function DayCalendar({ events }: { events: CalendarEvent[] }) {
             <p className="text-sm font-medium text-navy-500">
               {event.preferredTime ? `${event.preferredTime} · ` : ""}
               {getPlannedMomentLabel(event.moment)}
-              {event.preferredTime ? " (preferred)" : ""}
+              {event.preferredTime && event.status === "REQUESTED" ? " (preferred)" : ""}
             </p>
             <p className="truncate font-display text-base text-navy-950">{event.title}</p>
             <p className="text-sm text-navy-600">

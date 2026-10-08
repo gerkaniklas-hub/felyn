@@ -136,7 +136,7 @@ export function RequestedItemCard({
         <p className={`text-sm ${mutedText}`}>{experience.provider.display_name}</p>
         <p className={`text-sm ${mutedText}`}>
           {formatDayLabel(slot.date)} · {getPlannedMomentLabel(slot.moment)}
-          {preferredTime ? ` · prefers ${preferredTime}` : ""}
+          {preferredTime ? (status === "REQUESTED" || status === "DRAFT" ? ` · prefers ${preferredTime}` : ` · ${preferredTime}`) : ""}
         </p>
         {!isMuted ? (
           <p className="text-sm font-medium text-navy-700">

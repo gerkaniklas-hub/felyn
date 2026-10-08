@@ -8,7 +8,7 @@ import {
   getItemStatusLabel,
   getItemStatusTone,
 } from "@/lib/matching/booking-status";
-import { getBookingTimeLabel } from "@/lib/matching/plan";
+import { getBookingStartTime, getBookingTimeLabel } from "@/lib/matching/plan";
 import { formatDayLabel } from "@/lib/matching/timeline";
 import type { ProviderRequestItem } from "@/lib/provider/dashboard";
 
@@ -24,6 +24,7 @@ export type ProviderBookingCardItem = Pick<
   | "plannedDate"
   | "plannedMoment"
   | "preferredTime"
+  | "confirmedStartAt"
   | "guestCount"
   | "hostNote"
   | "experienceTitle"
@@ -99,7 +100,7 @@ export function ProviderBookingCard({
 
         <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm text-navy-700">
           <span>
-            {formatDayLabel(item.plannedDate)} · {getBookingTimeLabel(item.plannedMoment, item.preferredTime)}
+            {formatDayLabel(item.plannedDate)} · {getBookingTimeLabel(item.plannedMoment, getBookingStartTime(item))}
           </span>
           <span>
             {item.guestCount} guest{item.guestCount === 1 ? "" : "s"} for this experience

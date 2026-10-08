@@ -14,7 +14,7 @@ import {
   NO_TRIP_LINKED_LABEL,
 } from "@/lib/matching/booking-status";
 import type { GuestExperienceItem } from "@/lib/matching/guest-experiences";
-import { getBookingTimeLabel } from "@/lib/matching/plan";
+import { getBookingStartTime, getBookingTimeLabel } from "@/lib/matching/plan";
 import { formatDayLabel } from "@/lib/matching/timeline";
 
 /**
@@ -52,7 +52,7 @@ export function GuestExperienceRow({ item, showStay = true }: { item: GuestExper
         <div className="flex flex-col gap-1.5 text-sm text-navy-600">
           <span className="flex items-center gap-2">
             <CalendarIcon className="h-4 w-4 shrink-0 text-navy-400" />
-            {formatDayLabel(item.plannedDate)} · {getBookingTimeLabel(item.plannedMoment, item.preferredTime)}
+            {formatDayLabel(item.plannedDate)} · {getBookingTimeLabel(item.plannedMoment, getBookingStartTime(item))}
           </span>
           {showStay ? (
             <span className="flex items-center gap-2">
