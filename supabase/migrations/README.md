@@ -498,3 +498,68 @@ effect on the next request, no sign-out needed.
   rolled back. It would fail now that 0033 exists, and should not be re-run.
 - SHA-256 of the files as written: 0033 `e02efc676c06906f…`, isolated test
   `82889fc148ec1065…`.
+
+## Migration 0034: host booking overlap — ALREADY APPLIED TO PRODUCTION — DO NOT RE-RUN
+
+- `0034_host_booking_overlap.sql` **was applied to production on
+  2026-10-08** (by the project owner, in the SQL Editor): its isolated test
+  passed there first ("FELYN TEST PASSED"), then the migration itself
+  succeeded. The concurrent-acceptance behaviour was verified separately with
+  real concurrent PostgreSQL connections (see "Concurrency" below). **Do not
+  run it against production again.** Its own starting checks would abort a
+  re-run (it refuses unless `booking_item_confirm` is still 0033's version),
+  but it must not be executed as part of any deployment. Same form as
+  0023-0033: a single `DO` statement that applies fully
+  or rolls back fully, with preconditions (0033's snapshot columns, function
+  and guard in place; `hashtextextended` available) and postconditions.
+- It stops a host from accepting two bookings that overlap in time:
+  - interval of an accepted booking: `[confirmed_start_at, confirmed_start_at +
+    duration_minutes minutes)` — the 0033 snapshot, never the experience's
+    current duration or the requested time; half-open, so back-to-back
+    bookings (one ending 20:00, the next starting 20:00) are allowed;
+  - conflict: same host (item -> experience -> `providers.id`) and
+    `existing_start < new_end AND existing_end > new_start`; only CONFIRMED
+    reserves a host's time (one status list in
+    `booking_host_overlap_exists`, so a future pre-payment hold is a one-word
+    change); REQUESTED, DECLINED, WITHDRAWN and CANCELLED never block;
+  - rows accepted before 0033 (no snapshot) never block: their real interval
+    is unknown and production holds only test data;
+  - concurrency: a transaction-level advisory lock per host
+    (`pg_advisory_xact_lock(hashtextextended('felyn.booking_host_acceptance:'
+    || provider_id, 0))`, released at commit/rollback), taken by
+    `booking_item_confirm` before it re-reads the item and checks for
+    overlaps, and again by the update guard on every REQUESTED -> CONFIRMED
+    (so no route to CONFIRMED skips it). A key collision between two hosts
+    could only make them wait for each other briefly, never let an overlap
+    through. No exclusion constraint: it would need a host id and a
+    trigger-maintained range column on every item plus `btree_gist`;
+  - a refused acceptance raises SQLSTATE 23P01 and changes nothing (the item
+    stays REQUESTED without a snapshot); the app tells the host "This
+    experience overlaps another confirmed booking."
+  - index `booking_request_items_accepted_interval_idx` on
+    `(experience_id, confirmed_start_at) WHERE confirmed_start_at IS NOT NULL`
+    for the overlap check (with the existing `experiences_provider_id_idx`).
+  - The two helpers are callable only by their owner (no client role); no
+    grant, policy, table or row is changed. Existing overlaps among already
+    accepted bookings, if any, are only reported as a NOTICE.
+- Note: two items of the SAME guest request also wait on their shared request
+  row when accepted at the same moment (0031's `estimated_total` trigger) —
+  unchanged, harmless.
+- Companion file (not a migration; never run during deployment):
+  `host_booking_overlap_isolated_test.sql` — the fail-closed rehearsal, to be
+  run **after 0033 and before 0034**. It embeds 0034's section 2 verbatim
+  (`tests/host-booking-overlap.test.ts` fails if the two drift) and checks
+  every overlap rule, the non-blocking statuses, a legacy row, another host,
+  the guard's backstop, that the lock is taken and that clients can't call the
+  helpers. Needs three accounts in `auth.users`; always ends in an error so
+  everything is rolled back. It would fail now that 0034 exists, and should
+  not be re-run.
+- Concurrency (not runnable in one SQL session, so tested separately on a real
+  PostgreSQL 17 server with parallel connections and committed data, outside
+  the repository): with 0034, a second overlapping acceptance waits on the
+  host lock and is then refused; 25/25 simultaneous overlapping races had
+  exactly one winner; non-overlapping acceptances of one host and same-time
+  acceptances of two hosts all succeeded (different hosts did not wait).
+  Without 0034 the same races double-booked 25/25 times.
+- SHA-256 of the files as written: 0034 `fbbe913b724363fe…`, isolated test
+  `140e0438fd6183a4…`.

@@ -7,6 +7,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export type ProviderItemActionResult = { ok: true } | { ok: false; error: string };
 
 const GENERIC_ERROR = "We couldn't update this request. It may already have been decided, or it isn't yours to manage.";
+const OVERLAPPING_BOOKING_ERROR =
+  "This experience overlaps another confirmed booking. Message the guest to suggest another time — they can withdraw and request again.";
 const UNACCEPTABLE_REQUEST_ERROR =
   "This request can't be confirmed because it has no start time (or the experience has no valid duration). Message the guest and ask them to send a new request with a time.";
 
@@ -21,7 +23,9 @@ const UNACCEPTABLE_REQUEST_ERROR =
  * be decided only once. Since 0033 the same function also records the
  * acceptance snapshot — accepted_at, confirmed_start_at (the requested
  * Tenerife start as a real instant) and duration_minutes — in the same
- * update; nothing here supplies those values. The database trigger from 0009
+ * update; nothing here supplies those values. Since 0034 it also refuses an
+ * acceptance that would overlap another of this host's confirmed bookings,
+ * serialized per host in the database (no check here is authoritative). The database trigger from 0009
  * creates the guest-facing notification as a side effect; nothing here
  * writes to `notifications` directly.
  */
@@ -41,6 +45,11 @@ export async function confirmBookingRequestItem(itemId: string): Promise<Provide
   // before start times were required, or an experience without a valid duration.
   if (error?.code === "22023") {
     return { ok: false, error: UNACCEPTABLE_REQUEST_ERROR };
+  }
+  // 23P01: 0034 refused because the booking would overlap one of this host's
+  // confirmed bookings. The request stays REQUESTED, untouched.
+  if (error?.code === "23P01") {
+    return { ok: false, error: OVERLAPPING_BOOKING_ERROR };
   }
   if (error || data !== true) {
     return { ok: false, error: GENERIC_ERROR };
