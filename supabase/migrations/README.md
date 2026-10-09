@@ -647,3 +647,96 @@ effect on the next request, no sign-out needed.
   0035; each one failed at the check meant to catch it.
 - SHA-256 of the files as written: 0035 `db097e97aba42990…`, isolated test
   `a8ff7357f0b1e859…`, schedule script `e71e9787e7728687…`.
+
+## Migration 0036: Stripe payment foundation — NOT YET APPLIED ANYWHERE
+
+- `0036_stripe_payments.sql` is **written but not applied** (not to
+  production, not to staging). Apply it right after 0035, in the same
+  maintenance window, only with the Stripe phase. Database only: nothing here
+  talks to Stripe and no application code uses these tables yet. Same form as
+  0023-0035 (one `DO` statement, preconditions, postconditions; run as
+  `postgres`, the owner of `booking_request_items`).
+- New tables, none readable or writable by `anon`, `authenticated` or
+  `service_role` (RLS on, no policies; later stages add narrow functions):
+  - `host_payout_accounts`: one Stripe connected account per host. Readiness
+    (`payouts_ready`) is a generated column from the synced Stripe fields
+    (details submitted, payouts enabled, `transfers` capability active, no
+    disabled reason, nothing past due) — it can't be written. Account id and
+    test/live mode never change; a sync can't move back in time.
+  - `booking_payments`: one row per payment attempt (separate charges and
+    transfers). Integer euro cents, EUR only, price per person >= €5,
+    gross = price x guests, fee = `(gross + 5) / 10` (10%, round half up, as
+    `src/lib/payments/money.ts`), host share = gross - fee. A new attempt must
+    match the booking's own price snapshot and guest count, the booking must be
+    AWAITING_PAYMENT with >= 41 minutes until `payment_due_at` (FB005), and the
+    host's payout account must be ready and in the same mode (FB006). At most
+    one live attempt per booking (`booking_payments_one_live_attempt`); retries
+    after expired / failed / released attempts get the next attempt number.
+    Status: creating -> open -> authorized -> captured -> confirmed (only once
+    the booking is CONFIRMED) or unconfirmable (captured, but the booking could
+    not be confirmed: refund needed). Host transfer: none -> pending -> released
+    -> transferred (-> reversed), or blocked. Release needs the booking
+    CONFIRMED and completed, but completion never releases anything by itself;
+    a refund or dispute forces the transfer to blocked (support reconciles).
+  - `stripe_events`: one row per Stripe event id (type, mode, Stripe's
+    creation time, SHA-256 of the payload — no payload or personal data),
+    delivery count, processing status; identity fixed; processed is final.
+- Changed: `booking_item_confirm` (0035's otherwise) needs 60 minutes to pay
+  (FB001, was 30) and refuses bookings under €5 (FB004);
+  `booking_request_is_deletable` refuses requests with any payment record;
+  new prices under €5 are refused (existing ones and booking snapshots are
+  untouched; a sub-€5 experience can't be republished and gets no new
+  requests, FB004); `service_role` keeps SELECT on `booking_requests` and
+  `booking_request_items` (the email sender) but loses INSERT / UPDATE /
+  DELETE / TRUNCATE there. 0035's update guard, payment step and expiry are
+  not redefined.
+- Host-transfer release gate (approved 2026-10-09; details in
+  `docs/payments/host-transfer-release-gate.md`), enforced by the
+  `booking_payments` update guard for every caller:
+  - **Release (`pending -> released`)** needs the booking CONFIRMED and
+    completed, the database clock at least 168 hours after the snapshot's
+    scheduled end, and no refund or dispute (FB007). Then either:
+    - **automatic:** no OPEN support case, meaning a thread linked to the
+      booking, or a booking / cancellation / payment / experience thread of the
+      guest or host active since acceptance (FB008); or
+    - **staff:** only via `support_staff_release_host_transfer(payment, note)`,
+      by a signed-in `admin` in `staff_members` acting as themselves
+      (`released_by = auth.uid()`, session role `authenticated`), with a note
+      (42501).
+  - **Transfer (`released -> transferred`)** re-checks everything. A staff
+    release is refused if a case was opened, reopened or answered after it.
+  - **Recording:** the database stamps the release time. Every release is kept
+    in `booking_payment_transfer_releases` (append-only). `blocked -> pending`
+    clears the release so it can be released again.
+  - **Concurrency:** support-thread writes take a shared per-user advisory lock
+    (`support_threads.case_activity_at`, new column); release and transfer
+    take the guest's and host's locks exclusively.
+  - **Grant:** the only grant in 0036 is EXECUTE on the staff release function
+    to `authenticated`.
+- Before applying, check for experiences under €5 (read-only):
+  `select id, title, price_per_person, published from public.experiences where price_per_person < 5;`
+- Release steps (with the Stripe phase, after 0035): run
+  `stripe_payments_isolated_test.sql` (after 0035, before 0036; expects 0028;
+  needs three accounts), then 0036.
+- Tested outside the repository on a real PostgreSQL 17 server:
+  - **Isolated test:** passes, and fails at the intended check on each of 32
+    deliberately broken versions of 0036, 13 of them aimed at the release gate.
+  - **Concurrency** with parallel connections and committed data (11/11):
+    - the 60-minute boundary against the real clock;
+    - acceptance vs expiry (25/25);
+    - the payment step vs expiry after the deadline (25/25 refused, never
+      confirmed) and before it (25/25 confirmed);
+    - two simultaneous attempts for one booking (25/25 exactly one);
+    - one Stripe event delivered 10 times at once (10/10 stored once, counted
+      10 times);
+    - a support case opened while a release is in progress, in both orders
+      (the release waits and refuses, or the case waits and then blocks the
+      transfer);
+    - 25 simultaneous case-vs-release races (0 unsafe);
+    - 25 message-vs-staff-release races (all consistent);
+    - 25 double admin releases (one release, one audit row each).
+
+    With either advisory lock removed, the "case first" order lets the release
+    through (and 0036's own postconditions refuse to apply such a version).
+- SHA-256 of the files as written: 0036 `c875e6bdce74e4bc…`, isolated test
+  `80f4950b01a3539f…`.
