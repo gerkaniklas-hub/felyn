@@ -95,8 +95,12 @@ export async function deleteStay(stayId: string): Promise<DeleteStayResult> {
   for (const request of requests) {
     const itemStatuses = itemStatusesByRequest.get(request.id) ?? [];
     const parentIsActive = request.status === "REQUESTED" || request.status === "CONFIRMED";
-    const hasOpenItem = itemStatuses.some((s) => s === "REQUESTED" || s === "CONFIRMED");
-    const hasDecidedHistory = itemStatuses.some((s) => s === "CONFIRMED" || s === "DECLINED");
+    const hasOpenItem = itemStatuses.some((s) => s === "REQUESTED" || s === "AWAITING_PAYMENT" || s === "CONFIRMED");
+    // Mirrors the database's booking_request_is_deletable (0035): accepted, paid,
+    // declined or expired bookings are history the stay can't be removed from under.
+    const hasDecidedHistory = itemStatuses.some(
+      (s) => s === "AWAITING_PAYMENT" || s === "CONFIRMED" || s === "DECLINED" || s === "PAYMENT_EXPIRED",
+    );
 
     if (parentIsActive && hasOpenItem) {
       return {

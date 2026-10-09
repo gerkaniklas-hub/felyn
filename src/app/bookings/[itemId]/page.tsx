@@ -22,6 +22,7 @@ import {
   getMessagingWindowState,
   NO_TRIP_LINKED_LABEL,
 } from "@/lib/matching/booking-status";
+import { formatCanaryDeadline } from "@/lib/matching/canary-time";
 import { getGuestExperienceDetail } from "@/lib/matching/guest-experiences";
 import { getUnreadMessageCount } from "@/lib/messaging/messages";
 import { getBookingStartTime, getBookingTimeLabel } from "@/lib/matching/plan";
@@ -82,7 +83,7 @@ export default async function GuestExperienceDetailPage({
     getUnreadMessageCount(supabase, item.id),
   ]);
   // The booking's own guest<->host conversation (0014/0021 decide who may still send).
-  const messagingWindow = getMessagingWindowState(item.status, item.decidedAt, item.cancelledAt);
+  const messagingWindow = getMessagingWindowState(item.status, item.decidedAt, item.cancelledAt, item.paymentDueAt);
 
   return (
     <div className="flex flex-1 flex-col">
@@ -175,6 +176,17 @@ export default async function GuestExperienceDetailPage({
             </p>
           ) : null}
 
+          {item.status === "AWAITING_PAYMENT" ? (
+            <p className="rounded-xl bg-sky-50 px-4 py-3 text-sm text-navy-700">
+              Your host accepted this request. It isn&apos;t confirmed until you pay
+              {item.paymentDueAt ? <> — payment is due by {formatCanaryDeadline(item.paymentDueAt)} (Tenerife time)</> : null}.
+            </p>
+          ) : null}
+          {item.status === "PAYMENT_EXPIRED" ? (
+            <p className="text-sm text-navy-500">
+              Payment wasn&apos;t completed by the deadline, so this booking wasn&apos;t confirmed and the time is no longer reserved.
+            </p>
+          ) : null}
           {item.status === "DECLINED" && item.declineReason ? (
             <p className="text-sm text-navy-500">Declined: {getDeclineReasonLabel(item.declineReason)}</p>
           ) : null}

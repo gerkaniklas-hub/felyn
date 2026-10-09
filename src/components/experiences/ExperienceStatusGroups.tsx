@@ -12,10 +12,12 @@ import { GuestExperienceRow } from "./GuestExperienceRow";
  */
 const BUCKETS: { status: BookingItemStatus; heading: string }[] = [
   { status: "CONFIRMED", heading: "Confirmed" },
+  { status: "AWAITING_PAYMENT", heading: "Accepted · awaiting payment" },
   { status: "REQUESTED", heading: "Awaiting confirmation" },
   { status: "CANCELLED", heading: "Cancelled" },
   { status: "DECLINED", heading: "Declined" },
   { status: "WITHDRAWN", heading: "Withdrawn" },
+  { status: "PAYMENT_EXPIRED", heading: "Payment expired" },
 ];
 
 export function ExperienceStatusGroups({

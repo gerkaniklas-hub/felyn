@@ -154,18 +154,25 @@ test("only host Messages uses the withdrawn-inclusive data; booking pages keep g
 });
 
 test("the database blocks sending on WITHDRAWN for guest and host, and still allows reading", () => {
-  // 0021 holds the current INSERT policies; 0014 the SELECT (read) policies, never replaced.
-  const insertPolicies = read("supabase", "migrations", "0021_post_decision_messaging_windows.sql");
-  for (const name of ["Guests send messages on their own active items", "Providers send messages on their own active items"]) {
+  // The current INSERT policies are those of the LATEST migration that (re)creates them
+  // (0021, then 0035 for the payment states); 0014 holds the SELECT (read) policies, never replaced.
+  const sendPolicyNames = ["Guests send messages on their own active items", "Providers send messages on their own active items"];
+  const migrationFiles = readdirSync(path.join(root, "supabase", "migrations")).filter((f) => /^\d{4}_/.test(f)).sort();
+  const latest = [...migrationFiles].reverse().find((f) => read("supabase", "migrations", f).includes(`create policy "${sendPolicyNames[0]}"`));
+  assert.ok(latest && latest >= "0021", "no migration defines the message INSERT policies");
+  const insertPolicies = read("supabase", "migrations", latest!);
+  for (const name of sendPolicyNames) {
     const start = insertPolicies.indexOf(`create policy "${name}"`);
-    assert.ok(start >= 0, `${name} not found`);
+    assert.ok(start >= 0, `${name} not found in ${latest}`);
     const policy = insertPolicies.slice(start, insertPolicies.indexOf(");\n", start));
     assert.match(policy, /for insert to authenticated/);
-    assert.match(policy, /bri\.status in \('REQUESTED', 'CONFIRMED'\)/);
+    assert.match(policy, /bri\.status in \('REQUESTED',/);
     assert.doesNotMatch(policy, /WITHDRAWN/, `${name} must never allow a WITHDRAWN item`);
   }
-  const later = readdirSync(path.join(root, "supabase", "migrations")).filter((f) => /^\d{4}_/.test(f) && f.slice(0, 4) > "0021");
-  for (const file of later) {
+  // That migration touches only those two policies on messages, and nothing later touches messages policies.
+  const touched = [...insertPolicies.matchAll(/policy "([^"]+)" on public\.messages/g)].map((m) => m[1]);
+  assert.deepEqual([...new Set(touched)].sort(), [...sendPolicyNames].sort());
+  for (const file of migrationFiles.filter((f) => f > latest!)) {
     assert.doesNotMatch(read("supabase", "migrations", file), /policy[^;]*on public\.messages/i, `${file} changes messages policies`);
   }
   const readPolicies = read("supabase", "migrations", "0014_guest_host_messaging.sql");

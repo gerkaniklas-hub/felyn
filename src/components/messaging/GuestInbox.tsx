@@ -234,7 +234,9 @@ export function GuestInbox({
                   name={c.otherParticipant.label}
                   timestamp={c.lastMessage ? formatListTimestamp(c.lastMessage.createdAt) : null}
                   subtitle={c.experienceTitle}
-                  subtitleMuted={c.itemStatus === "DECLINED" || c.itemStatus === "WITHDRAWN" || c.itemStatus === "CANCELLED"}
+                  subtitleMuted={
+                    c.itemStatus === "DECLINED" || c.itemStatus === "WITHDRAWN" || c.itemStatus === "CANCELLED" || c.itemStatus === "PAYMENT_EXPIRED"
+                  }
                   preview={previewText(c.lastMessage)}
                   unread={openedIds.has(c.itemId) ? 0 : c.unreadCount}
                 />

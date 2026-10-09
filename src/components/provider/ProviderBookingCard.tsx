@@ -64,7 +64,7 @@ export function ProviderBookingCard({
   badgeOverride?: { label: string; tone: "gold" | "sky" | "navy" };
 }) {
   const estimatedTotal = item.pricePerPerson * item.guestCount;
-  const isMuted = item.status === "DECLINED" || item.status === "CANCELLED";
+  const isMuted = item.status === "DECLINED" || item.status === "CANCELLED" || item.status === "PAYMENT_EXPIRED";
   const declineReasonLabel = item.status === "DECLINED" ? getDeclineReasonLabel(item.declineReason) : null;
   const cancellationReasonLabel = item.status === "CANCELLED" ? getCancelReasonLabel(item.cancellationReason) : null;
 
@@ -76,7 +76,9 @@ export function ProviderBookingCard({
           : `flex gap-4 rounded-card border p-4 shadow-card transition-[border-color,box-shadow] sm:p-5 ${
               item.status === "CONFIRMED"
                 ? "border-sky-300 bg-sky-50"
-                : item.status === "REQUESTED"
+                : item.status === "AWAITING_PAYMENT"
+                  ? "border-dashed border-sky-400 bg-sky-50"
+                  : item.status === "REQUESTED"
                   ? "border-gold-300 bg-ivory-50"
                   : "border-ivory-300 bg-ivory-100"
             } ${linkable ? "hover:shadow-float focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400" : ""}`
@@ -152,7 +154,13 @@ export function ProviderBookingCard({
 
         <p className="mt-auto text-sm font-medium text-navy-800">
           {formatCurrency(estimatedTotal, item.currency)}
-          {item.status === "CONFIRMED" ? " confirmed" : item.status === "REQUESTED" ? " requested" : ""}
+          {item.status === "CONFIRMED"
+            ? " confirmed"
+            : item.status === "AWAITING_PAYMENT"
+              ? " awaiting payment"
+              : item.status === "REQUESTED"
+                ? " requested"
+                : ""}
         </p>
       </div>
     </div>

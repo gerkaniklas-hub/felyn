@@ -181,6 +181,8 @@ export type GuestExperienceDetail = GuestExperienceItem & {
   /** Anchors of the messaging window (getMessagingWindowState): set only when DECLINED / CANCELLED respectively. */
   decidedAt: string | null;
   cancelledAt: string | null;
+  /** 0035: the payment deadline once accepted (anchors PAYMENT_EXPIRED's window too); null before acceptance and on older bookings. */
+  paymentDueAt: string | null;
   /**
    * The catalogue experience's own richer details — description, category,
    * duration, the full photo gallery — when they're still readable. This
@@ -218,7 +220,7 @@ export async function getGuestExperienceDetail(
   const { data: itemRow } = await supabase
     .from("booking_request_items")
     .select(
-      "id, booking_request_id, experience_id, planned_date, planned_moment, preferred_time, guest_count, price_per_person, status, decline_reason, host_note, created_at, decided_at, cancelled_at, cancelled_by, cancellation_reason, cancellation_note, confirmed_start_at",
+      "id, booking_request_id, experience_id, planned_date, planned_moment, preferred_time, guest_count, price_per_person, status, decline_reason, host_note, created_at, decided_at, cancelled_at, cancelled_by, cancellation_reason, cancellation_note, confirmed_start_at, payment_due_at",
     )
     .eq("id", itemId)
     .maybeSingle();
@@ -239,6 +241,7 @@ export async function getGuestExperienceDetail(
     created_at: string;
     decided_at: string | null;
     cancelled_at: string | null;
+    payment_due_at: string | null;
     cancelled_by: CancelledBy | null;
     cancellation_reason: CancelReason | null;
     cancellation_note: string | null;
@@ -334,6 +337,7 @@ export async function getGuestExperienceDetail(
     providerPhotoUrl,
     decidedAt: item.decided_at,
     cancelledAt: item.cancelled_at,
+    paymentDueAt: item.payment_due_at,
     experience: experience
       ? {
           shortDescription: experience.short_description,

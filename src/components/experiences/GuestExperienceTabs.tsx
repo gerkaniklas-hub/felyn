@@ -38,7 +38,7 @@ export function GuestExperienceTabs({ items }: { items: GuestExperienceItem[] })
     const past: GuestExperienceItem[] = [];
     const cancelled: GuestExperienceItem[] = [];
     for (const item of items) {
-      if (item.status === "CANCELLED" || item.status === "DECLINED" || item.status === "WITHDRAWN") {
+      if (item.status === "CANCELLED" || item.status === "DECLINED" || item.status === "WITHDRAWN" || item.status === "PAYMENT_EXPIRED") {
         cancelled.push(item);
       } else if (item.plannedDate >= today) {
         upcoming.push(item);

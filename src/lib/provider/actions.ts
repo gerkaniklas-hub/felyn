@@ -7,6 +7,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export type ProviderItemActionResult = { ok: true } | { ok: false; error: string };
 
 const GENERIC_ERROR = "We couldn't update this request. It may already have been decided, or it isn't yours to manage.";
+const TOO_LATE_TO_ACCEPT_ERROR =
+  "This request starts too soon to accept: the guest needs at least 30 minutes to pay before the 2-hour cut-off. Message the guest if you can still help.";
 const OVERLAPPING_BOOKING_ERROR =
   "This experience overlaps another confirmed booking. Message the guest to suggest another time — they can withdraw and request again.";
 const UNACCEPTABLE_REQUEST_ERROR =
@@ -50,6 +52,11 @@ export async function confirmBookingRequestItem(itemId: string): Promise<Provide
   // confirmed bookings. The request stays REQUESTED, untouched.
   if (error?.code === "23P01") {
     return { ok: false, error: OVERLAPPING_BOOKING_ERROR };
+  }
+  // FB001: 0035 refused because the guest would have under 30 minutes to pay
+  // (the experience starts in less than about 2.5 hours, or already started).
+  if (error?.code === "FB001") {
+    return { ok: false, error: TOO_LATE_TO_ACCEPT_ERROR };
   }
   if (error || data !== true) {
     return { ok: false, error: GENERIC_ERROR };

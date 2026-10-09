@@ -163,6 +163,7 @@ export function StayPlanner({
         declineReason: item.declineReason,
         decidedAt: item.decidedAt,
         cancelledAt: item.cancelledAt,
+        paymentDueAt: item.paymentDueAt,
       });
     }
     for (const selection of selections) {
@@ -180,6 +181,7 @@ export function StayPlanner({
         declineReason: null,
         decidedAt: null,
         cancelledAt: null,
+        paymentDueAt: null,
       });
     }
     return items;
@@ -202,7 +204,7 @@ export function StayPlanner({
     for (const item of planItems) {
       const summary = { ...(map.get(item.slot.date) ?? EMPTY_DATE_SUMMARY) };
       if (item.status === "CONFIRMED") summary.confirmed += 1;
-      else if (item.status === "REQUESTED") summary.awaiting += 1;
+      else if (item.status === "REQUESTED" || item.status === "AWAITING_PAYMENT") summary.awaiting += 1;
       else if (item.status === "DRAFT") summary.draft += 1;
       else if (item.status === "DECLINED") summary.declined += 1;
       map.set(item.slot.date, summary);
@@ -429,7 +431,8 @@ export function StayPlanner({
           (item) =>
             item.recommendation.experience.id === focusedRecommendation.experience.id &&
             item.status !== "WITHDRAWN" &&
-            item.status !== "CANCELLED",
+            item.status !== "CANCELLED" &&
+            item.status !== "PAYMENT_EXPIRED",
         )
         .map((item) => ({
           selectionId: item.selectionId,
@@ -560,6 +563,7 @@ export function StayPlanner({
                       declineReason={item.declineReason}
                       decidedAt={item.decidedAt}
                       cancelledAt={item.cancelledAt}
+                      paymentDueAt={item.paymentDueAt}
                       guestCount={item.guestCount}
                       pricePerPerson={item.pricePerPerson}
                       preferredTime={item.preferredTime}

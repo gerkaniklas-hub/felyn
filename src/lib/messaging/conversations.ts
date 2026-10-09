@@ -32,6 +32,8 @@ export type ConversationSummary = {
   /** Stage 2c-B: anchors for the 30-day post-decision messaging window — see getMessagingWindowState. Null unless the item is DECLINED/CANCELLED respectively. */
   decidedAt: string | null;
   cancelledAt: string | null;
+  /** 0035: anchors PAYMENT_EXPIRED's 30-day reply window. */
+  paymentDueAt: string | null;
   /** The existing page that shows this booking: guest → their stay's plan; provider → the request detail page. */
   bookingHref: string;
   lastMessage: { body: string; createdAt: string; isMine: boolean } | null;
@@ -68,10 +70,11 @@ export async function getGuestConversations(supabase: SupabaseClient): Promise<C
     status: BookingItemStatus;
     decided_at: string | null;
     cancelled_at: string | null;
+    payment_due_at: string | null;
   };
   const { data: itemRows } = await supabase
     .from("booking_request_items")
-    .select("id, booking_request_id, experience_id, planned_date, planned_moment, status, decided_at, cancelled_at")
+    .select("id, booking_request_id, experience_id, planned_date, planned_moment, status, decided_at, cancelled_at, payment_due_at")
     .in("id", itemIds);
   const items = (itemRows as ItemRow[] | null) ?? [];
   if (items.length === 0) return [];
@@ -154,6 +157,7 @@ export async function getGuestConversations(supabase: SupabaseClient): Promise<C
       itemStatus: item.status,
       decidedAt: item.decided_at,
       cancelledAt: item.cancelled_at,
+      paymentDueAt: item.payment_due_at,
       stayName: request.stay_id ? (stay?.property_name ?? "Your stay") : NO_TRIP_LINKED_LABEL,
       // A trip's booking opens in its planner (as before); a request without a trip opens its own booking page.
       bookingHref: request.stay_id ? `/recommendations?stay=${request.stay_id}` : `/bookings/${item.id}`,
@@ -217,6 +221,7 @@ export async function getProviderConversations(
       itemStatus: item.status,
       decidedAt: item.decidedAt,
       cancelledAt: item.cancelledAt,
+      paymentDueAt: item.paymentDueAt,
       stayName: item.stayName,
       bookingHref: `/provider/requests/${item.itemId}`,
       lastMessage: last ? { body: last.body, createdAt: last.createdAt, isMine: last.senderId === user.id } : null,

@@ -78,7 +78,7 @@ export default async function ProviderRequestItemPage({
     getUnreadMessageCount(supabase, item.itemId),
     getOpenSupportThreadId(supabase, "host", item.itemId),
   ]);
-  const messagingWindow = getMessagingWindowState(item.status, item.decidedAt, item.cancelledAt);
+  const messagingWindow = getMessagingWindowState(item.status, item.decidedAt, item.cancelledAt, item.paymentDueAt);
 
   return (
     <div className="flex w-full max-w-3xl flex-col gap-6">
@@ -98,6 +98,7 @@ export default async function ProviderRequestItemPage({
             cancelledBy={item.cancelledBy}
             cancellationReason={item.cancellationReason}
             cancellationNote={item.cancellationNote}
+            paymentDueAt={item.paymentDueAt}
             experienceTitle={item.experienceTitle}
             guestCount={item.guestCount}
             stayName={item.stayName}

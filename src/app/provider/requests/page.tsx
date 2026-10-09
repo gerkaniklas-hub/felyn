@@ -59,7 +59,9 @@ export default async function ProviderRequestsPage() {
   );
 
   const pending = items.filter((item) => item.status === "REQUESTED");
+  const awaitingPayment = items.filter((item) => item.status === "AWAITING_PAYMENT");
   const confirmed = items.filter((item) => item.status === "CONFIRMED");
+  const expired = items.filter((item) => item.status === "PAYMENT_EXPIRED");
   const cancelled = items.filter((item) => item.status === "CANCELLED");
   const declined = items.filter((item) => item.status === "DECLINED");
 
@@ -101,9 +103,11 @@ export default async function ProviderRequestsPage() {
       ) : (
         <>
           {section("Pending requests", pending, "No pending requests")}
+          {section("Accepted · awaiting payment", awaitingPayment, "No accepted requests awaiting payment")}
           {section("Confirmed", confirmed, "No confirmed experiences yet")}
           {section("Cancelled", cancelled, "No cancelled experiences")}
           {section("Declined", declined, "No declined requests")}
+          {section("Payment expired", expired, "No expired bookings")}
         </>
       )}
     </div>

@@ -83,7 +83,8 @@ test("subjects are single-line", () => {
 
 test("subjects use the agreed wording", async () => {
   assert.equal((await renderBookingEmail("request_created_host", payload(), CTA)).subject, "New request: Paella <Feast>");
-  assert.equal((await renderBookingEmail("request_confirmed_guest", payload(), CTA)).subject, "You're booked: Paella <Feast>");
+  // Sent on acceptance since 0035 (AWAITING_PAYMENT): accepted, never "booked"/"confirmed".
+  assert.equal((await renderBookingEmail("request_confirmed_guest", payload(), CTA)).subject, "Request accepted: Paella <Feast>");
   assert.equal((await renderBookingEmail("request_declined_guest", payload(), CTA)).subject, "About your Paella <Feast> request");
   const noNames = payload({ guest_first_name: null, items: [{ title: "Surf", planned_date: "2030-06-01", planned_moment: "morning", guest_count: 1 }] });
   assert.equal((await renderBookingEmail("booking_cancelled_by_guest_host", noNames, CTA)).subject, "A guest cancelled Surf");

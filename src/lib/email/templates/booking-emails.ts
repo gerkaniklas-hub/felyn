@@ -121,14 +121,19 @@ export function buildBookingEmail(type: EmailEventType, payload: EmailPayload, c
         ],
       };
 
+    // Sent when the host ACCEPTS (0035: REQUESTED -> AWAITING_PAYMENT). The booking is
+    // reserved but not confirmed until the guest pays, so it must not say "confirmed".
     case "request_confirmed_guest":
       return {
-        subject: `You're booked: ${first.title}`,
-        preheader: `${host} has confirmed your experience.`,
+        subject: `Request accepted: ${first.title}`,
+        preheader: `${host} accepted your request. Payment is needed to confirm it.`,
         blocks: [
           greeting(payload.guestFirstName),
-          { type: "heading", text: "Your experience is confirmed" },
-          { type: "text", text: `${host} has confirmed your booking.` },
+          { type: "heading", text: "Your request was accepted" },
+          {
+            type: "text",
+            text: `${host} accepted your request and the time is reserved for you. It isn't confirmed until you pay: payment is due within 24 hours, or 2 hours before the start if that's sooner.`,
+          },
           itemDetails(first, { decided: true, showHost: true, showPrice: true, showGuestName: null, stayTown: null }),
           { type: "cta", label: "View your booking", url: ctaUrl },
         ],

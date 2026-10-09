@@ -142,6 +142,8 @@ export type ProviderRequestItem = {
   acceptedAt: string | null;
   confirmedStartAt: string | null;
   acceptedDurationMinutes: number | null;
+  /** 0035: when the guest must pay by (AWAITING_PAYMENT; kept afterwards); null before acceptance and on older bookings. */
+  paymentDueAt: string | null;
   /** Booking-lifecycle milestone: set only once status is CANCELLED — see booking-status.ts. */
   cancelledAt: string | null;
   cancelledBy: CancelledBy | null;
@@ -237,7 +239,7 @@ async function loadProviderItems(
     supabase
       .from("booking_request_items")
       .select(
-        "id, booking_request_id, experience_id, planned_date, planned_moment, guest_count, price_per_person, preferred_time, host_note, status, decline_reason, decline_note, decided_at, created_at, cancelled_at, cancelled_by, cancellation_reason, cancellation_note, accepted_at, confirmed_start_at, duration_minutes",
+        "id, booking_request_id, experience_id, planned_date, planned_moment, guest_count, price_per_person, preferred_time, host_note, status, decline_reason, decline_note, decided_at, created_at, cancelled_at, cancelled_by, cancellation_reason, cancellation_note, accepted_at, confirmed_start_at, duration_minutes, payment_due_at",
       )
       .in("experience_id", experienceIds),
     supabase
@@ -264,6 +266,7 @@ async function loadProviderItems(
     accepted_at: string | null;
     confirmed_start_at: string | null;
     duration_minutes: number | null;
+    payment_due_at: string | null;
     created_at: string;
     cancelled_at: string | null;
     cancelled_by: CancelledBy | null;
@@ -380,7 +383,12 @@ async function loadProviderItems(
     // here for Messages) is history too, even under a withdrawn request.
     const parentIsActive = request.status === "REQUESTED" || request.status === "CONFIRMED";
     const itemIsHistory =
-      item.status === "CONFIRMED" || item.status === "DECLINED" || item.status === "CANCELLED" || item.status === "WITHDRAWN";
+      item.status === "AWAITING_PAYMENT" ||
+      item.status === "CONFIRMED" ||
+      item.status === "DECLINED" ||
+      item.status === "CANCELLED" ||
+      item.status === "PAYMENT_EXPIRED" ||
+      item.status === "WITHDRAWN";
     if (!parentIsActive && !itemIsHistory) continue;
 
     const experience = experienceById.get(item.experience_id);
@@ -415,6 +423,7 @@ async function loadProviderItems(
       acceptedAt: item.accepted_at,
       confirmedStartAt: item.confirmed_start_at,
       acceptedDurationMinutes: item.duration_minutes,
+      paymentDueAt: item.payment_due_at,
       cancelledAt: item.cancelled_at,
       cancelledBy: item.cancelled_by,
       cancellationReason: item.cancellation_reason,

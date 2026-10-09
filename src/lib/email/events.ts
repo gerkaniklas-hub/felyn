@@ -162,14 +162,18 @@ export function checkEventStillCurrent(type: EmailEventType, state: CurrentBooki
   switch (type) {
     case "request_created_guest":
       if (!ACTIVE_REQUEST_STATUSES.includes(state.requestStatus)) return { current: false, reason: "request_withdrawn" };
-      return statuses.some((s) => s === "REQUESTED" || s === "CONFIRMED")
+      return statuses.some((s) => s === "REQUESTED" || s === "AWAITING_PAYMENT" || s === "CONFIRMED")
         ? { current: true }
         : { current: false, reason: "no_active_items" };
     case "request_created_host":
       if (!ACTIVE_REQUEST_STATUSES.includes(state.requestStatus)) return { current: false, reason: "request_withdrawn" };
       return statuses.some((s) => s === "REQUESTED") ? { current: true } : { current: false, reason: "no_pending_items" };
     case "request_confirmed_guest":
-      return statuses.every((s) => s === "CONFIRMED") ? { current: true } : { current: false, reason: "no_longer_confirmed" };
+      // Since 0035 this is the "request accepted" email (REQUESTED -> AWAITING_PAYMENT);
+      // still worth sending once the guest has paid (CONFIRMED), not after expiry.
+      return statuses.every((s) => s === "AWAITING_PAYMENT" || s === "CONFIRMED")
+        ? { current: true }
+        : { current: false, reason: "no_longer_confirmed" };
     case "request_declined_guest":
       return statuses.every((s) => s === "DECLINED") ? { current: true } : { current: false, reason: "no_longer_declined" };
     case "booking_cancelled_by_guest_host":

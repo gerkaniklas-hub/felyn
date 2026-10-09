@@ -71,6 +71,21 @@ export function canaryLocalToInstant(date: string, time: string): number {
   return instant;
 }
 
+const DEADLINE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  timeZone: CANARY_TIME_ZONE,
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** An instant (e.g. payment_due_at) as Tenerife time, e.g. "Sat 17 Oct, 19:00". */
+export function formatCanaryDeadline(iso: string): string {
+  return DEADLINE_FORMATTER.format(new Date(iso));
+}
+
 /** True when a Canary local start is at least MIN_REQUEST_LEAD_MINUTES after `nowMs` (so never in the past). */
 export function isFarEnoughAhead(date: string, time: string, nowMs: number): boolean {
   return canaryLocalToInstant(date, time) >= nowMs + MIN_REQUEST_LEAD_MINUTES * 60 * 1000;

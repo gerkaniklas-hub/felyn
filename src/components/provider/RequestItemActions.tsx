@@ -14,6 +14,7 @@ import {
   type DeclineReason,
 } from "@/lib/matching/booking-status";
 import { cancelBookingRequestItemAsProvider, confirmBookingRequestItem, declineBookingRequestItem } from "@/lib/provider/actions";
+import { formatCanaryDeadline } from "@/lib/matching/canary-time";
 import { BookingConfirmedModal } from "./BookingConfirmedModal";
 import { DeclineReasonForm } from "./DeclineReasonForm";
 
@@ -44,6 +45,7 @@ export function RequestItemActions({
   status,
   declineReason,
   declineNote,
+  paymentDueAt = null,
   cancelledBy,
   cancellationReason,
   cancellationNote,
@@ -58,6 +60,8 @@ export function RequestItemActions({
   cancelledBy?: CancelledBy | null;
   cancellationReason?: CancelReason | null;
   cancellationNote?: string | null;
+  /** 0035: the guest's payment deadline once accepted. */
+  paymentDueAt?: string | null;
   /** Only needed for the post-confirm success modal's copy. */
   experienceTitle: string;
   guestCount: number;
@@ -157,6 +161,23 @@ export function RequestItemActions({
     );
   }
 
+  if (status === "AWAITING_PAYMENT") {
+    return (
+      <p className="text-sm text-navy-600">
+        You accepted this request. The time is reserved for the guest until they pay
+        {paymentDueAt ? <> (by {formatCanaryDeadline(paymentDueAt)}, Tenerife time)</> : null}; it isn&apos;t confirmed until then.
+      </p>
+    );
+  }
+
+  if (status === "PAYMENT_EXPIRED") {
+    return (
+      <p className="text-sm text-navy-600">
+        The guest didn&apos;t pay by the deadline, so this booking wasn&apos;t confirmed and the time is free again.
+      </p>
+    );
+  }
+
   if (status === "CONFIRMED") {
     return (
       <div className="flex flex-col gap-2">
@@ -184,7 +205,7 @@ export function RequestItemActions({
           disabled={decision.status === "confirming"}
           onClick={handleConfirm}
         >
-          {decision.status === "confirming" ? "Confirming…" : "Confirm"}
+          {decision.status === "confirming" ? "Accepting…" : "Accept"}
         </Button>
         <Button
           type="button"

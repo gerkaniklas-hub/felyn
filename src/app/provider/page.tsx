@@ -42,7 +42,8 @@ export default async function ProviderDashboardPage() {
 
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = items
-    .filter((item) => item.status === "CONFIRMED" && item.plannedDate >= today)
+    // Reserved time: paid bookings and accepted ones awaiting the guest's payment (labelled as such).
+    .filter((item) => (item.status === "CONFIRMED" || item.status === "AWAITING_PAYMENT") && item.plannedDate >= today)
     .sort((a, b) => (a.plannedDate < b.plannedDate ? -1 : 1));
 
   const now = new Date();
@@ -108,6 +109,7 @@ export default async function ProviderDashboardPage() {
                     plannedDate={item.plannedDate}
                     experienceTitle={item.experienceTitle}
                     guestCount={item.guestCount}
+                    status={item.status}
                   />
                 ))}
               </div>

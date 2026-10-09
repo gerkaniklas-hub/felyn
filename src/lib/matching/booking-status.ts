@@ -24,10 +24,28 @@ export function getRequestStatusTone(status: ActiveBookingRequestStatus): "gold"
  * guest's own individual "never mind" for a still-REQUESTED item — the row
  * is never deleted, same as a DECLINED one (see 0011).
  */
-export type BookingItemStatus = "REQUESTED" | "CONFIRMED" | "DECLINED" | "WITHDRAWN" | "CANCELLED";
+export type BookingItemStatus =
+  | "REQUESTED"
+  | "AWAITING_PAYMENT"
+  | "CONFIRMED"
+  | "DECLINED"
+  | "WITHDRAWN"
+  | "CANCELLED"
+  | "PAYMENT_EXPIRED";
+
+/**
+ * 0035: the host accepted and the time is reserved, but the guest hasn't paid yet —
+ * never shown or treated as confirmed. PAYMENT_EXPIRED: the payment deadline
+ * passed, so the reservation was released.
+ */
+export function isAwaitingPayment(status: BookingItemStatus): boolean {
+  return status === "AWAITING_PAYMENT";
+}
 
 export function getItemStatusLabel(status: BookingItemStatus): string {
   switch (status) {
+    case "AWAITING_PAYMENT":
+      return "Awaiting payment";
     case "CONFIRMED":
       return "Confirmed";
     case "DECLINED":
@@ -36,6 +54,8 @@ export function getItemStatusLabel(status: BookingItemStatus): string {
       return "Withdrawn";
     case "CANCELLED":
       return "Cancelled";
+    case "PAYMENT_EXPIRED":
+      return "Payment expired";
     default:
       return "Requested";
   }
@@ -48,14 +68,16 @@ export function getItemStatusLabel(status: BookingItemStatus): string {
  */
 export type PlanItemStatus = BookingItemStatus | "DRAFT";
 
-/** Draft and pending/confirmed items occupy their date+moment; declined/withdrawn/cancelled ones free it. */
+/** Draft, pending, accepted and confirmed items occupy their date+moment; declined/withdrawn/cancelled/expired ones free it. */
 export function isSlotOccupyingStatus(status: PlanItemStatus): boolean {
-  return status !== "DECLINED" && status !== "WITHDRAWN" && status !== "CANCELLED";
+  return status !== "DECLINED" && status !== "WITHDRAWN" && status !== "CANCELLED" && status !== "PAYMENT_EXPIRED";
 }
 
 /** All-caps wording for the guest planner, matching the product spec exactly (e.g. "AWAITING CONFIRMATION"). */
 export function getGuestItemStatusLabel(status: BookingItemStatus): string {
   switch (status) {
+    case "AWAITING_PAYMENT":
+      return "AWAITING PAYMENT";
     case "CONFIRMED":
       return "CONFIRMED";
     case "DECLINED":
@@ -64,6 +86,8 @@ export function getGuestItemStatusLabel(status: BookingItemStatus): string {
       return "WITHDRAWN";
     case "CANCELLED":
       return "CANCELLED";
+    case "PAYMENT_EXPIRED":
+      return "PAYMENT EXPIRED";
     default:
       return "AWAITING CONFIRMATION";
   }
@@ -76,6 +100,7 @@ export function getItemStatusTone(status: BookingItemStatus): "gold" | "sky" | "
     case "DECLINED":
     case "WITHDRAWN":
     case "CANCELLED":
+    case "PAYMENT_EXPIRED":
       return "navy";
     default:
       return "gold";
@@ -88,7 +113,7 @@ export function getItemStatusTone(status: BookingItemStatus): "gold" | "sky" | "
  * this). Used only to give the guest's overall plan status line an honest
  * caption once items start diverging.
  */
-export type AggregateItemStage = "requested" | "partially_confirmed" | "confirmed" | "declined" | "cancelled";
+export type AggregateItemStage = "requested" | "partially_confirmed" | "confirmed" | "declined" | "cancelled" | "expired";
 
 export function deriveAggregateItemStage(statuses: BookingItemStatus[]): AggregateItemStage {
   if (statuses.length === 0) return "requested";
@@ -97,7 +122,7 @@ export function deriveAggregateItemStage(statuses: BookingItemStatus[]): Aggrega
   // already-CONFIRMED item — none of the three inactive statuses count as
   // "still active", so any one of them alone can't flip the overall
   // caption away from what the remaining active items actually show.
-  const inactive = (s: BookingItemStatus) => s === "DECLINED" || s === "WITHDRAWN" || s === "CANCELLED";
+  const inactive = (s: BookingItemStatus) => s === "DECLINED" || s === "WITHDRAWN" || s === "CANCELLED" || s === "PAYMENT_EXPIRED";
   const allInactive = statuses.every(inactive);
   if (allInactive) {
     // If every item is inactive, prefer the more specific/recent-feeling
@@ -106,6 +131,7 @@ export function deriveAggregateItemStage(statuses: BookingItemStatus[]): Aggrega
     // when both exist on an otherwise fully-inactive request.
     if (statuses.some((s) => s === "CANCELLED")) return "cancelled";
     if (statuses.some((s) => s === "DECLINED")) return "declined";
+    if (statuses.some((s) => s === "PAYMENT_EXPIRED")) return "expired";
     return "requested";
   }
   const active = statuses.filter((s) => !inactive(s));
@@ -124,6 +150,8 @@ export function getAggregateItemStageCaption(stage: AggregateItemStage): string 
       return "Declined";
     case "cancelled":
       return "Cancelled";
+    case "expired":
+      return "Payment expired";
     default:
       return "Pending confirmation";
   }
@@ -142,6 +170,7 @@ export function getAggregateItemStageTone(stage: AggregateItemStage): "gold" | "
       return "sky";
     case "declined":
     case "cancelled":
+    case "expired":
       return "navy";
     default:
       return "gold";
@@ -240,9 +269,9 @@ export function getCancelReasonLabel(reason: CancelReason | null): string | null
 export const MESSAGING_WINDOW_DAYS = 30;
 
 export type MessagingWindowState =
-  | { canSend: true; daysRemaining: null } // REQUESTED/CONFIRMED — indefinite, no window at all
-  | { canSend: true; daysRemaining: number } // DECLINED/CANCELLED, still inside the window
-  | { canSend: false; windowExpired: true } // DECLINED/CANCELLED, the window has passed
+  | { canSend: true; daysRemaining: null } // REQUESTED/AWAITING_PAYMENT/CONFIRMED — indefinite, no window at all
+  | { canSend: true; daysRemaining: number } // DECLINED/CANCELLED/PAYMENT_EXPIRED, still inside the window
+  | { canSend: false; windowExpired: true } // DECLINED/CANCELLED/PAYMENT_EXPIRED, the window has passed
   | { canSend: false; windowExpired: false }; // WITHDRAWN, or a status with no anchor timestamp — closed, no window to describe
 
 /**
@@ -258,12 +287,15 @@ export function getMessagingWindowState(
   status: BookingItemStatus,
   decidedAt: string | null,
   cancelledAt: string | null,
+  /** 0035: the anchor of PAYMENT_EXPIRED's window (its payment deadline). */
+  paymentDueAt: string | null = null,
 ): MessagingWindowState {
-  if (status === "REQUESTED" || status === "CONFIRMED") {
+  if (status === "REQUESTED" || status === "AWAITING_PAYMENT" || status === "CONFIRMED") {
     return { canSend: true, daysRemaining: null };
   }
 
-  const anchor = status === "DECLINED" ? decidedAt : status === "CANCELLED" ? cancelledAt : null;
+  const anchor =
+    status === "DECLINED" ? decidedAt : status === "CANCELLED" ? cancelledAt : status === "PAYMENT_EXPIRED" ? paymentDueAt : null;
   if (!anchor) {
     // WITHDRAWN always lands here (no anchor concept for it — existing
     // "closes immediately" behavior preserved exactly). A legacy DECLINED
@@ -295,6 +327,7 @@ export function getMessagingClosedLabel(
   if (windowState.canSend) return undefined;
   if (status === "DECLINED") return "The 30-day reply window for this declined booking has closed.";
   if (status === "CANCELLED") return "The 30-day reply window for this cancelled booking has closed.";
+  if (status === "PAYMENT_EXPIRED") return "The 30-day reply window for this expired booking has closed.";
   if (status === "WITHDRAWN") return "This booking was withdrawn — the conversation is closed.";
   return "This conversation is closed.";
 }

@@ -192,7 +192,7 @@ test("max_bookings is no longer presented to hosts (not enforced anywhere)", () 
 test("the guest booking page offers Message host through the existing booking conversation", () => {
   const page = read("src", "app", "bookings", "[itemId]", "page.tsx");
   assert.match(page, /<MessageLauncherButton\s+label="Message host"/);
-  assert.match(page, /getMessagingWindowState\(item\.status, item\.decidedAt, item\.cancelledAt\)/);
+  assert.match(page, /getMessagingWindowState\(item\.status, item\.decidedAt, item\.cancelledAt, item\.paymentDueAt\)/);
   assert.match(page, /canSend: messagingWindow\.canSend/);
   // Withdraw stays REQUESTED-only and support stays separate below.
   assert.ok(page.indexOf("<MessageLauncherButton") < page.indexOf("<GetHelpButton"));

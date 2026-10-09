@@ -69,6 +69,8 @@ export type ActiveBookingRequestItem = {
   createdAt: string;
   /** Stage 2c-B: set only when DECLINED — anchors the 30-day messaging window (see getMessagingWindowState). */
   decidedAt: string | null;
+  /** 0035: the payment deadline once accepted (AWAITING_PAYMENT, kept afterwards); anchors PAYMENT_EXPIRED's messaging window. */
+  paymentDueAt: string | null;
   /** Booking-lifecycle milestone: set only when CANCELLED — see booking-status.ts. */
   cancelledAt: string | null;
   cancelledBy: CancelledBy | null;
@@ -84,7 +86,7 @@ export type ActiveBookingRequest = {
 };
 
 const ACTIVE_STATUSES: ActiveBookingRequestStatus[] = ["REQUESTED", "CONFIRMED"];
-const ITEM_ACTIVE_STATUSES: BookingItemStatus[] = ["REQUESTED", "CONFIRMED"];
+const ITEM_ACTIVE_STATUSES: BookingItemStatus[] = ["REQUESTED", "AWAITING_PAYMENT", "CONFIRMED"];
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const RACE_ERROR = "Something changed while you were requesting. Please refresh and try again.";
 
@@ -342,7 +344,7 @@ export async function getActiveBookingRequest(stayId: string): Promise<ActiveBoo
   const { data: itemRows } = await supabase
     .from("booking_request_items")
     .select(
-      "id, experience_id, planned_date, planned_moment, guest_count, price_per_person, preferred_time, host_note, status, decline_reason, decided_at, created_at, cancelled_at, cancelled_by, cancellation_reason, cancellation_note",
+      "id, experience_id, planned_date, planned_moment, guest_count, price_per_person, preferred_time, host_note, status, decline_reason, decided_at, created_at, cancelled_at, cancelled_by, cancellation_reason, cancellation_note, payment_due_at",
     )
     .eq("booking_request_id", request.id)
     .order("created_at", { ascending: true });
@@ -359,6 +361,7 @@ export async function getActiveBookingRequest(stayId: string): Promise<ActiveBoo
     status: BookingItemStatus;
     decline_reason: DeclineReason | null;
     decided_at: string | null;
+    payment_due_at: string | null;
     created_at: string;
     cancelled_at: string | null;
     cancelled_by: CancelledBy | null;
@@ -382,6 +385,7 @@ export async function getActiveBookingRequest(stayId: string): Promise<ActiveBoo
       status: row.status,
       declineReason: row.decline_reason,
       decidedAt: row.decided_at,
+      paymentDueAt: row.payment_due_at,
       createdAt: row.created_at,
       cancelledAt: row.cancelled_at,
       cancelledBy: row.cancelled_by,

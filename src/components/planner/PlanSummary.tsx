@@ -30,6 +30,7 @@ export type PlanItem = {
   /** Stage 2c-B: anchors for the 30-day post-decision messaging window — see getMessagingWindowState in booking-status.ts. Null unless the item is DECLINED/CANCELLED respectively. */
   decidedAt: string | null;
   cancelledAt: string | null;
+  paymentDueAt: string | null;
 };
 
 /**

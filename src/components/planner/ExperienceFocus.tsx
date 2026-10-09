@@ -36,10 +36,12 @@ export type FocusPlanEntry = {
 const ENTRY_STATUS_LABEL: Record<PlanItemStatus, string> = {
   DRAFT: "In your plan · not yet requested",
   REQUESTED: "Awaiting confirmation",
+  AWAITING_PAYMENT: "Accepted · awaiting payment",
   CONFIRMED: "Confirmed",
   DECLINED: "Declined",
   WITHDRAWN: "Withdrawn",
   CANCELLED: "Cancelled",
+  PAYMENT_EXPIRED: "Payment expired",
 };
 
 /**

@@ -243,7 +243,9 @@ export function HostInbox({
                       name={c.otherParticipant.label}
                       timestamp={c.lastMessage ? formatListTimestamp(c.lastMessage.createdAt) : null}
                       subtitle={c.itemStatus === "WITHDRAWN" ? `Withdrawn request · ${c.experienceTitle}` : c.experienceTitle}
-                      subtitleMuted={c.itemStatus === "DECLINED" || c.itemStatus === "CANCELLED" || c.itemStatus === "WITHDRAWN"}
+                      subtitleMuted={
+                        c.itemStatus === "DECLINED" || c.itemStatus === "CANCELLED" || c.itemStatus === "WITHDRAWN" || c.itemStatus === "PAYMENT_EXPIRED"
+                      }
                       preview={previewText(c.lastMessage)}
                       unread={openedIds.has(c.itemId) ? 0 : c.unreadCount}
                     />

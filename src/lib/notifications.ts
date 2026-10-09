@@ -72,6 +72,7 @@ export function getNotificationHref(type: string, bookingRequestItemId: string |
   if (type === "host_application_approved") return "/provider";
   if (!bookingRequestItemId) return null;
   switch (type) {
+    case "booking_item_accepted":
     case "booking_item_confirmed":
     case "booking_item_declined":
     case "booking_item_cancelled":

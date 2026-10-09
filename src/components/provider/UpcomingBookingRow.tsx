@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { getItemStatusLabel, getItemStatusTone, type BookingItemStatus } from "@/lib/matching/booking-status";
 import { formatDayLabel } from "@/lib/matching/timeline";
 
 /**
@@ -7,18 +8,22 @@ import { formatDayLabel } from "@/lib/matching/timeline";
  * booking's detail page (task 4: these were previously visible but
  * unopenable). Deliberately lighter than `ProviderBookingCard` — a scan
  * list, not a full card — but every row is the same clickable, keyboard-
- * reachable detail link the rest of the app uses.
+ * reachable detail link the rest of the app uses. The badge follows the
+ * status: an accepted booking the guest hasn't paid yet reads "Awaiting
+ * payment", never "Confirmed".
  */
 export function UpcomingBookingRow({
   itemId,
   plannedDate,
   experienceTitle,
   guestCount,
+  status,
 }: {
   itemId: string;
   plannedDate: string;
   experienceTitle: string;
   guestCount: number;
+  status: BookingItemStatus;
 }) {
   return (
     <Link
@@ -32,8 +37,8 @@ export function UpcomingBookingRow({
           {guestCount} guest{guestCount === 1 ? "" : "s"}
         </p>
       </div>
-      <Badge tone="sky" className="shrink-0">
-        Confirmed
+      <Badge tone={getItemStatusTone(status)} className="shrink-0">
+        {getItemStatusLabel(status)}
       </Badge>
     </Link>
   );

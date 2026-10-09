@@ -7,7 +7,7 @@ export type CalendarEvent = {
   moment: PlannedMoment;
   /** 'HH:MM' the guest would prefer — a preference only, shown as such until CONFIRMED. */
   preferredTime: string | null;
-  status: "REQUESTED" | "CONFIRMED" | "DECLINED" | "CANCELLED";
+  status: "REQUESTED" | "AWAITING_PAYMENT" | "CONFIRMED" | "DECLINED" | "CANCELLED" | "PAYMENT_EXPIRED";
   title: string;
   imageUrl: string | null;
   stayName: string;
@@ -39,14 +39,18 @@ function buildWeeks(year: number, month: number): (string | null)[][] {
 /** Distinguishable at a glance, never by colour alone — the tone word is always in the label/title too. */
 export function eventChipClass(status: CalendarEvent["status"]): string {
   if (status === "CONFIRMED") return "bg-sky-600 text-ivory-50 border border-sky-600";
-  if (status === "DECLINED" || status === "CANCELLED") return "bg-ivory-200 text-navy-300 border border-ivory-300 line-through";
+  // Accepted and reserved, but not paid: outlined in the confirmed colour, never filled.
+  if (status === "AWAITING_PAYMENT") return "bg-sky-50 text-sky-800 border border-dashed border-sky-500";
+  if (status === "DECLINED" || status === "CANCELLED" || status === "PAYMENT_EXPIRED") return "bg-ivory-200 text-navy-300 border border-ivory-300 line-through";
   return "bg-ivory-50 text-sky-700 border border-sky-300";
 }
 
 export function statusLabel(status: CalendarEvent["status"]): string {
   if (status === "CONFIRMED") return "Confirmed";
+  if (status === "AWAITING_PAYMENT") return "Awaiting payment";
   if (status === "DECLINED") return "Declined";
   if (status === "CANCELLED") return "Cancelled";
+  if (status === "PAYMENT_EXPIRED") return "Payment expired";
   return "Requested";
 }
 

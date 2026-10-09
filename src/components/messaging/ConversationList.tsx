@@ -23,7 +23,7 @@ function formatMessageTimestamp(iso: string): string {
 
 /** Shared with the guest inbox (GuestInbox), which opens the same handle in its own pane. */
 export function toHandle(c: ConversationSummary): ConversationHandle {
-  const windowState = getMessagingWindowState(c.itemStatus, c.decidedAt, c.cancelledAt);
+  const windowState = getMessagingWindowState(c.itemStatus, c.decidedAt, c.cancelledAt, c.paymentDueAt);
   return {
     itemId: c.itemId,
     otherParticipant: c.otherParticipant,
@@ -103,7 +103,8 @@ export function ConversationList({
       ) : (
         <div className="flex flex-col divide-y divide-ivory-300 overflow-hidden rounded-2xl border border-ivory-300 bg-ivory-50">
           {filtered.map((c) => {
-            const isMuted = c.itemStatus === "DECLINED" || c.itemStatus === "WITHDRAWN" || c.itemStatus === "CANCELLED";
+            const isMuted =
+              c.itemStatus === "DECLINED" || c.itemStatus === "WITHDRAWN" || c.itemStatus === "CANCELLED" || c.itemStatus === "PAYMENT_EXPIRED";
             return (
               <div key={c.itemId} className="flex items-center gap-3 p-3 sm:p-4">
                 <ParticipantLink

@@ -563,3 +563,87 @@ effect on the next request, no sign-out needed.
   Without 0034 the same races double-booked 25/25 times.
 - SHA-256 of the files as written: 0034 `fbbe913b724363fe…`, isolated test
   `140e0438fd6183a4…`.
+
+## Migration 0035: payment reservation states — NOT YET APPLIED TO PRODUCTION
+
+- `0035_payment_reservation_states.sql` is **written but not applied**
+  (neither to production nor anywhere else). **Release decision (2026-10-08):
+  apply and deploy it only together with the Stripe payment phase** — until
+  guests can pay, every accepted booking would expire at its deadline. Same
+  form as 0023-0034: a single `DO` statement that applies fully or rolls back
+  fully, with preconditions (the five pre-payment states; 0034's acceptance,
+  guard and overlap check; the 0021 message policies; the 0009/0028 triggers)
+  and postconditions.
+- State machine (on `booking_request_items`, enforced by the update guard for
+  every role):
+  - REQUESTED -> AWAITING_PAYMENT (host accepts, `booking_item_confirm`) |
+    DECLINED | WITHDRAWN;
+  - AWAITING_PAYMENT -> CONFIRMED (payment, see below) | PAYMENT_EXPIRED
+    (only once `payment_due_at` has passed);
+  - CONFIRMED -> CANCELLED (unchanged). REQUESTED -> CONFIRMED is gone;
+    AWAITING_PAYMENT can't be cancelled or withdrawn (it is paid or expires).
+- `payment_due_at timestamptz` = `least(accepted_at + 24 hours,
+  confirmed_start_at - 2 hours)`, set only on acceptance (checked by the
+  guard), never written again, never by a client. Plain timestamp arithmetic
+  on the 0033 snapshot. Existing rows: NULL, untouched.
+- Payment: AWAITING_PAYMENT -> CONFIRMED is allowed only to the owner of
+  `booking_request_items` (`postgres`) — never to a client or a
+  `service_role` session, not even by a direct UPDATE — only while
+  `payment_due_at > now()` (so never at or after the deadline, even before
+  the expiry job has run), and under the host's lock. The path is
+  `public.booking_item_mark_paid(item)` (owner-only, no client grants): the
+  state transition only, no payment record — the Stripe phase records the
+  payment and decides how this gets called. It takes the host lock, re-reads
+  and locks the item, refuses at or after the deadline (SQLSTATE `FB002`,
+  nothing changed, also once expired) and otherwise confirms; anything not
+  awaiting payment returns false. The guest gets the existing in-app
+  "Your experience is confirmed" notice; no email. 0035 refuses to run unless
+  the role running it owns the table.
+- Expiry: AWAITING_PAYMENT -> PAYMENT_EXPIRED is likewise allowed only to the
+  table's owner — in practice `expire_due_booking_payments()` and the release
+  of a host's lapsed reservations inside `booking_item_confirm`, both of which
+  run as the owner — and only once `payment_due_at <= now()`. A direct UPDATE
+  from a client or `service_role` is refused even for a due booking.
+- Late acceptance: `booking_item_confirm` refuses (SQLSTATE `FB001`, nothing
+  changed) when the guest would have less than 30 minutes to pay — a request
+  starting in under about 2.5 hours (or already started). Exactly 30 minutes
+  is accepted. (Decided 2026-10-08.)
+- Overlap (0034): AWAITING_PAYMENT now reserves the host's time with
+  CONFIRMED; PAYMENT_EXPIRED, REQUESTED, DECLINED, WITHDRAWN and CANCELLED do
+  not. Under the host lock, acceptance first expires the host's lapsed
+  reservations, so they never block it.
+- Expiry: `public.expire_due_booking_payments()` (owner-only) expires every
+  due AWAITING_PAYMENT item, host by host under `booking_host_try_lock` — a
+  host that is accepting at that moment is skipped (its acceptance releases its
+  own lapsed reservations; the next run catches the rest). Idempotent.
+  Scheduled by `booking_payment_expiry_schedule.sql` (not a migration):
+  pg_cron, every minute, straight to the database function (no app route, no
+  email system). Release delay for display: about a minute; for new
+  acceptances: none.
+- Also: request totals and stay deletion count AWAITING_PAYMENT as active
+  (deletion also keeps PAYMENT_EXPIRED as history); messaging is open during
+  AWAITING_PAYMENT and has a 30-day reply window after PAYMENT_EXPIRED
+  (anchored to `payment_due_at`); on acceptance the guest gets the in-app
+  notice `booking_item_accepted` ("Your request was accepted … isn't
+  confirmed until you pay … due by …") and the existing
+  `request_confirmed_guest` email, now worded "Request accepted — payment
+  needed". No email is sent on payment or expiry.
+- Release steps (with the Stripe phase): run
+  `payment_reservation_states_isolated_test.sql` (after 0034, before 0035;
+  expects 0028; needs three accounts), then 0035, then
+  `booking_payment_expiry_schedule.sql`, then deploy the app.
+- Concurrency (tested outside the repository on a real PostgreSQL 17 server
+  with parallel connections and committed data): overlapping acceptances are
+  serialized with exactly one AWAITING_PAYMENT winner (25/25 races);
+  acceptances against an AWAITING_PAYMENT reservation are refused; acceptance
+  vs expiry in either order ends in one consistent state (expiry never waits
+  for a busy host; an acceptance waits for a running expiry and then takes
+  the released slot); different hosts never wait for each other. Payment vs
+  expiry: a running payment makes expiry skip that host without waiting; a
+  running expiry makes payment wait, after which an in-time payment confirms
+  and a lapsed one is refused (FB002); 25/25 simultaneous races each way end
+  in one valid state, and a lapsed booking is never confirmed (12/12 checks).
+  The isolated test was also run against 12 deliberately broken versions of
+  0035; each one failed at the check meant to catch it.
+- SHA-256 of the files as written: 0035 `db097e97aba42990…`, isolated test
+  `a8ff7357f0b1e859…`, schedule script `e71e9787e7728687…`.

@@ -67,7 +67,7 @@ function ReviewRow({
   children?: ReactNode;
 }) {
   const { experience } = item.recommendation;
-  const isMuted = item.status === "DECLINED" || item.status === "WITHDRAWN";
+  const isMuted = item.status === "DECLINED" || item.status === "WITHDRAWN" || item.status === "PAYMENT_EXPIRED";
   return (
     <div className="flex flex-col gap-3 py-5 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex min-w-0 gap-4">
@@ -173,8 +173,12 @@ export function PlanReview({
   const [withdraw, setWithdraw] = useState<WithdrawState>({ status: "idle" });
 
   const drafts = items.filter((item) => item.status === "DRAFT").sort(bySlot);
-  const requested = items.filter((item) => item.status === "REQUESTED" || item.status === "CONFIRMED").sort(bySlot);
-  const history = items.filter((item) => item.status === "DECLINED" || item.status === "WITHDRAWN").sort(bySlot);
+  const requested = items
+    .filter((item) => item.status === "REQUESTED" || item.status === "AWAITING_PAYMENT" || item.status === "CONFIRMED")
+    .sort(bySlot);
+  const history = items
+    .filter((item) => item.status === "DECLINED" || item.status === "WITHDRAWN" || item.status === "PAYMENT_EXPIRED")
+    .sort(bySlot);
   const hasConflicts = drafts.some((item) => conflictingIds.has(item.selectionId));
 
   async function handleSubmit() {

@@ -12,6 +12,7 @@ import {
   type DeclineReason,
   type PlanItemStatus,
 } from "@/lib/matching/booking-status";
+import { formatCanaryDeadline } from "@/lib/matching/canary-time";
 import { getPlannedMomentLabel, type PlannedSlot } from "@/lib/matching/plan";
 import { formatDayLabel } from "@/lib/matching/timeline";
 import type { MatchedExperience } from "@/lib/matching/hard-filter";
@@ -21,19 +22,23 @@ import { FallbackImage } from "./FallbackImage";
 const STATUS_CARD_CLASS: Record<PlanItemStatus, string> = {
   CONFIRMED: "border border-sky-300 bg-sky-50 shadow-card",
   REQUESTED: "border border-gold-300 bg-ivory-50 shadow-card",
+  AWAITING_PAYMENT: "border border-dashed border-sky-400 bg-sky-50 shadow-card",
   DRAFT: "border border-dashed border-sky-400 bg-ivory-50",
   DECLINED: "border border-ivory-300 bg-ivory-100",
   WITHDRAWN: "border border-ivory-200 bg-ivory-50 opacity-60",
   CANCELLED: "border border-ivory-200 bg-ivory-50 opacity-60",
+  PAYMENT_EXPIRED: "border border-ivory-200 bg-ivory-50 opacity-60",
 };
 
 const STATUS_BADGE_LABEL: Record<PlanItemStatus, string> = {
   CONFIRMED: "CONFIRMED",
   REQUESTED: "AWAITING CONFIRMATION",
+  AWAITING_PAYMENT: "AWAITING PAYMENT",
   DRAFT: "NOT YET REQUESTED",
   DECLINED: "DECLINED",
   WITHDRAWN: "WITHDRAWN",
   CANCELLED: "CANCELLED",
+  PAYMENT_EXPIRED: "PAYMENT EXPIRED",
 };
 
 /**
@@ -51,6 +56,7 @@ export function RequestedItemCard({
   declineReason,
   decidedAt,
   cancelledAt,
+  paymentDueAt = null,
   guestCount,
   pricePerPerson,
   preferredTime,
@@ -73,6 +79,8 @@ export function RequestedItemCard({
   /** Stage 2c-B: anchors for the 30-day post-decision messaging window — see getMessagingWindowState in booking-status.ts. Null unless the item is DECLINED/CANCELLED respectively; irrelevant for a DRAFT. */
   decidedAt: string | null;
   cancelledAt: string | null;
+  /** 0035: AWAITING_PAYMENT's deadline, and the anchor of PAYMENT_EXPIRED's messaging window. */
+  paymentDueAt?: string | null;
   guestCount: number;
   /** The price this item was requested at (a draft: the experience's current price). */
   pricePerPerson: number;
@@ -101,12 +109,12 @@ export function RequestedItemCard({
   onExplore?: () => void;
 }) {
   const reasonLabel = status === "DECLINED" ? getDeclineReasonLabel(declineReason) : null;
-  const isMuted = status === "DECLINED" || status === "WITHDRAWN" || status === "CANCELLED";
+  const isMuted = status === "DECLINED" || status === "WITHDRAWN" || status === "CANCELLED" || status === "PAYMENT_EXPIRED";
   const mutedText = isMuted ? "text-navy-300" : "text-navy-700";
   // DRAFT is excluded (no persisted item, nothing to compute a window for)
   // — TypeScript narrows `status` to BookingItemStatus in this branch,
   // which getMessagingWindowState requires.
-  const windowState = status !== "DRAFT" ? getMessagingWindowState(status, decidedAt, cancelledAt) : null;
+  const windowState = status !== "DRAFT" ? getMessagingWindowState(status, decidedAt, cancelledAt, paymentDueAt) : null;
   const canMessage = itemId != null && bookingHref != null && windowState != null;
   const hostFirstName = experience.provider.display_name.split(" ")[0];
 
@@ -127,7 +135,7 @@ export function RequestedItemCard({
             </p>
           </button>
           <Badge
-            tone={status === "CONFIRMED" ? "sky" : status === "REQUESTED" ? "gold" : "navy"}
+            tone={status === "CONFIRMED" || status === "AWAITING_PAYMENT" ? "sky" : status === "REQUESTED" ? "gold" : "navy"}
             className={status === "CONFIRMED" ? "font-semibold" : ""}
           >
             {STATUS_BADGE_LABEL[status]}
@@ -195,6 +203,12 @@ export function RequestedItemCard({
 
         {status === "CONFIRMED" ? (
           <p className="text-xs text-sky-700">Confirmed by {hostFirstName}</p>
+        ) : null}
+        {status === "AWAITING_PAYMENT" ? (
+          <p className="text-xs text-sky-700">
+            Accepted by {hostFirstName} · not confirmed until you pay
+            {paymentDueAt ? <> (by {formatCanaryDeadline(paymentDueAt)})</> : null}
+          </p>
         ) : null}
 
         {canMessage && windowState ? (
