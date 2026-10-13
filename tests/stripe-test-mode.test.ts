@@ -4,10 +4,11 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import {
-  buildAccountLinkParams,
+  buildAccountLinkRequest,
   buildCheckoutSessionParams,
-  buildExpressAccountParams,
+  buildRecipientAccountRequest,
   checkAttemptAmounts,
+  describeStripeFailure,
   encodeStripeForm,
   isStripeCheckoutUrl,
   isStripeConnectUrl,
@@ -273,18 +274,63 @@ test("only Stripe's own test-mode ids and https URLs are followed", () => {
     assert.equal(isStripeCheckoutUrl(bad), false, String(bad));
   }
   assert.equal(isStripeConnectUrl("https://connect.stripe.com/setup/e/acct_1/abc"), true);
-  assert.equal(isStripeConnectUrl("https://connect.stripe.com.evil.test/"), false);
+  assert.equal(isStripeConnectUrl("https://accounts.stripe.com/r/acct_1#alu_test_1"), true);
+  for (const bad of ["https://connect.stripe.com.evil.test/", "http://accounts.stripe.com/r/acct_1", "https://accounts.stripe.com.evil.test/", null]) {
+    assert.equal(isStripeConnectUrl(bad), false, String(bad));
+  }
 });
 
-test("host onboarding: an Express account that can receive transfers later; links return to /provider/payouts", () => {
-  const account = buildExpressAccountParams({ providerId: "p1", email: "host@example.test" });
-  assert.equal(account.type, "express");
-  assert.equal(account["capabilities[transfers][requested]"], "true");
-  assert.equal(account["metadata[felyn_provider_id]"], "p1");
-  const link = buildAccountLinkParams({ accountId: "acct_1", appUrl: "https://app.felyn.eu" });
-  assert.equal(link.type, "account_onboarding");
-  assert.equal(link.return_url, "https://app.felyn.eu/provider/payouts?onboarding=return");
-  assert.equal(link.refresh_url, "https://app.felyn.eu/provider/payouts?onboarding=refresh");
+test("host onboarding: an Accounts v2 recipient with the Express Dashboard; links return to /provider/payouts", () => {
+  assert.deepEqual(buildRecipientAccountRequest({ providerId: "p1", email: " host@example.test " }), {
+    contact_email: "host@example.test",
+    dashboard: "express",
+    defaults: { responsibilities: { fees_collector: "application", losses_collector: "application" } },
+    identity: { country: "es" },
+    configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
+    metadata: { felyn_provider_id: "p1" },
+  });
+  // Stripe requires a contact email for a recipient: no request without one.
+  assert.equal(buildRecipientAccountRequest({ providerId: "p1", email: null }), null);
+  assert.equal(buildRecipientAccountRequest({ providerId: "p1", email: "  " }), null);
+  assert.deepEqual(buildAccountLinkRequest({ accountId: "acct_1", appUrl: "https://app.felyn.eu" }), {
+    account: "acct_1",
+    use_case: {
+      type: "account_onboarding",
+      account_onboarding: {
+        configurations: ["recipient"],
+        refresh_url: "https://app.felyn.eu/provider/payouts?onboarding=refresh",
+        return_url: "https://app.felyn.eu/provider/payouts?onboarding=return",
+      },
+    },
+  });
+});
+
+test("host onboarding calls Accounts v2 with a pinned version and a fresh idempotency key; never /v1/accounts", () => {
+  const api = codeOnly(read("src", "lib", "payments", "stripe-api.ts"));
+  assert.ok(api.includes('const STRIPE_API_V2 = "https://api.stripe.com/v2";'));
+  assert.ok(api.includes('export const STRIPE_V2_API_VERSION = "2025-12-15.clover";'));
+  assert.ok(api.includes('"Stripe-Version": STRIPE_V2_API_VERSION'));
+  assert.ok(api.includes('"Content-Type": "application/json"'));
+  assert.ok(api.includes('stripeV2Post(secretKey, "/core/accounts", body, `felyn-account-v2-${providerId}`)'));
+  assert.ok(api.includes('stripeV2Post(secretKey, "/core/account_links", body, null)'));
+  // The old /v1 calls (and the key whose stored failure /v1 replays) are gone.
+  assert.doesNotMatch(api, /["'`]\/accounts["'`]|["'`]\/account_links["'`]|`felyn-account-\$\{/);
+});
+
+test("Stripe failures are logged by status, type, code and request id only", () => {
+  assert.equal(
+    describeStripeFailure({ status: 400, type: "invalid_request_error", code: "account_creation_invalid", requestId: "req_abc123" }),
+    "status 400, type invalid_request_error, code account_creation_invalid, request req_abc123",
+  );
+  assert.equal(describeStripeFailure({ status: 0, type: null, code: "network_error", requestId: null }), "status 0, type none, code network_error, request none");
+  // Only Stripe's identifiers reach a failure: never its message, the key or the request body.
+  const api = codeOnly(read("src", "lib", "payments", "stripe-api.ts"));
+  assert.ok(api.includes("function safeToken(value: unknown): string | null"));
+  assert.doesNotMatch(api, /\.message\b|console\./);
+  const actions = codeOnly(read("src", "lib", "payments", "actions.ts"));
+  for (const line of actions.split("\n").filter((l) => l.includes("console."))) {
+    assert.doesNotMatch(line, /email|secretKey|config\b|request\)|\.data\b|message/, line);
+  }
 });
 
 // ── what the guest and host see ──

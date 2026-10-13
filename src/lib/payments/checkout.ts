@@ -147,25 +147,48 @@ export function buildCheckoutSessionParams(input: CheckoutSessionInput): Record<
   return params;
 }
 
-/** A host's Express connected account (test mode), able to receive transfers later. No payout is created. */
-export function buildExpressAccountParams(input: { providerId: string; email: string | null }): Record<string, string> {
-  const params: Record<string, string> = {
-    type: "express",
-    country: "ES",
-    "capabilities[transfers][requested]": "true",
-    "metadata[felyn_provider_id]": input.providerId,
+/** A JSON request body for Stripe's /v2 API. */
+export type StripeJsonBody = { [key: string]: string | boolean | string[] | StripeJsonBody };
+
+/**
+ * A host's connected account (test mode), created with Accounts v2 (POST /v2/core/accounts):
+ * the Express Dashboard, and the recipient configuration with the stripe_transfers
+ * capability, so it can receive transfers from Felyn's balance later (separate charges
+ * and transfers). An Express Dashboard requires Felyn to collect fees and carry losses.
+ * No payout is created. Stripe requires the contact email for a recipient, so there is
+ * no request without one (null).
+ */
+export function buildRecipientAccountRequest(input: { providerId: string; email: string | null }): StripeJsonBody | null {
+  const email = input.email?.trim();
+  if (!email) return null;
+  return {
+    contact_email: email,
+    dashboard: "express",
+    defaults: { responsibilities: { fees_collector: "application", losses_collector: "application" } },
+    identity: { country: "es" },
+    configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
+    metadata: { felyn_provider_id: input.providerId },
   };
-  if (input.email) params.email = input.email;
-  return params;
 }
 
-export function buildAccountLinkParams(input: { accountId: string; appUrl: string }): Record<string, string> {
+/** Stripe-hosted onboarding for the recipient configuration (POST /v2/core/account_links). Stripe requires https URLs. */
+export function buildAccountLinkRequest(input: { accountId: string; appUrl: string }): StripeJsonBody {
   return {
     account: input.accountId,
-    type: "account_onboarding",
-    refresh_url: `${input.appUrl}/provider/payouts?onboarding=refresh`,
-    return_url: `${input.appUrl}/provider/payouts?onboarding=return`,
+    use_case: {
+      type: "account_onboarding",
+      account_onboarding: {
+        configurations: ["recipient"],
+        refresh_url: `${input.appUrl}/provider/payouts?onboarding=refresh`,
+        return_url: `${input.appUrl}/provider/payouts?onboarding=return`,
+      },
+    },
   };
+}
+
+/** One log line about a failed Stripe call: HTTP status, error type and code, and request id only. */
+export function describeStripeFailure(failure: { status: number; code: string | null; type: string | null; requestId: string | null }): string {
+  return `status ${failure.status}, type ${failure.type ?? "none"}, code ${failure.code ?? "none"}, request ${failure.requestId ?? "none"}`;
 }
 
 /** application/x-www-form-urlencoded, as Stripe's API takes it. */
@@ -184,12 +207,12 @@ export function isStripeCheckoutUrl(value: unknown): value is string {
   }
 }
 
-/** An onboarding URL we are willing to send a host to. */
+/** An onboarding URL we are willing to send a host to (v2 Account Links use accounts.stripe.com). */
 export function isStripeConnectUrl(value: unknown): value is string {
   if (typeof value !== "string") return false;
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && url.hostname === "connect.stripe.com";
+    return url.protocol === "https:" && (url.hostname === "accounts.stripe.com" || url.hostname === "connect.stripe.com");
   } catch {
     return false;
   }

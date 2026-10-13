@@ -4,10 +4,11 @@ import { redirect } from "next/navigation";
 import { assertGuestJourney } from "@/lib/journey-server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
-  buildAccountLinkParams,
+  buildAccountLinkRequest,
   buildCheckoutSessionParams,
-  buildExpressAccountParams,
+  buildRecipientAccountRequest,
   checkAttemptAmounts,
+  describeStripeFailure,
   isStripeAccountId,
   isStripeCheckoutUrl,
   isStripeConnectUrl,
@@ -125,12 +126,12 @@ export async function startHostPayoutOnboarding(): Promise<PaymentActionResult> 
   const stripe = createStripeApi(payments.config.secretKey);
   let accountId = status.stripe_account_id ?? null;
   if (!accountId) {
-    const created = await stripe.createExpressAccount(
-      buildExpressAccountParams({ providerId: status.provider_id, email: user.email ?? null }),
-      status.provider_id,
-    );
+    const request = buildRecipientAccountRequest({ providerId: status.provider_id, email: user.email ?? null });
+    if (!request) return { ok: false, error: "Your Felyn account needs an email address before you can set up payouts." };
+    const created = await stripe.createRecipientAccount(request, status.provider_id);
     if (!created.ok || !isStripeAccountId(created.data.id)) {
-      console.error(`payments: Stripe did not create a connected account (status ${created.ok ? "ok" : created.status})`);
+      // Status, type, code and request id only: never the key, the email or Stripe's message.
+      console.error(`payments: Stripe did not create a connected account (${created.ok ? "no account id in the response" : describeStripeFailure(created)})`);
       return { ok: false, error: "We couldn't start payout setup. Please try again in a moment." };
     }
     const admin = createPaymentsAdminClient();
@@ -141,14 +142,17 @@ export async function startHostPayoutOnboarding(): Promise<PaymentActionResult> 
       p_account_id: created.data.id,
     });
     if (registered.error || !isStripeAccountId(registered.data)) {
+      // Stripe created the account but Felyn didn't record it; the next click returns the same account (idempotency key).
+      console.error(`payments: could not record the connected account (database code ${registered.error?.code ?? "none"})`);
       return { ok: false, error: "We couldn't start payout setup. Please try again in a moment." };
     }
     accountId = registered.data;
   }
 
-  const link = await stripe.createAccountLink(buildAccountLinkParams({ accountId, appUrl: payments.config.appUrl }));
+  const link = await stripe.createAccountLink(buildAccountLinkRequest({ accountId, appUrl: payments.config.appUrl }));
   const linkUrl = link.ok ? link.data.url : null;
   if (!isStripeConnectUrl(linkUrl)) {
+    console.error(`payments: Stripe did not create an onboarding link (${link.ok ? "unexpected link URL" : describeStripeFailure(link)})`);
     return { ok: false, error: "We couldn't open Stripe's payout setup. Please try again in a moment." };
   }
   redirect(linkUrl);

@@ -401,12 +401,42 @@ Any other output stops the sequence:
 1. Use a **dedicated Stripe sandbox for Felyn**. The webhook cancels any held
    payment from a completed Checkout that matches no Felyn payment, which would
    affect anything else sharing the account.
+
+   Hosts' payout accounts use Stripe's **Accounts v2** API
+   (`POST /v2/core/accounts`, then `POST /v2/core/account_links`), because Stripe
+   refuses `/v1/accounts` for new Connect integrations. In the sandbox, before the
+   first host clicks "Set up payouts with Stripe":
+   - finish Connect's platform setup, including the platform profile
+     (Stripe error codes `connect_profile_not_submitted`,
+     `platform_registration_required`);
+   - enable Accounts v2 for the platform if Stripe asks for it
+     (Settings → Connect → Platform setup; error code `accounts_v2_access_blocked`);
+   - acknowledge that **Felyn carries losses** on connected accounts. Hosts get the
+     Express Dashboard, which requires Felyn to collect fees and carry losses
+     (error codes `account_creation_liability_unacknowledged…`).
+
+   What the app sends, with `Stripe-Version: 2025-12-15.clover`:
+   - the account: `dashboard: express`, `identity.country: es`, the host's
+     email as `contact_email`, Felyn as `fees_collector` and `losses_collector`,
+     and the `recipient` configuration with the `stripe_balance.stripe_transfers`
+     capability (to receive transfers later; nothing is transferred in this build);
+   - the onboarding link: `use_case.type: account_onboarding` for the `recipient`
+     configuration, returning to `/provider/payouts`. Stripe requires https here,
+     so `PAYMENTS_APP_URL` must be `https://…`.
 2. Create a restricted key (`rk_test_…`) with write access to:
    - Checkout Sessions;
    - PaymentIntents;
-   - Connect accounts and account links.
+   - Connect accounts (Accounts v2) and account links.
 
-   `sk_test_…` also works. Live keys are refused by the app.
+   Stripe's labels for the Accounts v2 permissions aren't recorded here. If host
+   onboarding fails with a permission error, check the key's Connect permissions,
+   or use `sk_test_…`, which also works. Live keys are refused by the app.
+
+   A failed Stripe call is logged in Vercel's runtime logs as
+   `payments: Stripe did not create a connected account (status …, type …, code …, request req_…)`
+   or `payments: Stripe did not create an onboarding link (…)`. Look up the
+   `req_…` id in the sandbox's Workbench → Logs (Accounts v2 requests appear only
+   in Workbench). The log never contains the key, the email or Stripe's message.
 3. Add webhook endpoint 1 (your account):
    - URL: `https://app.felyn.eu/api/stripe/webhook`
    - Events:
@@ -421,6 +451,9 @@ Any other output stops the sequence:
 4. Add endpoint 2 (connected accounts):
    - URL: `https://app.felyn.eu/api/stripe/connect-webhook`
    - Event: `account.updated`
+   - Events from: **Connected accounts**. Stripe still sends this v1 event for
+     accounts created with Accounts v2, in the Connected accounts scope. Felyn
+     doesn't use the v2 (`v2.core.account…`) events.
 5. As `postgres`, after 0037:
    ```sql
    insert into felyn_private.stripe_webhook_secrets (endpoint, slot, secret)

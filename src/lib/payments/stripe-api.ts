@@ -1,44 +1,45 @@
 import "server-only";
-import { encodeStripeForm } from "./checkout";
+import { encodeStripeForm, type StripeJsonBody } from "./checkout";
 
 /**
  * The few Stripe API calls Felyn makes, over plain fetch (no SDK dependency).
- * Server-only: the secret key never reaches the browser. Every write uses an
- * idempotency key derived from Felyn's own ids, so a retry can never create a
- * second session, account, capture or cancellation. No call here creates a
+ * Server-only: the secret key never reaches the browser. Every write that creates
+ * something uses an idempotency key derived from Felyn's own ids, so a retry can never
+ * create a second session, account, capture or cancellation. No call here creates a
  * transfer, a payout or a refund — there is deliberately no such function.
  *
- * Requests use the Stripe account's default API version. Only long-stable fields
- * are read (id, url, status, latest_charge).
+ * The /v1 requests use the Stripe account's default API version. Host accounts and
+ * their onboarding links use Accounts v2 (/v2/core), which takes JSON and requires an
+ * explicit Stripe-Version. Only long-stable fields are read (id, url, status,
+ * latest_charge).
  */
 const STRIPE_API = "https://api.stripe.com/v1";
+const STRIPE_API_V2 = "https://api.stripe.com/v2";
+/** The Stripe API version for the /v2 requests (the release that made Accounts v2 generally available). */
+export const STRIPE_V2_API_VERSION = "2025-12-15.clover";
 const TIMEOUT_MS = 15_000;
 
-export type StripeResult<T> = { ok: true; data: T } | { ok: false; status: number; code: string | null; type: string | null };
+/**
+ * A failure carries only Stripe's HTTP status, error type and code, and the request id
+ * (req_...), which finds the request in Stripe's logs. Never the message: it can repeat
+ * what was sent, such as an email address.
+ */
+export type StripeFailure = { ok: false; status: number; code: string | null; type: string | null; requestId: string | null };
+export type StripeResult<T> = { ok: true; data: T } | StripeFailure;
 
 type StripeObject = Record<string, unknown>;
 
-async function stripeRequest(
-  secretKey: string,
-  method: "GET" | "POST",
-  path: string,
-  params: Record<string, string> | null,
-  idempotencyKey: string | null,
-): Promise<StripeResult<StripeObject>> {
-  const headers: Record<string, string> = { Authorization: `Bearer ${secretKey}` };
-  if (method === "POST") headers["Content-Type"] = "application/x-www-form-urlencoded";
-  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+/** Stripe's own identifiers only (error types, codes, request ids), so a log line can't carry anything else. */
+function safeToken(value: unknown): string | null {
+  return typeof value === "string" && /^[A-Za-z0-9_.-]{1,100}$/.test(value) ? value : null;
+}
+
+async function send(url: string, init: RequestInit): Promise<StripeResult<StripeObject>> {
   let response: Response;
   try {
-    response = await fetch(`${STRIPE_API}${path}`, {
-      method,
-      headers,
-      body: method === "POST" ? encodeStripeForm(params ?? {}) : undefined,
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-      cache: "no-store",
-    });
+    response = await fetch(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
   } catch {
-    return { ok: false, status: 0, code: "network_error", type: null };
+    return { ok: false, status: 0, code: "network_error", type: null, requestId: null };
   }
   let json: StripeObject = {};
   try {
@@ -51,11 +52,36 @@ async function stripeRequest(
     return {
       ok: false,
       status: response.status,
-      code: typeof error.code === "string" ? error.code : null,
-      type: typeof error.type === "string" ? error.type : null,
+      code: safeToken(error.code),
+      type: safeToken(error.type),
+      requestId: safeToken(response.headers.get("request-id")),
     };
   }
   return { ok: true, data: json };
+}
+
+function stripeRequest(
+  secretKey: string,
+  method: "GET" | "POST",
+  path: string,
+  params: Record<string, string> | null,
+  idempotencyKey: string | null,
+): Promise<StripeResult<StripeObject>> {
+  const headers: Record<string, string> = { Authorization: `Bearer ${secretKey}` };
+  if (method === "POST") headers["Content-Type"] = "application/x-www-form-urlencoded";
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+  return send(`${STRIPE_API}${path}`, { method, headers, body: method === "POST" ? encodeStripeForm(params ?? {}) : undefined });
+}
+
+/** A /v2 POST: a JSON body and an explicit API version. */
+function stripeV2Post(secretKey: string, path: string, body: StripeJsonBody, idempotencyKey: string | null): Promise<StripeResult<StripeObject>> {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${secretKey}`,
+    "Content-Type": "application/json",
+    "Stripe-Version": STRIPE_V2_API_VERSION,
+  };
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
+  return send(`${STRIPE_API_V2}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
 }
 
 export function createStripeApi(secretKey: string) {
@@ -72,9 +98,12 @@ export function createStripeApi(secretKey: string) {
       stripeRequest(secretKey, "POST", `/payment_intents/${encodeURIComponent(paymentIntentId)}/capture`, {}, `felyn-capture-${paymentIntentId}`),
     cancelPaymentIntent: (paymentIntentId: string) =>
       stripeRequest(secretKey, "POST", `/payment_intents/${encodeURIComponent(paymentIntentId)}/cancel`, { cancellation_reason: "abandoned" }, `felyn-cancel-${paymentIntentId}`),
-    createExpressAccount: (params: Record<string, string>, providerId: string) =>
-      stripeRequest(secretKey, "POST", "/accounts", params, `felyn-account-${providerId}`),
-    createAccountLink: (params: Record<string, string>) => stripeRequest(secretKey, "POST", "/account_links", params, null),
+    // Accounts v2. The key differs from the old /v1 one (felyn-account-<id>), whose stored
+    // failure /v1 replays for 24 hours; a /v2 replay re-runs a request that failed.
+    createRecipientAccount: (body: StripeJsonBody, providerId: string) =>
+      stripeV2Post(secretKey, "/core/accounts", body, `felyn-account-v2-${providerId}`),
+    // A fresh single-use link every time, so no idempotency key.
+    createAccountLink: (body: StripeJsonBody) => stripeV2Post(secretKey, "/core/account_links", body, null),
   };
 }
 
