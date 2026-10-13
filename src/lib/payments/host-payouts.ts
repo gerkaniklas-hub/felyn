@@ -1,7 +1,8 @@
 /**
  * How a host's payout account reads on /provider/payouts — pure, from the row
  * public.host_payout_account_status() (0037) returns. Readiness itself is 0036's
- * generated payouts_ready column, synced only from Stripe's verified events.
+ * generated payouts_ready column, synced only from Stripe: the account fetched from
+ * Stripe's API (0038, account-sync.ts) or a verified account.updated event (0037).
  */
 export type HostPayoutRow = {
   provider_id: string | null;
@@ -10,6 +11,8 @@ export type HostPayoutRow = {
   details_submitted: boolean | null;
   requirements_due: number | null;
   disabled_reason: string | null;
+  /** When Stripe's state was last recorded (null: never synced). */
+  stripe_synced_at?: string | null;
 };
 
 export type HostPayoutSummary = {
@@ -30,7 +33,13 @@ export function getHostPayoutSummary(row: HostPayoutRow | null): HostPayoutSumma
     };
   }
   if (row.payouts_ready) {
-    return { state: "ready", label: "Ready", description: "Stripe has confirmed your details. Guests can pay for the bookings you accept." };
+    // Capability readiness only: Stripe may still ask for details later (eventually-due
+    // requirements), so this never claims every detail was verified.
+    return {
+      state: "ready",
+      label: "Ready",
+      description: "Stripe has enabled your account to receive payments. Guests can pay for the bookings you accept.",
+    };
   }
   if (row.disabled_reason || (row.requirements_due ?? 0) > 0) {
     return {

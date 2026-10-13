@@ -451,9 +451,10 @@ Any other output stops the sequence:
 4. Add endpoint 2 (connected accounts):
    - URL: `https://app.felyn.eu/api/stripe/connect-webhook`
    - Event: `account.updated`
-   - Events from: **Connected accounts**. Stripe still sends this v1 event for
-     accounts created with Accounts v2, in the Connected accounts scope. Felyn
-     doesn't use the v2 (`v2.core.account…`) events.
+   - Events from: **Connected accounts**. Kept for backward compatibility: Felyn
+     still processes it if Stripe sends it. In the sandbox, Stripe sent **no**
+     `account.updated` for the Accounts v2 host account (zero deliveries), so hosts'
+     payout status comes from step 8 (Accounts v2 status sync) instead.
 5. As `postgres`, after 0037:
    ```sql
    insert into felyn_private.stripe_webhook_secrets (endpoint, slot, secret)
@@ -471,11 +472,107 @@ Any other output stops the sequence:
    | `STRIPE_SECRET_KEY` | the test key |
    | `STRIPE_WEBHOOK_SECRET` | endpoint 1's secret |
    | `STRIPE_CONNECT_WEBHOOK_SECRET` | endpoint 2's secret |
+   | `STRIPE_ACCOUNT_EVENTS_WEBHOOK_SECRET` | the Accounts v2 destination's secret (step 8.5; required to complete the rollout) |
    | `PAYMENTS_APP_URL` | `https://app.felyn.eu` (https; the app doesn't enforce it in test mode) |
 
    `SUPABASE_SECRET_KEY` is already set.
 7. Rotation: `docs/payments/webhook-signature-verification.md` §4, using the
    `previous` slot.
+8. **Accounts v2 status sync (0038).** Stripe sends Accounts v2 hosts' changes as
+   v2 "thin" events, which carry only the account id, so Felyn fetches the account
+   (`GET /v2/core/accounts/{id}` with `include` `configuration.recipient` and
+   `requirements`, `Stripe-Version: 2025-12-15.clover`) and records it with
+   `public.stripe_sync_host_account` (0038). Order:
+   1. Apply `supabase/migrations/0038_stripe_account_sync.sql` as `postgres`.
+      Expected: `Success. No rows returned`. SHA-256:
+      `aecdb329a3f635cfd9923886e836ce1103d8ba1796d53f52f895c17a58031e68`.
+      Re-running it aborts with `0038 ABORTED: … already exists` and changes nothing.
+   2. Deploy the app version that calls it. Until 0038 is applied, a sync fails
+      safely (logged `database code …`, host stays "In progress").
+   3. The restricted key needs **read** access to Accounts v2 accounts (Stripe's
+      permission label isn't recorded here; a missing one is logged as
+      `payments: Stripe did not return a connected account (status 403, …)`).
+   4. From then on, a host's status syncs when they come back from Stripe or open
+      `/provider/payouts` while not Ready (at most every 10 s after returning, 60 s
+      otherwise). After a FAILED attempt (403, timeout, database or 0038 missing)
+      that server instance waits 5 minutes before trying that account again; the
+      failure never counts as a sync. This fixes "In progress" after onboarding, if
+      the account really is ready; keeping a ready host current afterwards needs
+      step 5.
+      A legacy `account.updated` on the Connect endpoint (if Stripe ever sends one)
+      is applied, then the account is re-read through Accounts v2, so the stricter
+      v2 reading wins.
+   5. **REQUIRED — the Accounts v2 event destination.** The rollout is NOT complete,
+      and `payouts_ready` must not be relied on as an ongoing status, until this
+      destination is configured and verified. Without it, nothing tells Felyn when
+      Stripe later restricts a ready host (e.g. an `eventually_due` identity
+      requirement becoming due: the sandbox host has one, with
+      `verification_failed_keyed_identity`).
+      In Workbench → Webhooks, add an event destination:
+      - Events from: **Your account** (Accounts v2 events about connected accounts
+        use this scope, not "Connected accounts");
+      - Payload style: **Thin**;
+      - Events (exactly these two):
+        `v2.core.account[requirements].updated`,
+        `v2.core.account[configuration.recipient].capability_status_updated`;
+      - URL: `https://app.felyn.eu/api/stripe/account-events`;
+      - its signing secret goes in Vercel (Production) as
+        `STRIPE_ACCOUNT_EVENTS_WEBHOOK_SECRET` — only there, not in the database —
+        then redeploy. It must be a `whsec_…` value different from the other two
+        webhook secrets: a malformed or duplicate value makes the whole payment
+        configuration invalid (payments off, logged
+        `payments: configuration error — STRIPE_ACCOUNT_EVENTS_WEBHOOK_SECRET …`),
+        so paste it exactly.
+
+      **Transition (why the app doesn't enforce it).** Production already runs with
+      `PAYMENTS_ENABLED=true` and no such secret; making it mandatory in code would
+      switch payments off on the next deploy. Until it is set:
+      - payments keep working; `/api/stripe/account-events` answers 404;
+      - the server logs once per instance:
+        `payments: rollout incomplete — STRIPE_ACCOUNT_EVENTS_WEBHOOK_SECRET is not set …`;
+      - a READY host is re-checked from Stripe when they open `/provider/payouts`
+        (at most every 15 minutes). This is only a stopgap: a host who never opens
+        the page is never re-checked, while guests can still pay them.
+
+      **Verify (safe, no new Stripe objects):**
+      1. After the redeploy, Vercel logs no longer show `rollout incomplete`.
+      2. In Workbench, send the destination a test event (a ping,
+         `v2.core.event_destination.ping`; or the Stripe CLI). Expected: delivered
+         with **200** (the endpoint verifies the signature, then ignores a ping).
+         A **400** means a wrong secret; **404** means the secret isn't set or the
+         deploy hasn't happened.
+      3. Verify a real account update syncs: in Workbench → Events, find a recent
+         `v2.core.account[requirements].updated` (or `…capability_status_updated`)
+         event for the test host's account and **Resend** it to this destination
+         (possible for 15 days). Expected: delivered with **200**, and in the
+         read-only query below `stripe_synced_at` moves to the resend time while the
+         state matches Stripe's. A **500** names its cause in Vercel logs
+         (`stripe account events: evt_… not applied (stripe_unavailable|database_unavailable)`).
+
+      **Rollout complete** when: 0038 applied, this app version deployed, the test
+      host shows Ready from a real sync, and steps 1–3 above pass.
+
+   Readiness is unchanged (0036): the recipient `stripe_transfers` capability
+   active, the recipient `payouts` capability active, nothing the host must still
+   provide, nothing past due. The app's mapping fails closed:
+   - `livemode` must be exactly `false` and the `requirements` field present, or
+     nothing is recorded (logged `unexpected connected account from Stripe (…)`);
+   - `requirements: null`, a missing entries list, an entry with a missing or
+     unknown deadline status, or without a description: not submitted;
+   - `closed: true` → `disabled_reason = felyn_account_closed`;
+     `applied_configurations` without `recipient` (or
+     `configuration.recipient.applied: false`) →
+     `disabled_reason = felyn_recipient_not_applied` (Felyn's own reasons, not
+     Stripe codes). Both: not ready.
+
+   Check, read-only:
+   ```sql
+   select stripe_account_id, details_submitted, payouts_enabled, transfers_capability,
+          cardinality(requirements_currently_due) as currently_due,
+          cardinality(requirements_past_due) as past_due,
+          disabled_reason, stripe_synced_at, payouts_ready
+     from public.host_payout_accounts;
+   ```
 
 Dashboard "Send test event" uses made-up object ids:
 - they are verified and recorded, but match nothing;
@@ -507,7 +604,7 @@ Prefer a real test Checkout (section 8).
 
 - Set `PAYMENTS_ENABLED=false` and redeploy.
   - Pay buttons disappear.
-  - Both webhook routes answer 404.
+  - All three Stripe routes (`webhook`, `connect-webhook`, `account-events`) answer 404.
 - Don't do this while a payment is in progress. A held payment that Stripe can't
   deliver to Felyn is never captured; the bank releases it after about 7 days, and
   the booking expires.

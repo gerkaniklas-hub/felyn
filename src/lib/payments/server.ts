@@ -25,7 +25,23 @@ export function getServerPayments(): ServerPayments {
     console.error("payments: configuration error — SUPABASE_SECRET_KEY is required when PAYMENTS_ENABLED=true");
     return { enabled: false, reason: "misconfigured" };
   }
+  if (result.config.accountEventsWebhookSecret === null) warnAccountEventsNotConfigured();
   return { enabled: true, config: result.config };
+}
+
+let accountEventsWarned = false;
+/**
+ * Rollout incomplete: payments keep working, but without the Accounts v2 event destination
+ * a ready host's later restrictions only reach Felyn through the payouts page's 15-minute
+ * re-check (account-sync.ts). Once per server instance; names the variable only.
+ */
+function warnAccountEventsNotConfigured() {
+  if (accountEventsWarned) return;
+  accountEventsWarned = true;
+  console.warn(
+    "payments: rollout incomplete — STRIPE_ACCOUNT_EVENTS_WEBHOOK_SECRET is not set, so /api/stripe/account-events is off " +
+      "and hosts' Stripe status changes after onboarding aren't received (docs/payments/stripe-test-mode-runbook.md §7 step 8)",
+  );
 }
 
 /** Whether a new Checkout session could start now (timing.ts's 41-minute rule), for display only. */

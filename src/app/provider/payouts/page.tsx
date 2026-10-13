@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
 import { PageHeader, textLinkClass } from "@/components/ui/page";
+import { syncHostPayoutAccountOnPageView } from "@/lib/payments/account-sync-server";
 import { getHostPayoutSummary, type HostPayoutRow } from "@/lib/payments/host-payouts";
 import { getServerPayments } from "@/lib/payments/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -12,9 +13,11 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 /**
  * The host's payout setup (Stripe Connect, TEST MODE). Guests can pay for a host's
  * accepted bookings only once Stripe reports the host's account ready (0036 FB006).
- * The state shown is the database's, synced only from Stripe's verified
- * account.updated events. Felyn never pays a host out in this phase: no transfer or
- * payout is created anywhere in this build.
+ * The state shown is the database's, synced from Stripe: the host's account as fetched
+ * from Stripe's API (here while it isn't ready, at most every 10–60 seconds — and, until
+ * the Accounts v2 event destination is configured, every 15 minutes while ready — and on
+ * verified Accounts v2 events), or a verified legacy account.updated event. Felyn never
+ * pays a host out in this phase: no transfer or payout is created anywhere in this build.
  */
 export default async function ProviderPayoutsPage({ searchParams }: { searchParams: Promise<{ onboarding?: string }> }) {
   const { onboarding } = await searchParams;
@@ -25,8 +28,13 @@ export default async function ProviderPayoutsPage({ searchParams }: { searchPara
   if (!user) redirect("/login/host");
 
   const payments = getServerPayments();
-  const { data } = await supabase.rpc("host_payout_account_status");
-  const row = (Array.isArray(data) ? data[0] : null) as HostPayoutRow | null;
+  const readRow = async () => {
+    const { data } = await supabase.rpc("host_payout_account_status");
+    return (Array.isArray(data) ? data[0] : null) as HostPayoutRow | null;
+  };
+  let row = await readRow();
+  // The host's own account only (from the row above); bounded, idempotent, never throws.
+  if (await syncHostPayoutAccountOnPageView(row, onboarding === "return")) row = await readRow();
   const summary = getHostPayoutSummary(row);
 
   return (

@@ -84,6 +84,15 @@ function stripeV2Post(secretKey: string, path: string, body: StripeJsonBody, ide
   return send(`${STRIPE_API_V2}${path}`, { method: "POST", headers, body: JSON.stringify(body) });
 }
 
+/** A /v2 GET with an explicit API version (array query parameters are indexed, as /v2 requires). */
+function stripeV2Get(secretKey: string, path: string, query: URLSearchParams): Promise<StripeResult<StripeObject>> {
+  const headers: Record<string, string> = { Authorization: `Bearer ${secretKey}`, "Stripe-Version": STRIPE_V2_API_VERSION };
+  return send(`${STRIPE_API_V2}${path}?${query.toString()}`, { method: "GET", headers });
+}
+
+/** What a host account fetch includes: the recipient configuration (capabilities) and the requirements. */
+export const ACCOUNT_INCLUDES = ["configuration.recipient", "requirements"] as const;
+
 export function createStripeApi(secretKey: string) {
   return {
     createCheckoutSession: (params: Record<string, string>, paymentId: string) =>
@@ -104,6 +113,13 @@ export function createStripeApi(secretKey: string) {
       stripeV2Post(secretKey, "/core/accounts", body, `felyn-account-v2-${providerId}`),
     // A fresh single-use link every time, so no idempotency key.
     createAccountLink: (body: StripeJsonBody) => stripeV2Post(secretKey, "/core/account_links", body, null),
+    // The account's current state (read only), for account-sync.ts.
+    retrieveAccount: (accountId: string) =>
+      stripeV2Get(
+        secretKey,
+        `/core/accounts/${encodeURIComponent(accountId)}`,
+        new URLSearchParams(ACCOUNT_INCLUDES.map((value, index) => [`include[${index}]`, value])),
+      ),
   };
 }
 

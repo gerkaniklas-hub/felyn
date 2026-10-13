@@ -12,6 +12,15 @@
  *                                  any live key is refused
  *   STRIPE_WEBHOOK_SECRET          whsec_... for the platform webhook endpoint
  *   STRIPE_CONNECT_WEBHOOK_SECRET  whsec_... for the Connect (connected accounts) endpoint
+ *   STRIPE_ACCOUNT_EVENTS_WEBHOOK_SECRET
+ *                                  whsec_... for the Accounts v2 thin-event destination
+ *                                  (/api/stripe/account-events). REQUIRED TO COMPLETE THE
+ *                                  ROLLOUT (runbook §7 step 8), but not enforced here: when
+ *                                  absent, payments keep working, that endpoint answers 404,
+ *                                  ready hosts are re-checked on page views, and the server
+ *                                  logs "rollout incomplete" (server.ts). Enforcing it would
+ *                                  switch payments off on deploy before the destination
+ *                                  exists. When set, it must be valid and distinct.
  *   PAYMENTS_APP_URL               origin for Checkout/onboarding return links (http allowed in
  *                                  test mode, e.g. http://localhost:3000)
  *
@@ -26,6 +35,8 @@ export type PaymentsConfig = {
   secretKey: string;
   webhookSecret: string;
   connectWebhookSecret: string;
+  /** The Accounts v2 thin-event destination's secret, or null when that endpoint isn't set up. */
+  accountEventsWebhookSecret: string | null;
   /** Origin only, no trailing slash. */
   appUrl: string;
 };
@@ -94,5 +105,15 @@ export function readPaymentsConfig(env: Env): PaymentsConfigResult {
   const appUrl = normalizeOrigin(rawAppUrl, false);
   if (!appUrl) return { ok: false, error: "PAYMENTS_APP_URL is not a valid origin" };
 
-  return { ok: true, config: { mode: "test", secretKey, webhookSecret, connectWebhookSecret, appUrl } };
+  const accountEventsWebhookSecret = clean(env.STRIPE_ACCOUNT_EVENTS_WEBHOOK_SECRET);
+  if (accountEventsWebhookSecret !== null) {
+    if (!WEBHOOK_SECRET_PATTERN.test(accountEventsWebhookSecret)) {
+      return { ok: false, error: "STRIPE_ACCOUNT_EVENTS_WEBHOOK_SECRET is not a Stripe webhook signing secret" };
+    }
+    if (accountEventsWebhookSecret === webhookSecret || accountEventsWebhookSecret === connectWebhookSecret) {
+      return { ok: false, error: "STRIPE_ACCOUNT_EVENTS_WEBHOOK_SECRET must differ from the other webhook secrets (one per endpoint)" };
+    }
+  }
+
+  return { ok: true, config: { mode: "test", secretKey, webhookSecret, connectWebhookSecret, accountEventsWebhookSecret, appUrl } };
 }

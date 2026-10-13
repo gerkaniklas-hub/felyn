@@ -14,6 +14,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
+    // "server-only" is the marker Next.js resolves (react-server condition) to its empty
+    // module; tests run server code, so they get the same empty module. The client-bundle
+    // guard itself is enforced by the Next.js build, not by these tests.
+    if (specifier === "server-only") {
+      return nextResolve(pathToFileURL(path.join(root, "node_modules", "next", "dist", "compiled", "server-only", "empty.js")).href, context);
+    }
     let candidate = null;
     if (specifier.startsWith("@/")) {
       candidate = path.join(root, "src", specifier.slice(2));

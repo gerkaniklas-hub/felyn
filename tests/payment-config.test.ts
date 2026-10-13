@@ -38,9 +38,22 @@ test("a complete test-mode configuration", () => {
       secretKey: TEST_ENV.STRIPE_SECRET_KEY,
       webhookSecret: TEST_ENV.STRIPE_WEBHOOK_SECRET,
       connectWebhookSecret: TEST_ENV.STRIPE_CONNECT_WEBHOOK_SECRET,
+      accountEventsWebhookSecret: null,
       appUrl: "http://localhost:3000",
     },
   });
+});
+
+test("the Accounts v2 event secret is optional, but well-formed and distinct when set", () => {
+  const withSecret = readPaymentsConfig({ ...TEST_ENV, STRIPE_ACCOUNT_EVENTS_WEBHOOK_SECRET: " whsec_FAKEACCOUNTS00000000000 " });
+  assert.ok(withSecret.ok && withSecret.config?.accountEventsWebhookSecret === "whsec_FAKEACCOUNTS00000000000");
+  const blank = readPaymentsConfig({ ...TEST_ENV, STRIPE_ACCOUNT_EVENTS_WEBHOOK_SECRET: "  " });
+  assert.ok(blank.ok && blank.config?.accountEventsWebhookSecret === null);
+  expectError({ ...TEST_ENV, STRIPE_ACCOUNT_EVENTS_WEBHOOK_SECRET: "whsec_short" }, "STRIPE_ACCOUNT_EVENTS_WEBHOOK_SECRET");
+  expectError({ ...TEST_ENV, STRIPE_ACCOUNT_EVENTS_WEBHOOK_SECRET: TEST_ENV.STRIPE_WEBHOOK_SECRET }, "must differ");
+  expectError({ ...TEST_ENV, STRIPE_ACCOUNT_EVENTS_WEBHOOK_SECRET: TEST_ENV.STRIPE_CONNECT_WEBHOOK_SECRET }, "must differ");
+  // Payments off: the variable isn't even read.
+  assert.deepEqual(readPaymentsConfig({ STRIPE_ACCOUNT_EVENTS_WEBHOOK_SECRET: "garbage" }), { ok: true, config: null });
 });
 
 test("missing required values are reported by name", () => {

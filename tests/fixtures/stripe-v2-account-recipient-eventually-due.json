@@ -1,0 +1,35 @@
+{
+  "_comment": "Sanitized from a real Stripe sandbox response (GET /v2/core/accounts/{id}, Stripe-Version 2025-12-15.clover, include configuration.recipient and requirements, restricted rk_test_ key). Only the fields Felyn reads, as reported; the account id is replaced, and the email, names, identity data, dates, metadata and Stripe's error text are left out. Fields not reported (requirements.summary, entries[].reference, entries[].requested_reasons) are omitted rather than guessed.",
+  "id": "acct_1FixtureHost000000",
+  "object": "v2.core.account",
+  "livemode": false,
+  "closed": false,
+  "applied_configurations": ["recipient"],
+  "configuration": {
+    "recipient": {
+      "applied": true,
+      "capabilities": {
+        "stripe_balance": {
+          "payouts": { "status": "active", "status_details": [] },
+          "stripe_transfers": { "status": "active", "status_details": [] }
+        }
+      }
+    }
+  },
+  "requirements": {
+    "entries": [
+      {
+        "awaiting_action_from": "user",
+        "description": "identity.individual.documents.primary_verification",
+        "errors": [{ "code": "verification_failed_keyed_identity" }],
+        "impact": {
+          "restricts_capabilities": [
+            { "capability": "stripe_balance.payouts", "configuration": "recipient", "deadline": { "status": "eventually_due" } },
+            { "capability": "stripe_balance.stripe_transfers", "configuration": "recipient", "deadline": { "status": "eventually_due" } }
+          ]
+        },
+        "minimum_deadline": { "status": "eventually_due" }
+      }
+    ]
+  }
+}

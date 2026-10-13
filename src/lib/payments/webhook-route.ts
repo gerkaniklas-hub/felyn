@@ -1,4 +1,5 @@
 import "server-only";
+import { syncHostPayoutAccount } from "./account-sync-server";
 import { createPaymentsAdminClient, getServerPayments } from "./server";
 import { createStripeApi } from "./stripe-api";
 import { cancelAuthorization, captureAuthorizedPayment } from "./stripe-intents";
@@ -34,6 +35,7 @@ export async function respondToStripeWebhook(endpoint: WebhookEndpoint, request:
     capture: (paymentIntentId) => captureAuthorizedPayment(stripe, paymentIntentId),
     cancel: (paymentIntentId) => cancelAuthorization(stripe, paymentIntentId),
     log: (message) => console.error(message),
+    resyncAccount: (accountId) => syncHostPayoutAccount(payments.config.secretKey, accountId),
   });
   return Response.json(result.body, { status: result.status });
 }

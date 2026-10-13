@@ -564,10 +564,12 @@ effect on the next request, no sign-out needed.
 - SHA-256 of the files as written: 0034 `fbbe913b724363fe…`, isolated test
   `140e0438fd6183a4…`.
 
-## Migration 0035: payment reservation states — NOT YET APPLIED TO PRODUCTION
+## Migration 0035: payment reservation states — ALREADY APPLIED TO PRODUCTION — DO NOT RE-RUN
 
-- `0035_payment_reservation_states.sql` is **written but not applied**
-  (neither to production nor anywhere else). **Release decision (2026-10-08):
+- `0035_payment_reservation_states.sql` is **applied to production** (2026-10-13,
+  with 0036 and 0037, runbook §6 checklist; evidence: the owner confirmed the
+  checklist rows, and 0037 — whose preconditions require 0035 — and 0038 then
+  applied successfully). Not applied to staging. **Release decision (2026-10-08):
   apply and deploy it only together with the Stripe payment phase** — until
   guests can pay, every accepted booking would expire at its deadline. Same
   form as 0023-0034: a single `DO` statement that applies fully or rolls back
@@ -653,10 +655,11 @@ effect on the next request, no sign-out needed.
 - SHA-256 of the files as written: 0035 `db097e97aba42990…`, isolated test
   `a8ff7357f0b1e859…`, schedule script `e71e9787e7728687…`.
 
-## Migration 0036: Stripe payment foundation — NOT YET APPLIED ANYWHERE
+## Migration 0036: Stripe payment foundation — ALREADY APPLIED TO PRODUCTION — DO NOT RE-RUN
 
-- `0036_stripe_payments.sql` is **written but not applied** (not to
-  production, not to staging). Apply it right after 0035, in the same
+- `0036_stripe_payments.sql` is **applied to production** (2026-10-13; same
+  evidence as 0035: 0037's preconditions require 0036). Not applied to staging.
+  It was applied right after 0035, in the same
   maintenance window, only with the Stripe phase. Database only: nothing here
   talks to Stripe and no application code uses these tables yet. Same form as
   0023-0035 (one `DO` statement, preconditions, postconditions; run as
@@ -748,10 +751,12 @@ effect on the next request, no sign-out needed.
 - SHA-256 of the files as written: 0036 `c875e6bdce74e4bc…`, isolated test
   `80f4950b01a3539f…`.
 
-## Migration 0037: Stripe test mode — NOT YET APPLIED ANYWHERE
+## Migration 0037: Stripe test mode — ALREADY APPLIED TO PRODUCTION — DO NOT RE-RUN
 
-- `0037_stripe_test_mode.sql` is **written but not applied** (not to production,
-  not anywhere else). Apply it right after 0035 and 0036, in the same maintenance
+- `0037_stripe_test_mode.sql` is **applied to production** (2026-10-13; evidence:
+  the owner confirmed the checklist rows, production host onboarding uses its
+  `stripe_register_host_account`, and 0038 — whose preconditions require 0037 —
+  applied successfully). Not applied to staging. It was applied right after 0035 and 0036, in the same maintenance
   window, together with the app version that calls it. Full procedure, backup and
   limits: `docs/payments/stripe-test-mode-runbook.md`. Same form as 0023-0036: one
   `DO` statement, preconditions (0035 and 0036 applied; `extensions.hmac`; no
@@ -822,3 +827,37 @@ effect on the next request, no sign-out needed.
   - 7 deliberately broken versions of 0037 were each caught.
   - The isolated test prints `FELYN TEST PASSED` and leaves nothing behind. It
     fails at setup once 0037 is applied, and it caught 2 broken versions.
+
+## Migration 0038: Stripe Accounts v2 account sync — ALREADY APPLIED TO PRODUCTION — DO NOT RE-RUN
+
+- `0038_stripe_account_sync.sql` is **applied to production** (2026-10-13, SHA-256
+  `aecdb329a3f635cfd9923886e836ce1103d8ba1796d53f52f895c17a58031e68`; verified
+  afterwards: EXECUTE for `service_role` only, SECURITY DEFINER with an empty
+  `search_path`, host data unchanged). Not applied to staging. Re-running it aborts
+  (`0038 ABORTED: … already exists`) and changes nothing. It was applied after
+  0037, as `postgres`, before the app version that calls it. Procedure:
+  `docs/payments/stripe-test-mode-runbook.md` §7 step 8. Same form as 0023-0037:
+  one `DO` statement, preconditions (0037 applied, test mode, run as the owner of
+  `host_payout_accounts`, function not yet present) and postconditions.
+- Why: hosts' connected accounts are created with Stripe's Accounts v2 API, and
+  Stripe sent no `account.updated` for them, so 0037 never synced a host who
+  finished onboarding ("In progress" forever).
+- Adds one function, `public.stripe_sync_host_account(...)`, **service_role only**:
+  it records the state the server has just fetched from Stripe
+  (`GET /v2/core/accounts/{id}`), mapped onto 0036's existing columns. 0036's
+  readiness formula and update guard are unchanged. An older reading than the one
+  recorded answers `stale` and changes nothing; an unknown account answers
+  `unknown_account`; malformed input raises 22023.
+- **Trust change (reviewed):** a host's payout state no longer comes only from
+  Stripe-signed events; the service_role key can now record it for an already
+  registered account. No transfer or payout exists in this build.
+- Tested outside the repository on a real PostgreSQL 17 server (0001-0038
+  replayed): 9 end-to-end checks passed (privileges, ready / requirements /
+  disabled / pending / past-due states, stale and duplicate readings, unknown
+  accounts, malformed input, a legacy `account.updated` older than the last sync
+  still ignored, re-running aborts); 6 concurrency checks passed with two real
+  sessions (each proven to wait on the row lock): two racing syncs in both orders,
+  an idempotent retry at the same read time, a v2 sync racing a legacy
+  `account.updated` in both orders, and the app's re-read after a legacy event;
+  0037's 28 checks still pass with 0038 applied. These harness scripts need an
+  embedded PostgreSQL package and are not part of the repository or `npm test`.

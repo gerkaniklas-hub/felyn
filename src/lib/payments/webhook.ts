@@ -40,6 +40,13 @@ export type WebhookDeps = {
   cancel: (paymentIntentId: string) => Promise<boolean>;
   /** Server log line (never given a body, header or secret). */
   log: (message: string) => void;
+  /**
+   * Connect endpoint only: after the database applied a legacy account.updated, re-reads
+   * that account through Accounts v2 (account-sync-server.ts). The fetch is later than the
+   * event, so the stricter v2 reading replaces the v1 snapshot. Never throws; a failure
+   * leaves the event's (Stripe-signed) state in place.
+   */
+  resyncAccount?: (accountId: string) => Promise<unknown>;
 };
 
 export type WebhookResponse = { status: number; body: { received: boolean; error?: string } };
@@ -60,13 +67,14 @@ export async function handleStripeWebhook(
     return reply(400, "signature");
   }
 
-  let livemode: unknown;
+  let event: { livemode?: unknown; type?: unknown; data?: { object?: { id?: unknown } } };
   try {
-    livemode = (JSON.parse(Buffer.from(rawBody).toString("utf8")) as { livemode?: unknown }).livemode;
+    event = JSON.parse(Buffer.from(rawBody).toString("utf8")) as typeof event;
   } catch {
     return reply(400, "body");
   }
-  if (livemode !== false) {
+  if (event === null || typeof event !== "object") return reply(400, "body");
+  if (event.livemode !== false) {
     deps.log(`stripe webhook (${endpoint}): refused a live-mode or unmarked event (this build is test mode only)`);
     return reply(400, "mode");
   }
@@ -101,6 +109,16 @@ export async function handleStripeWebhook(
     default:
       deps.log(`stripe webhook (${endpoint}): unexpected database answer`);
       return reply(500, "unexpected");
+  }
+
+  const accountId = event.data?.object?.id;
+  if (endpoint === "connect" && result.result === "processed" && event.type === "account.updated" && deps.resyncAccount
+      && typeof accountId === "string" && /^acct_[A-Za-z0-9]{1,250}$/.test(accountId)) {
+    try {
+      await deps.resyncAccount(accountId);
+    } catch {
+      deps.log(`stripe webhook (${endpoint}): Accounts v2 re-read after account.updated failed; the event's state stays`);
+    }
   }
 
   if (result.action === "capture" || result.action === "cancel_authorization") {
