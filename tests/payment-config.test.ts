@@ -50,12 +50,14 @@ test("missing required values are reported by name", () => {
   }
 });
 
-test("the key must match the mode: no live key in test mode and vice versa", () => {
-  expectError({ ...TEST_ENV, STRIPE_SECRET_KEY: "sk_live_FAKE0000000000000000" }, "test-mode");
+test("test mode only: no live key, and STRIPE_MODE=live is refused even with a live key and https", () => {
+  expectError({ ...TEST_ENV, STRIPE_SECRET_KEY: "sk_live_FAKE0000000000000000" }, "live-mode key");
+  expectError({ ...TEST_ENV, STRIPE_SECRET_KEY: "rk_live_FAKE0000000000000000" }, "live-mode key");
   expectError(
-    { ...TEST_ENV, STRIPE_MODE: "live", PAYMENTS_APP_URL: "https://app.felyn.eu" },
-    "live-mode",
+    { ...TEST_ENV, STRIPE_MODE: "live", STRIPE_SECRET_KEY: "rk_live_FAKE0000000000000000", PAYMENTS_APP_URL: "https://app.felyn.eu" },
+    "test mode only",
   );
+  expectError({ ...TEST_ENV, STRIPE_MODE: "LIVE" }, "test mode only");
   expectError({ ...TEST_ENV, STRIPE_MODE: "production" }, "STRIPE_MODE");
 });
 
@@ -67,13 +69,11 @@ test("malformed keys and secrets are rejected", () => {
   expectError({ ...TEST_ENV, STRIPE_CONNECT_WEBHOOK_SECRET: TEST_ENV.STRIPE_WEBHOOK_SECRET }, "must differ");
 });
 
-test("live mode requires an https app origin", () => {
-  const live = { ...TEST_ENV, STRIPE_MODE: "live", STRIPE_SECRET_KEY: "rk_live_FAKE0000000000000000" };
-  expectError({ ...live, PAYMENTS_APP_URL: "http://app.felyn.eu" }, "https");
-  const ok = readPaymentsConfig({ ...live, PAYMENTS_APP_URL: "https://app.felyn.eu" });
-  assert.ok(ok.ok && ok.config?.mode === "live" && ok.config.appUrl === "https://app.felyn.eu");
+test("the app origin must be a plain http(s) origin", () => {
+  const ok = readPaymentsConfig({ ...TEST_ENV, PAYMENTS_APP_URL: "https://app.felyn.eu" });
+  assert.ok(ok.ok && ok.config?.mode === "test" && ok.config.appUrl === "https://app.felyn.eu");
   for (const bad of ["https://app.felyn.eu/pay", "https://user:pw@app.felyn.eu", "https://app.felyn.eu?x=1", "not a url", "ftp://app.felyn.eu"]) {
-    expectError({ ...live, PAYMENTS_APP_URL: bad }, "PAYMENTS_APP_URL");
+    expectError({ ...TEST_ENV, PAYMENTS_APP_URL: bad }, "PAYMENTS_APP_URL");
   }
 });
 

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ContactPhoneForm } from "@/components/profile/ContactPhoneForm";
 import { HostPhotoEditor } from "@/components/provider/HostPhotoEditor";
@@ -5,7 +6,7 @@ import { HostProfileForm } from "@/components/provider/HostProfileForm";
 import { ViewPublicProfileButton } from "@/components/provider/ViewPublicProfileButton";
 import { Card } from "@/components/ui/card";
 import { Heading } from "@/components/ui/heading";
-import { PageHeader } from "@/components/ui/page";
+import { PageHeader, textLinkClass } from "@/components/ui/page";
 import { getContactDetails } from "@/lib/contact/queries";
 import { formatPhoneNational } from "@/lib/phone";
 import { getProviderIdentity } from "@/lib/provider/dashboard";
@@ -102,6 +103,13 @@ export default async function ProviderProfilePage() {
               defaultCountry={contact?.phoneCountry ?? ""}
               defaultNumber={contact ? formatPhoneNational(contact.phoneNumber) : ""}
             />
+          </div>
+          <div className="flex flex-col gap-1 border-t border-ivory-300 pt-5">
+            <h3 className="text-sm font-semibold text-navy-900">Payouts</h3>
+            <p className="text-sm text-navy-500">Set up how you receive payments for your bookings.</p>
+            <Link href="/provider/payouts" className={`self-start text-sm ${textLinkClass}`}>
+              Manage payouts →
+            </Link>
           </div>
         </Card>
       </div>

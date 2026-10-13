@@ -1,7 +1,15 @@
 # Stripe webhook signatures, verified twice
 
-Status: **design for review** (pre-Stage 3). Nothing here is implemented. No
-webhook route, Stripe API call or migration exists for it yet.
+Status: **implemented, test mode only, not applied or deployed** (2026-10-13).
+- Route check: `src/lib/payments/webhook-signature.ts` + `webhook.ts`. It uses no
+  Stripe SDK; the same v1 scheme is implemented with `node:crypto`.
+- Database check: `0037_stripe_test_mode.sql`. The secrets are in the `felyn_private`
+  schema, as approved below.
+- Procedure: `docs/payments/stripe-test-mode-runbook.md`.
+
+Where this document still says Vault, read `felyn_private.stripe_webhook_secrets`.
+Where it says `constructEvent`, read `verifyStripeSignature`. The original design
+follows.
 
 > **Superseded (2026-10-09): secret storage.** Section 3 below stores the webhook
 > secrets in Supabase Vault. That is **no longer the plan**. A read-only check of

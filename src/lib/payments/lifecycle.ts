@@ -55,6 +55,52 @@ export function parseCheckoutReturn(value: string | string[] | undefined): Check
   return value === "success" || value === "cancelled" ? value : null;
 }
 
+/** The guest's latest payment attempt status (public.booking_payment_guest_status, 0037), or null. */
+export type GuestAttemptStatus =
+  | "creating" | "open" | "expired" | "failed" | "authorized" | "released" | "captured" | "confirmed" | "unconfirmable" | null;
+
+export type GuestPaymentPanel =
+  | "none" // not AWAITING_PAYMENT: the page shows the booking's own status
+  | "pay" // the Pay button (also resumes an open Checkout session)
+  | "pay_after_cancel" // the guest left Checkout without paying: Pay again
+  | "processing" // money received or the guest says so: waiting for the verified webhook
+  | "unavailable" // payments are switched off
+  | "too_late" // under 41 minutes to the deadline and nothing in progress
+  | "deadline_passed" // the deadline has passed but the booking isn't marked expired yet
+  | "needs_support"; // captured but the booking couldn't be confirmed
+
+/**
+ * What the booking page offers while a booking awaits payment. The database decides
+ * everything (status, attempt); the Checkout return value only picks the wording and
+ * can never confirm anything. `canStartCheckout` is timing.ts's 41-minute rule.
+ *
+ * `deadlinePassed`: payment_due_at is in the past. Expiry to PAYMENT_EXPIRED is done
+ * by 0035's expiry function (scheduled or run by hand) or lazily by the host's
+ * next acceptance, so a booking can still read AWAITING_PAYMENT after its
+ * deadline; it can no longer be paid either way (0035 FB002).
+ */
+export function getGuestPaymentPanel(input: {
+  status: BookingItemStatus;
+  attemptStatus: GuestAttemptStatus;
+  checkoutReturn: CheckoutReturn;
+  paymentsEnabled: boolean;
+  canStartCheckout: boolean;
+  deadlinePassed: boolean;
+}): GuestPaymentPanel {
+  if (input.status !== "AWAITING_PAYMENT") return "none";
+  if (input.attemptStatus === "unconfirmable") return "needs_support";
+  if (input.attemptStatus === "authorized" || input.attemptStatus === "captured" || input.attemptStatus === "confirmed") {
+    return "processing";
+  }
+  if (input.deadlinePassed) return "deadline_passed";
+  if (!input.paymentsEnabled) return "unavailable";
+  const display = getGuestPaymentDisplayState(input.status, input.checkoutReturn);
+  if (display === "processing" && (input.attemptStatus === "open" || input.attemptStatus === "creating")) return "processing";
+  // An open session can still be resumed whatever the clock says (the database decides).
+  if (input.attemptStatus !== "open" && !input.canStartCheckout) return "too_late";
+  return display === "payment_not_completed" ? "pay_after_cancel" : "pay";
+}
+
 export type HostTransferInput = {
   bookingStatus: BookingItemStatus;
   /** booking_request_items.completed_at (0016), set once the experience's date has passed. */

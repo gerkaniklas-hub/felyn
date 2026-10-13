@@ -628,10 +628,15 @@ effect on the next request, no sign-out needed.
   confirmed until you pay … due by …") and the existing
   `request_confirmed_guest` email, now worded "Request accepted — payment
   needed". No email is sent on payment or expiry.
-- Release steps (with the Stripe phase): run
-  `payment_reservation_states_isolated_test.sql` (after 0034, before 0035;
-  expects 0028; needs three accounts), then 0035, then
-  `booking_payment_expiry_schedule.sql`, then deploy the app.
+- Release steps (with the Stripe phase): see
+  `docs/payments/stripe-test-mode-runbook.md` §2 and §6.
+  `payment_reservation_states_isolated_test.sql` (after 0034, before 0035; expects
+  0028; needs three accounts) is **prohibited on production**: it disables booking
+  triggers, which locks `booking_request_items` exclusively while it runs. Run it
+  only on a copy of the database. On production, use the read-only
+  `docs/payments/production-preflight-readonly.sql` instead.
+  `booking_payment_expiry_schedule.sql` is a separate, owner-approved decision
+  (runbook §5).
 - Concurrency (tested outside the repository on a real PostgreSQL 17 server
   with parallel connections and committed data): overlapping acceptances are
   serialized with exactly one AWAITING_PAYMENT winner (25/25 races);
@@ -715,9 +720,11 @@ effect on the next request, no sign-out needed.
     to `authenticated`.
 - Before applying, check for experiences under €5 (read-only):
   `select id, title, price_per_person, published from public.experiences where price_per_person < 5;`
-- Release steps (with the Stripe phase, after 0035): run
-  `stripe_payments_isolated_test.sql` (after 0035, before 0036; expects 0028;
-  needs three accounts), then 0036.
+- Release steps (with the Stripe phase, after 0035): see the runbook
+  (`docs/payments/stripe-test-mode-runbook.md` §2 and §6).
+  `stripe_payments_isolated_test.sql` (after 0035, before 0036; expects 0028; needs
+  three accounts) is **prohibited on production**, as its own header says: it
+  disables booking triggers. Run it only on a copy of the database.
 - Tested outside the repository on a real PostgreSQL 17 server:
   - **Isolated test:** passes, and fails at the intended check on each of 32
     deliberately broken versions of 0036, 13 of them aimed at the release gate.
@@ -740,3 +747,78 @@ effect on the next request, no sign-out needed.
     through (and 0036's own postconditions refuse to apply such a version).
 - SHA-256 of the files as written: 0036 `c875e6bdce74e4bc…`, isolated test
   `80f4950b01a3539f…`.
+
+## Migration 0037: Stripe test mode — NOT YET APPLIED ANYWHERE
+
+- `0037_stripe_test_mode.sql` is **written but not applied** (not to production,
+  not anywhere else). Apply it right after 0035 and 0036, in the same maintenance
+  window, together with the app version that calls it. Full procedure, backup and
+  limits: `docs/payments/stripe-test-mode-runbook.md`. Same form as 0023-0036: one
+  `DO` statement, preconditions (0035 and 0036 applied; `extensions.hmac`; no
+  `felyn_private` yet; run as the owner of `booking_request_items`) and
+  postconditions.
+- **Test mode only.** The new owner-only schema `felyn_private` holds:
+  - `stripe_settings`: one row, `livemode = false`. The database refuses live
+    events and live payment attempts;
+  - `stripe_webhook_secrets`: empty after the migration. The owner adds each
+    endpoint's `whsec_` secret by hand (runbook). Plaintext at rest: readable by
+    the database owner, the dashboard and backups, never by an API key.
+  `anon`, `authenticated` and `service_role` have no access to the schema
+  (postconditions check it).
+- `public.stripe_apply_event(endpoint, body_base64, signature)`, service_role only,
+  is the single way a Stripe event changes anything. It:
+  - re-verifies Stripe's signature over the exact raw body: HMAC-SHA256 with
+    pgcrypto, 300-second tolerance, current or previous secret;
+  - refuses live events and event types sent to the wrong endpoint;
+  - deduplicates by event id (0036's `stripe_events`; `pending_webhooks` is left out
+    of the payload hash).
+
+  Then, in the same transaction:
+  - `checkout.session.completed`: the attempt becomes `authorized` (manual capture).
+    The answer is `capture` while the booking is AWAITING_PAYMENT and more than
+    2 minutes before `payment_due_at`. Otherwise the attempt is released and the
+    answer is `cancel_authorization`.
+  - Unmatched or mismatched sessions are never kept (`cancel_authorization`).
+  - `checkout.session.expired`: the attempt becomes `expired`.
+  - `payment_intent.succeeded`: `captured`, then 0035's owner-only
+    `booking_item_mark_paid`.
+    - If the booking is confirmed: the payment is `confirmed` and the host transfer
+      `pending`.
+    - Otherwise (FB002): `unconfirmable`, transfer `blocked`, refund via support.
+  - `payment_intent.canceled`: the attempt is `released`.
+  - `charge.refunded` and `charge.dispute.*`: recorded, and the host transfer is
+    blocked.
+  - `account.updated` (Connect): the host payout account is synced. Older events
+    never overwrite newer ones.
+
+  A redelivered completion repeats its action, decided again from the attempt's
+  current state. No event releases or creates a host transfer or payout, and none
+  creates an email (payment confirmation produces only 0035's in-app notice).
+- For guests and hosts (`authenticated`):
+  - `booking_payment_start(item)`: the guest's own AWAITING_PAYMENT booking;
+    amounts come from the booking snapshot (fee = (gross + 5) / 10), and 0036's
+    insert guard re-checks them (FB004/FB005/FB006). It resumes an open session,
+    and abandons attempts stuck in `creating` for 15 minutes.
+  - `booking_payment_guest_status(item)`: the guest's latest attempt status.
+  - `host_payout_account_status()`: the caller's own payout account.
+- For the server (`service_role`), recording what Stripe's API returned:
+  - `stripe_record_checkout_session`: must expire at least 10 minutes before the
+    deadline (22023), and only for an attempt still `creating`;
+  - `stripe_record_checkout_failure`;
+  - `stripe_register_host_account`: never marks an account ready; an existing
+    account wins.
+- Companion file (not a migration; never run during deployment):
+  `stripe_test_mode_isolated_test.sql` — the fail-closed rehearsal, to be run
+  **after 0036 and before 0037**. It embeds 0037's section 2 verbatim
+  (`tests/stripe-test-mode.test.ts` fails if the two drift). It signs its own test
+  events with a throwaway secret via pgcrypto and needs three accounts. It always
+  ends in an error, so everything is rolled back.
+- Tested outside the repository on a real PostgreSQL 17 server (0001-0037
+  replayed, Supabase roles shimmed):
+  - 28 end-to-end checks passed: signatures, rotation, stale, live and
+    wrong-endpoint refusals, duplicates (including two simultaneous deliveries),
+    capture/confirm, late capture, unmatched sessions, refunds, disputes, the
+    41-minute and 10-minute rules, stale attempts, privileges.
+  - 7 deliberately broken versions of 0037 were each caught.
+  - The isolated test prints `FELYN TEST PASSED` and leaves nothing behind. It
+    fails at setup once 0037 is applied, and it caught 2 broken versions.

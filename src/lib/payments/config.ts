@@ -1,17 +1,19 @@
 /**
- * Stripe integration, Stage 1: payment configuration, read from server-only
- * environment variables. Pure (takes the env as an argument, never reads or
- * changes process.env itself) so it can be unit-tested, like ../email/config.ts.
- * Nothing uses it yet; later stages read it on the server only.
+ * Stripe payment configuration, read from server-only environment variables.
+ * Pure (takes the env as an argument, never reads or changes process.env
+ * itself) so it can be unit-tested, like ../email/config.ts. The server reads
+ * it through ./server.ts.
  *
  *   PAYMENTS_ENABLED               true | false (default false: no payment is offered)
- *   STRIPE_MODE                    test | live — required when enabled; must match the key
- *   STRIPE_SECRET_KEY              sk_test_/rk_test_ in test mode, sk_live_/rk_live_ in live mode
- *                                  (a restricted rk_ key is preferred)
+ *   STRIPE_MODE                    test — required when enabled. THIS BUILD IS TEST MODE ONLY:
+ *                                  "live" is refused (and the database, 0037, refuses live
+ *                                  events and attempts too). Going live needs a reviewed change.
+ *   STRIPE_SECRET_KEY              sk_test_ / rk_test_ (a restricted rk_ key is preferred);
+ *                                  any live key is refused
  *   STRIPE_WEBHOOK_SECRET          whsec_... for the platform webhook endpoint
  *   STRIPE_CONNECT_WEBHOOK_SECRET  whsec_... for the Connect (connected accounts) endpoint
- *   PAYMENTS_APP_URL               origin for Checkout/onboarding return links; https in live mode
- *                                  (http allowed in test mode, e.g. http://localhost:3000)
+ *   PAYMENTS_APP_URL               origin for Checkout/onboarding return links (http allowed in
+ *                                  test mode, e.g. http://localhost:3000)
  *
  * None of these may ever be NEXT_PUBLIC_. Error messages name the variable,
  * never its value.
@@ -19,7 +21,8 @@
 export type StripeMode = "test" | "live";
 
 export type PaymentsConfig = {
-  mode: StripeMode;
+  /** Always "test" in this build (live is refused above and by the database). */
+  mode: "test";
   secretKey: string;
   webhookSecret: string;
   connectWebhookSecret: string;
@@ -62,13 +65,16 @@ export function readPaymentsConfig(env: Env): PaymentsConfigResult {
   if (enabled !== "true") return { ok: false, error: "PAYMENTS_ENABLED must be true or false" };
 
   const mode = clean(env.STRIPE_MODE)?.toLowerCase();
-  if (mode !== "test" && mode !== "live") return { ok: false, error: "STRIPE_MODE must be test or live when PAYMENTS_ENABLED=true" };
+  if (mode === "live") {
+    return { ok: false, error: "STRIPE_MODE=live is not supported: this build accepts Stripe test mode only" };
+  }
+  if (mode !== "test") return { ok: false, error: "STRIPE_MODE must be test when PAYMENTS_ENABLED=true" };
 
   const secretKey = clean(env.STRIPE_SECRET_KEY);
   if (!secretKey) return { ok: false, error: "STRIPE_SECRET_KEY is required when PAYMENTS_ENABLED=true" };
   const keyMatch = SECRET_KEY_PATTERN.exec(secretKey);
   if (!keyMatch) return { ok: false, error: "STRIPE_SECRET_KEY is not a Stripe secret or restricted key" };
-  if (keyMatch[2] !== mode) return { ok: false, error: `STRIPE_SECRET_KEY is not a ${mode}-mode key (STRIPE_MODE=${mode})` };
+  if (keyMatch[2] !== "test") return { ok: false, error: "STRIPE_SECRET_KEY is a live-mode key; this build accepts test-mode keys only" };
 
   const webhookSecret = clean(env.STRIPE_WEBHOOK_SECRET);
   if (!webhookSecret) return { ok: false, error: "STRIPE_WEBHOOK_SECRET is required when PAYMENTS_ENABLED=true" };
@@ -85,13 +91,8 @@ export function readPaymentsConfig(env: Env): PaymentsConfigResult {
 
   const rawAppUrl = clean(env.PAYMENTS_APP_URL);
   if (!rawAppUrl) return { ok: false, error: "PAYMENTS_APP_URL is required when PAYMENTS_ENABLED=true" };
-  const appUrl = normalizeOrigin(rawAppUrl, mode === "live");
-  if (!appUrl) {
-    return {
-      ok: false,
-      error: mode === "live" ? "PAYMENTS_APP_URL must be an https origin in live mode, e.g. https://app.felyn.eu" : "PAYMENTS_APP_URL is not a valid origin",
-    };
-  }
+  const appUrl = normalizeOrigin(rawAppUrl, false);
+  if (!appUrl) return { ok: false, error: "PAYMENTS_APP_URL is not a valid origin" };
 
-  return { ok: true, config: { mode, secretKey, webhookSecret, connectWebhookSecret, appUrl } };
+  return { ok: true, config: { mode: "test", secretKey, webhookSecret, connectWebhookSecret, appUrl } };
 }

@@ -29,6 +29,12 @@ import { getBookingStartTime, getBookingTimeLabel } from "@/lib/matching/plan";
 import { formatDayLabel } from "@/lib/matching/timeline";
 import { getOpenGuestSupportThreadId } from "@/lib/support/queries";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { PayForBookingButton } from "@/components/booking/PayForBookingButton";
+import { PaymentStatusRefresher } from "@/components/booking/PaymentStatusRefresher";
+import { getGuestPaymentPanel, parseCheckoutReturn, type GuestAttemptStatus } from "@/lib/payments/lifecycle";
+import { getPaymentStartMessage } from "@/lib/payments/messages";
+import { canStartCheckoutNow, getServerPayments, isPaymentDeadlinePassed } from "@/lib/payments/server";
+import { getCheckoutWindowErrorMessage } from "@/lib/payments/timing";
 
 function humanizeCategory(category: string): string {
   return category.replace(/_/g, " & ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -46,16 +52,21 @@ function humanizeCategory(category: string): string {
  *
  * "Get help" contacts the Felyn Team about this booking (the booking is attached
  * automatically); `?help=1` opens it straight away ("Contact Felyn again").
+ *
+ * Payment (Stripe test mode): while the booking is AWAITING_PAYMENT the guest can pay
+ * through Stripe Checkout. `?checkout=success|cancelled` (Stripe's return) only changes
+ * the wording: the booking is confirmed solely by the database, from Stripe's verified
+ * webhook, and this page shows "processing" until then.
  */
 export default async function GuestExperienceDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ itemId: string }>;
-  searchParams: Promise<{ help?: string }>;
+  searchParams: Promise<{ help?: string; checkout?: string }>;
 }) {
   const { itemId } = await params;
-  const { help } = await searchParams;
+  const { help, checkout } = await searchParams;
   const supabase = await createSupabaseServerClient();
   const item = await getGuestExperienceDetail(supabase, itemId);
 
@@ -84,6 +95,20 @@ export default async function GuestExperienceDetailPage({
   ]);
   // The booking's own guest<->host conversation (0014/0021 decide who may still send).
   const messagingWindow = getMessagingWindowState(item.status, item.decidedAt, item.cancelledAt, item.paymentDueAt);
+
+  // Payment, while the booking awaits it: the database's attempt status decides.
+  let paymentPanel: ReturnType<typeof getGuestPaymentPanel> = "none";
+  if (item.status === "AWAITING_PAYMENT") {
+    const { data: attemptStatus } = await supabase.rpc("booking_payment_guest_status", { p_item_id: item.id });
+    paymentPanel = getGuestPaymentPanel({
+      status: item.status,
+      attemptStatus: (typeof attemptStatus === "string" ? attemptStatus : null) as GuestAttemptStatus,
+      checkoutReturn: parseCheckoutReturn(checkout),
+      paymentsEnabled: getServerPayments().enabled,
+      canStartCheckout: canStartCheckoutNow(item.paymentDueAt),
+      deadlinePassed: isPaymentDeadlinePassed(item.paymentDueAt),
+    });
+  }
 
   return (
     <div className="flex flex-1 flex-col">
@@ -177,10 +202,43 @@ export default async function GuestExperienceDetailPage({
           ) : null}
 
           {item.status === "AWAITING_PAYMENT" ? (
-            <p className="rounded-xl bg-sky-50 px-4 py-3 text-sm text-navy-700">
-              Your host accepted this request. It isn&apos;t confirmed until you pay
-              {item.paymentDueAt ? <> — payment is due by {formatCanaryDeadline(item.paymentDueAt)} (Tenerife time)</> : null}.
-            </p>
+            <div className="flex flex-col gap-3 rounded-xl bg-sky-50 px-4 py-4 text-sm text-navy-700">
+              {paymentPanel === "processing" ? (
+                <>
+                  <p>
+                    Thanks — we&apos;re confirming your payment with our payment provider. Your booking is confirmed only once
+                    this page says so; it updates by itself.
+                  </p>
+                  <PaymentStatusRefresher />
+                </>
+              ) : paymentPanel === "deadline_passed" ? (
+                <p>
+                  The payment deadline
+                  {item.paymentDueAt ? <> ({formatCanaryDeadline(item.paymentDueAt)}, Tenerife time)</> : null} has passed, so
+                  this booking can no longer be paid or confirmed. It will be marked as expired.
+                </p>
+              ) : (
+                <p>
+                  Your host accepted this request. It isn&apos;t confirmed until you pay
+                  {item.paymentDueAt ? <> — payment is due by {formatCanaryDeadline(item.paymentDueAt)} (Tenerife time)</> : null}.
+                </p>
+              )}
+              {paymentPanel === "pay" || paymentPanel === "pay_after_cancel" ? (
+                <>
+                  {paymentPanel === "pay_after_cancel" ? <p>Your payment wasn&apos;t completed. You can try again.</p> : null}
+                  <PayForBookingButton itemId={item.id} label={`Pay ${formatCurrency(total, item.currency)}`} />
+                  <p className="text-xs text-navy-500">
+                    Secure payment by Stripe (test mode — no real card is charged). Your card is authorized now and charged
+                    once your booking is confirmed.
+                  </p>
+                </>
+              ) : null}
+              {paymentPanel === "too_late" ? <p>{getCheckoutWindowErrorMessage("too_late_to_start_checkout")}</p> : null}
+              {paymentPanel === "needs_support" ? <p>{getPaymentStartMessage("needs_support")}</p> : null}
+              {paymentPanel === "unavailable" ? (
+                <p className="text-navy-500">Online payment isn&apos;t available yet.</p>
+              ) : null}
+            </div>
           ) : null}
           {item.status === "PAYMENT_EXPIRED" ? (
             <p className="text-sm text-navy-500">

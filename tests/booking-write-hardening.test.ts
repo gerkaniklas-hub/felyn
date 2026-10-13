@@ -102,18 +102,25 @@ test("clients get no UPDATE on either booking table and INSERT only on the reque
   assert.match(functionBody("booking_request_items_before_insert"), /new\.price_per_person := v_exp\.price_per_person;/);
 });
 
-test("the app calls only transition functions that 0031 defines", () => {
+test("the app calls only transition functions that 0031 defines (plus 0037's guest payment functions)", () => {
   const calls = sourceFiles()
     .flatMap((file) => [...readFileSync(file, "utf8").matchAll(/\.rpc\("(booking_[a-z_]+)"/g)].map((m) => m[1]));
+  // 0037: starting a payment and reading its status — neither changes a booking's status.
+  const paymentFunctions = ["booking_payment_guest_status", "booking_payment_start"];
   assert.deepEqual([...new Set(calls)].sort(), [
     "booking_item_cancel_as_guest",
     "booking_item_cancel_as_host",
     "booking_item_confirm",
     "booking_item_decline",
     "booking_item_withdraw",
+    ...paymentFunctions,
     "booking_request_withdraw",
   ]);
-  for (const name of calls) assert.ok(migration.includes(`create function public.${name}(`), `${name} is not defined in 0031`);
+  const migration37 = readFileSync(path.join(migrations, "0037_stripe_test_mode.sql"), "utf8");
+  for (const name of new Set(calls)) {
+    const source = paymentFunctions.includes(name) ? migration37 : migration;
+    assert.ok(source.includes(`create function public.${name}(`), `${name} is not defined in ${paymentFunctions.includes(name) ? "0037" : "0031"}`);
+  }
 });
 
 test("no app code writes booking columns that 0031 makes database-only", () => {

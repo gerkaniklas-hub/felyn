@@ -177,7 +177,7 @@ test("the isolated test embeds 0036's section 2 verbatim", () => {
   assert.doesNotMatch(isolated, /^\s*(begin|commit|rollback)\s*;/im);
 });
 
-test("no application code touches the payment tables yet (Stage 2 is database-only)", () => {
+test("no application code touches the payment tables directly (only 0037's functions do)", () => {
   for (const file of readdirSync(path.join(root, "src"), { recursive: true }) as string[]) {
     if (!/\.tsx?$/.test(file)) continue;
     assert.doesNotMatch(
